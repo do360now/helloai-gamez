@@ -526,9 +526,20 @@ legend: # filled, @ current piece, + where it lands, . empty
       var b = best(bench.game, bench.bench, bench.seed, m.mode);
       return { you: true, mode: m.mode, label: m.label, score: b ? b.score : null, stats: b ? b.stats : null };
     });
+    // A benchmark may declare tiebreak: "<stats key>" (for Night Shift, "commands"). Equal scores then rank by the
+    // lower value of that stat, for submitted runs and this browser's best alike, when both rows have it.
+    function tieStat(e) {
+      var st = e.run ? e.run.stats : e.mine.stats;
+      var v = bench.tiebreak && st ? st[bench.tiebreak] : undefined;
+      return typeof v === "number" ? v : null;
+    }
     var all = runs.map(function (r) { return { run: r, score: r.score }; })
       .concat(mine.filter(function (m) { return m.score !== null; }).map(function (m) { return { mine: m, score: m.score }; }))
-      .sort(function (a, b) { return b.score - a.score; });
+      .sort(function (a, b) {
+        if (b.score !== a.score) return b.score - a.score;
+        var ta = tieStat(a), tb = tieStat(b);
+        return ta === null || tb === null || ta === tb ? 0 : ta - tb;
+      });
     var max = Math.max.apply(null, all.map(function (r) { return r.score; }).concat([1]));
     var rows = el("div", { class: "rows" });
 
