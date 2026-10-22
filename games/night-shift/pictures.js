@@ -743,7 +743,7 @@ var diner = scene([], 31, function (p) {
   var WHITE = p.ramp("#2a2a2c", "#fcfcf8", 8), SKINL = p.ramp("#1a0a04", "#b07848", 8), SKIND = p.ramp("#2a160a", "#f0b890", 8);
   var JACK = p.ramp("#04060e", "#4a5c9a", 8), COFFEE = p.ramp("#0a0402", "#7a4a2a", 8), GLASS = p.ramp("#0a1418", "#c8f0ff", 8);
   var PIE = p.ramp("#2a0606", "#ff6a5a", 8), CRUST = p.ramp("#2a1806", "#f0c080", 8), BLACK = p.ramp("#020202", "#3a3a3c", 8);
-  var CREAM = p.ramp("#2a2a24", "#f4f0e0", 8), WARM = p.ramp("#2a1804", "#fff0c0", 8);
+  var CREAM = p.ramp("#2a2a24", "#f4f0e0", 8), WARM = p.ramp("#2a1804", "#fff0c0", 8), BOOT = p.ramp("#140802", "#a0643a", 8);
   var BURN = p.cycle(["#ff3010", "#e02808", "#ff3010", "#c02006", "#ff3010", "#ff4a1a"], 180);
   var STEAM = p.cycle(["#9a9a90", "#5a5a54", "#2a2a28", "#2a2a28"], 240);
   var ZZZ = p.cycle(["#f4f0e0", "#3a3a3c", "#3a3a3c", "#3a3a3c", "#3a3a3c", "#3a3a3c"], 420);
@@ -775,25 +775,30 @@ var diner = scene([], 31, function (p) {
   pot(54, false); pot(94, true);
   op("rect", 52, 24, 1, 1, STEAM); op("rect", 54, 20, 1, 1, STEAM + 1); op("rect", 53, 16, 1, 1, STEAM + 2); op("rect", 56, 26, 1, 1, STEAM + 3); op("rect", 55, 22, 1, 1, STEAM);
 
-  // Lou, leaning on the counter with her crossword.
-  op("poly", WHITE + 6, [124, 64, 152, 64, 160, 102, 116, 102]);
-  op("poly", WHITE + 4, [128, 72, 148, 72, 150, 102, 126, 102]);
-  op("rect", 135, 56, 6, 9, SKINL + 4);
-  op("ellipse", 138, 48, 8, 9, SKINL + 5);
-  op("rect", 129, 34, 18, 9, WHITE + 7); op("rect", 129, 41, 18, 2, WHITE + 4);
-  op("ellipse", 138, 44, 8, 3, BLACK + 1); op("rect", 130, 44, 2, 6, BLACK + 1); op("rect", 144, 44, 2, 6, BLACK + 1);
-  op("rect", 134, 48, 2, 1, BLACK); op("rect", 140, 48, 2, 1, BLACK); op("rect", 136, 53, 4, 1, SKINL + 2);
-  op("poly", WHITE + 5, [124, 66, 116, 72, 92, 100, 100, 104, 122, 80]); op("ellipse", 92, 101, 4, 3, SKINL + 5);
-  op("poly", WHITE + 5, [152, 66, 160, 74, 158, 104, 150, 104]); op("ellipse", 154, 104, 4, 2, SKINL + 5);
+  // Lou behind the counter, chin on her hand, reading the crossword in front of her.
+  op("poly", WHITE + 4, [114, 68, 146, 68, 158, 84, 160, 100, 108, 100, 106, 86]);
+  op("poly", WHITE + 7, [122, 72, 142, 72, 148, 100, 118, 100]);
+  op("line", 122, 72, 127, 66, WHITE + 6); op("line", 142, 72, 137, 66, WHITE + 6);
+  op("rect", 127, 64, 7, 6, SKINL + 3);
+  op("ellipse", 130, 59, 8, 8, SKINL + 5);
+  op("ellipse", 130, 52, 10, 5, BLACK + 1); op("ellipse", 122, 57, 3, 4, BLACK + 1); op("ellipse", 138, 56, 3, 4, BLACK + 1);
+  op("poly", WHITE + 7, [120, 46, 140, 44, 142, 51, 119, 52]); op("line", 120, 50, 141, 49, WHITE + 4);
+  op("line", 125, 60, 127, 61, BLACK); op("line", 132, 61, 134, 60, BLACK); op("rect", 129, 64, 3, 1, PIE + 3);
+  op("poly", WHITE + 5, [106, 84, 116, 80, 118, 92, 110, 96]);
+  op("poly", SKINL + 4, [110, 98, 116, 96, 126, 70, 120, 68]);
+  op("ellipse", 123, 67, 4, 3, SKINL + 6);
+  op("poly", WHITE + 5, [150, 78, 159, 84, 158, 94, 150, 92]);
+  op("poly", SKINL + 4, [152, 92, 158, 94, 146, 100, 136, 100, 138, 96]);
 
   // The counter.
   op("rect", 0, 100, 320, 4, CHROME + 12); op("rect", 0, 104, 320, 10, RED + 8); op("rect", 0, 113, 320, 1, CHROME + 6);
   op("vgrad", 0, 114, 320, 38, CHROME + 9, CHROME + 4);
   for (x = 4; x < 320; x += 10) op("rect", x, 116, 2, 34, CHROME + 11);
   op("rect", 0, 150, 320, 3, BLACK + 1);
-  op("poly", CREAM + 7, [56, 106, 86, 104, 87, 110, 57, 112]);
-  for (k = 0; k < 4; k++) for (var j = 0; j < 2; j++) op("rect", 60 + k * 4, 106 + j * 2, 3, 1, (k + j) % 2 ? 0 : CREAM + 3);
-  op("line", 76, 107, 84, 107, CREAM + 2); op("line", 76, 109, 84, 108, CREAM + 2);
+  // Lou's crossword, mostly done in ink.
+  op("poly", CREAM + 7, [88, 101, 118, 100, 120, 107, 89, 108]);
+  for (k = 0; k < 5; k++) for (var j = 0; j < 2; j++) op("rect", 91 + k * 3, 102 + j * 2, 2, 1, (k + j) % 2 ? 0 : CREAM + 3);
+  op("line", 108, 102, 116, 102, CREAM + 2); op("line", 108, 104, 117, 104, CREAM + 2); op("line", 109, 106, 117, 106, CREAM + 2);
 
   // Pie case on the counter: two slices of cherry left.
   op("rect", 236, 70, 60, 34, CHROME + 7); op("rect", 238, 72, 56, 30, GLASS + 1);
@@ -811,23 +816,27 @@ var diner = scene([], 31, function (p) {
     for (x = -(r * 7); x < 320; x += w) if ((Math.floor(x / w) + r) % 2 === 0) op("rect", x, row[0], w, h, CREAM + 4);
   });
 
-  // Chrome stools with red seats; Dale has one, asleep on his arms.
-  function stool(x) {
-    op("rect", x - 2, 152, 4, 36, CHROME + 8); op("rect", x - 1, 152, 1, 36, CHROME + 13);
-    op("ellipse", x, 189, 9, 2, CHROME + 5);
-    op("ellipse", x, 148, 9, 3, RED + 6); op("ellipse", x, 147, 8, 2, RED + 9);
-  }
-  stool(42); stool(116); stool(190); stool(262);
-  // Dale on the last stool, the one whose floor the stool's text points at.
-  var dx = 42 - 188;
-  function pts(a) { return a.map(function (v, i) { return i % 2 ? v : v + dx; }); }
-  op("poly", JACK + 4, pts([170, 116, 206, 112, 212, 150, 168, 150]));
-  op("poly", JACK + 5, pts([168, 100, 210, 98, 212, 116, 168, 118]));
-  op("poly", JACK + 3, pts([172, 96, 186, 92, 190, 102, 174, 104]));
-  op("ellipse", 188 + dx, 98, 10, 7, BLACK + 2); op("ellipse", 186 + dx, 101, 6, 3, SKIND + 4);
-  op("rect", 196 + dx, 96, 10, 6, JACK + 6); op("rect", 172 + dx, 148, 8, 6, JACK + 2); op("rect", 200 + dx, 148, 8, 6, JACK + 2);
-  op("text", 54, 80, "Z", ZZZ); op("text", 58, 72, "Z", ZZZ + 1, 1); op("text", 62, 60, "Z", ZZZ + 2, 2);
-  op("rect", 8, 94, 8, 7, CREAM + 6); op("ellipse", 12, 94, 4, 1, COFFEE + 2); op("rect", 16, 96, 2, 3, CREAM + 5);
+  // Chrome stools with red seats.
+  function post(x) { op("rect", x - 2, 152, 4, 36, CHROME + 8); op("rect", x - 1, 152, 1, 36, CHROME + 13); op("ellipse", x, 189, 9, 2, CHROME + 5); }
+  function seat(x) { op("ellipse", x, 148, 9, 3, RED + 6); op("ellipse", x, 147, 8, 2, RED + 9); }
+  [150, 212, 286].forEach(function (x) { post(x); seat(x); });
+
+  // Dale on the last stool, asleep on his crossed arms, collar up.
+  post(42);
+  op("poly", JACK + 2, [30, 140, 46, 142, 40, 166, 30, 166]); op("poly", BOOT + 2, [22, 164, 40, 163, 42, 171, 20, 172]);
+  op("poly", JACK + 3, [26, 128, 64, 124, 72, 134, 66, 144, 30, 148]);
+  op("poly", JACK + 3, [62, 132, 74, 138, 66, 166, 54, 164]);
+  op("poly", BOOT + 4, [46, 165, 66, 163, 70, 172, 44, 173]); op("line", 44, 172, 70, 172, BOOT + 1);
+  op("poly", JACK + 4, [24, 82, 44, 80, 56, 86, 52, 100, 44, 112, 46, 140, 20, 142, 12, 124, 10, 100, 16, 88]);
+  op("line", 16, 88, 24, 82, JACK + 7); op("line", 10, 100, 16, 88, JACK + 6); op("line", 44, 112, 46, 138, JACK + 2);
+  op("poly", JACK + 6, [44, 80, 54, 77, 60, 85, 52, 88]);
+  op("poly", JACK + 5, [44, 86, 70, 92, 82, 96, 82, 102, 60, 103, 42, 100]); op("line", 58, 98, 80, 100, JACK + 2);
+  op("ellipse", 63, 89, 8, 7, SKIND + 3); op("ellipse", 61, 86, 8, 5, BLACK + 2); op("ellipse", 56, 90, 2, 2, SKIND + 4);
+  op("rect", 77, 97, 5, 3, SKIND + 5);
+  op("rect", 45, 92, 5, 4, 15); op("rect", 45, 92, 2, 2, 1); op("line", 47, 93, 49, 93, 12); op("line", 45, 95, 49, 95, 12);
+  seat(42);
+  op("text", 72, 78, "Z", ZZZ); op("text", 77, 70, "Z", ZZZ + 1, 1); op("text", 82, 58, "Z", ZZZ + 2, 2);
+  op("rect", 214, 94, 8, 7, CREAM + 6); op("ellipse", 218, 94, 4, 1, COFFEE + 2); op("rect", 222, 96, 2, 3, CREAM + 5);
 
   op("light", 80, 40, 90, 80, 4); op("light", 210, 40, 90, 80, 4);
   op("light", 80, 110, 80, 30, 3); op("light", 210, 110, 80, 30, 3);
