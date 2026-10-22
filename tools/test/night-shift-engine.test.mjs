@@ -68,6 +68,8 @@ function world() {
       { id: "unlock", when: { verb: "use", object: "key", target: "door" }, require: { has: ["key"], flags: { doorOpen: false } }, fail: "You need the key in hand.", do: [{ flag: "doorOpen", value: true }, { score: 10 }, { reply: "The door unlocks." }] },
       { id: "open-safe", when: { verb: "open", object: "safe" }, do: [{ score: 10 }, { win: "The safe swings open. You win." }] },
       { id: "pull-cord", when: { verb: "pull", object: "cord" }, do: [{ score: 1 }, { die: "Zap. You are dead." }] },
+      { id: "grab-cord", when: { verb: "take", object: "cord" }, do: [{ flag: "touched", value: true }, { move: "cord", to: "inventory" }, { die: "Zap. Dead again." }] },
+      { id: "admire-mat", when: { verb: "look", object: "mat" }, do: [{ score: 2 }] },
       { id: "asked-weather", when: { verb: "ask", object: "bob", topic: "weather" }, do: [{ flag: "askedWeather", value: true }] },
       { id: "bell", when: { turn: true }, require: { flags: { doorOpen: true, bellRang: false } }, do: [{ flag: "bellRang", value: true }, { reply: "Somewhere a bell rings." }] },
       { id: "shortcut", when: { verb: "open", object: "mat" }, do: [{ exit: { room: "hall", dir: "down", to: "closet", name: "a trapdoor" } }, { reply: "A trapdoor." }] },
@@ -181,7 +183,7 @@ test("unknown verb, unknown noun and ambiguity reply and count as a turn", () =>
 test("help, score and wait", () => {
   const g = game();
   assert.match(g.command("help").reply, /^look \| look at <object>\ntake <object>\n/);
-  assert.equal(g.command("score").reply, "Score: 0 of 31, turn 2 of 150.");
+  assert.equal(g.command("score").reply, "Score: 0 of 33, turn 2 of 150.");
   assert.equal(g.command("wait").reply, "Time passes.");
 });
 
@@ -194,11 +196,139 @@ test("state has the seam fields", () => {
   assert.deepEqual(s.verbs[0], { verb: "look", synonyms: ["l", "look at", "examine", "x"], usage: "look | look at <object>", args: 1 });
   assert.deepEqual(s.transcript, [{ cmd: "look", reply: s.room.text }]);
   assert.equal(s.budget, 150);
-  assert.equal(s.maxScore, 31);
+  assert.equal(s.maxScore, 33);
   assert.deepEqual(s.objects[0], { id: "mat", name: "mat", noun: "mat", nouns: ["mat", "doormat"], hotspot: null, person: false });
 });
 
 test("mulberry32 matches the arcade.js generator for seed 20261022", () => {
   const r = mulberry32(20261022);
   assert.deepEqual([r(), r(), r()].map((x) => x.toFixed(6)), ["0.559159", "0.218830", "0.558487"]);
+});
+
+// Task 4: rules, scoring, death rewind, win, budget, turn rules.
+
+test("rule with failing require replies with its fail text", () => {
+  const g = game();
+  g.command("search mat");
+  assert.equal(g.command("use key on door").reply, "You need the key in hand.");
+  assert.equal(g.state().score, 5);
+});
+
+test("rule effects apply and score once; a later more specific rule overrides", () => {
+  const g = game();
+  assert.equal(g.command("search mat").reply, "A brass key was under the mat.");
+  assert.equal(g.command("search mat").reply, "Nothing else under there.");
+  assert.equal(g.state().score, 5);
+  g.command("take key");
+  const r = g.command("use key on door");
+  assert.equal(r.reply, "The door unlocks.\nSomewhere a bell rings.");
+  assert.deepEqual(r.events, [{ type: "scored", points: 10, id: "unlock" }]);
+  assert.equal(g.state().score, 15);
+  assert.match(g.state().room.text, /The door stands open\./);
+  assert.equal(g.command("use key on door").reply, "You need the key in hand.");
+  assert.equal(g.state().score, 15);
+});
+
+test("turn rule fires once when its require holds", () => {
+  const g = game();
+  g.command("search mat"); g.command("take key"); g.command("use key on door");
+  assert.equal(g.command("wait").reply, "Time passes.");
+});
+
+test("a rule that only sets a flag falls through to the default reply", () => {
+  const g = game();
+  assert.equal(g.command("ask bob about weather").reply, "Bob shrugs. \"Cold.\"");
+});
+
+test("death replies with the full message, costs 5, counts, and rewinds everything else", () => {
+  const g = game();
+  g.command("search mat"); g.command("take key"); g.command("ask bob about safe");
+  assert.equal(g.state().score, 10);
+  const r = g.command("pull cord");
+  assert.equal(r.reply, "Zap. You are dead.\n...and then you are back where you were, a little wiser.");
+  assert.deepEqual(r.events, [{ type: "died", penalty: 5 }, { type: "rewound" }]);
+  const s = g.state();
+  assert.equal(s.score, 5);
+  assert.equal(s.deaths, 1);
+  assert.equal(s.turn, 4);
+  assert.equal(s.over, false);
+  assert.deepEqual(s.inventory.map((i) => i.id), ["key"]);
+  assert.equal(s.transcript.length, 4);
+  assert.equal(s.transcript[3].cmd, "pull cord");
+});
+
+test("death on a scoring command undoes the score and can be repeated", () => {
+  const g = game();
+  g.command("pull cord");
+  assert.equal(g.state().score, 0);
+  g.command("pull cord");
+  assert.equal(g.state().deaths, 2);
+  assert.equal(g.state().score, 0);
+  assert.equal(g.state().turn, 2);
+});
+
+test("win sets over with reason win and refuses further commands without a turn", () => {
+  const g = game();
+  g.command("search mat"); g.command("take key"); g.command("use key on door"); g.command("north");
+  const r = g.command("open safe");
+  assert.equal(r.reply, "The safe swings open. You win.\nFinal score: 25 of 33 in 5 turns.");
+  assert.deepEqual(r.events, [{ type: "scored", points: 10, id: "open-safe" }, { type: "over", reason: "win" }]);
+  assert.equal(g.state().over, true);
+  assert.equal(g.reason, "win");
+  assert.deepEqual(g.stats, { maxScore: 33, turns: 5, deaths: 0, won: 1 });
+  assert.deepEqual(g.command("look"), { reply: "The night is over.", events: [] });
+  assert.equal(g.state().turn, 5);
+});
+
+test("budget: command 150 applies and ends the run; 151 is refused", () => {
+  const g = game();
+  for (let i = 0; i < 149; i++) g.command("wait");
+  assert.equal(g.state().over, false);
+  const r = g.command("search mat");
+  assert.equal(r.reply, "A brass key was under the mat.\nThe night is over. Final score: 5 of 33.");
+  assert.deepEqual(r.events, [{ type: "scored", points: 5, id: "find-key" }, { type: "over", reason: "budget" }]);
+  assert.equal(g.state().over, true);
+  assert.equal(g.reason, "budget");
+  assert.deepEqual(g.command("take key"), { reply: "The night is over.", events: [] });
+  assert.equal(g.state().turn, 150);
+  assert.deepEqual(g.stats, { maxScore: 33, turns: 150, deaths: 0, won: 0 });
+});
+
+test("no benchmark means no budget", () => {
+  const g = createGame(world(), { random: fixed([0.5]) });
+  assert.equal(g.state().budget, null);
+  assert.equal(g.command("score").reply, "Score: 0 of 33, turn 1.");
+});
+
+test("reveal makes a hidden object visible and listed; exit effect opens a new exit", () => {
+  const g = game();
+  g.command("search mat");
+  assert.match(g.state().room.text, /You see: a mat, a brass key, a door, Bob, a cord\./);
+  assert.equal(g.command("open mat").reply, "A trapdoor.");
+  assert.match(g.state().room.text, /Exits: north \(the office door\), east \(the closet\), down \(a trapdoor\)\./);
+  assert.equal(g.command("down").reply, g.state().room.text);
+  assert.equal(g.state().room.id, "closet");
+});
+
+test("snapshot and restore round-trip", () => {
+  const g = game();
+  g.command("search mat");
+  const s = g.snapshot();
+  g.command("take key");
+  g.restore(s);
+  assert.deepEqual(g.state().inventory, []);
+  assert.equal(g.state().turn, 1);
+});
+
+test("death rewinds an item move and a flag made by the fatal command", () => {
+  const g = game();
+  const r = g.command("take cord");
+  assert.equal(r.reply, "Zap. Dead again.\n...and then you are back where you were, a little wiser.");
+  assert.deepEqual(g.state().inventory, []);
+  assert.match(g.state().room.text, /a cord\./);
+  g.command("ask bob about door");
+  assert.equal(g.command("look at mat").reply, "A doormat.");
+  assert.equal(g.state().score, 2);
+  assert.equal(g.command("look at mat").reply, "A doormat.");
+  assert.equal(g.state().score, 2);
 });
