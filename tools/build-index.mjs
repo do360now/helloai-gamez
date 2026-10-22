@@ -20,6 +20,17 @@ for (const b of benchmarks) {
     runs.push({ benchmark: b.id, file: `data/runs/${b.game}/${b.bench}/${name}`, moves: actions.length, ...rest });
   }
 }
-runs.sort((a, b) => a.benchmark.localeCompare(b.benchmark) || b.score - a.score);
+// Within a benchmark: score first; then, only where the benchmark declares a tiebreak (a stats key,
+// lower is better, for example "commands"), that stat; otherwise the order is left as is.
+const tiebreakOf = Object.fromEntries(benchmarks.map((b) => [b.id, b.tiebreak || null]));
+function compare(a, b) {
+  if (a.benchmark !== b.benchmark) return a.benchmark.localeCompare(b.benchmark);
+  if (a.score !== b.score) return b.score - a.score;
+  const key = tiebreakOf[a.benchmark];
+  const x = key && a.stats ? a.stats[key] : undefined;
+  const y = key && b.stats ? b.stats[key] : undefined;
+  return typeof x === "number" && typeof y === "number" ? x - y : 0;
+}
+runs.sort(compare);
 await writeFile(path.join(runsDir, "index.json"), JSON.stringify({ updated: new Date().toISOString().slice(0, 10), benchmarks, runs }, null, 1) + "\n");
 console.log(`${runs.length} runs in data/runs/index.json`);

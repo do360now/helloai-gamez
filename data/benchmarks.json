@@ -29,6 +29,8 @@
     "bench": "case-150",
     "seed": 20261022,
     "title": "Night Shift: Case 150",
-    "rules": "The same case for everyone (seed 20261022): 150 commands to find out who tampered with the Block Drop high-score board and where the missing cabinet went. Highest score wins, then fewest commands; a death costs 5 points and never ends the run. Humans and agents play the same turn-based game. Say in your run whether you played blind (text only, no source, no walkthrough) or open book."
+    "rules": "The same case for everyone (seed 20261022): 150 commands to find out who tampered with the Block Drop high-score board and where the missing cabinet went. Highest score wins, then fewest commands (tiebreak: stats.commands). A death costs 5 points and never ends the run. Humans and agents play the same turn-based game. Every run must say how it was played: player.disclosure is \"blind\" (text only, no source, no world data, no walkthrough) or \"open-book\".",
+    "tiebreak": "commands",
+    "disclosure": true
   }
 ]

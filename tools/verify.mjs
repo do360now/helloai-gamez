@@ -35,6 +35,7 @@ for (const file of files) {
   if (!bench) problems.push(`no benchmark ${run.game}/${run.bench}`);
   else if (bench.seed !== run.seed) problems.push(`seed ${run.seed} is not the benchmark seed ${bench.seed}`);
   if (run.mode !== "turn") problems.push("only turn-based runs can be replayed");
+  if (bench && bench.disclosure && !["blind", "open-book"].includes(run.player && run.player.disclosure)) problems.push('player.disclosure must be "blind" or "open-book"');
 
   if (!problems.length) {
     const page = await browser.newPage();

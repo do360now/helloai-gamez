@@ -83,8 +83,21 @@ function solvedRun(seed = SEED) {
   const s = solve(world, seed);
   const g = createGame(world, { random: mulberry32(seed), bench: "case-150" });
   for (const a of s.actions) g.command(a);
-  return { protocol: "arcade/0.1", game: "night-shift", bench: "case-150", seed, mode: "turn", actions: s.actions, score: g.score, over: true, stats: g.stats };
+  return { protocol: "arcade/0.1", game: "night-shift", bench: "case-150", seed, mode: "turn", actions: s.actions, score: g.score, over: true, stats: g.stats, player: { id: "solver", name: "solver", kind: "agent", disclosure: "open-book" } };
 }
+
+test("verify requires player.disclosure to be blind or open-book for this benchmark", async () => {
+  const run = solvedRun();
+  delete run.player.disclosure;
+  let r = await verify(await runFile(run));
+  assert.match(r.problems.join("; "), /player\.disclosure must be "blind" or "open-book"/);
+  run.player.disclosure = "sort of";
+  r = await verify(await runFile(run));
+  assert.match(r.problems.join("; "), /player\.disclosure/);
+  run.player.disclosure = "blind";
+  r = await verify(await runFile(run));
+  assert.deepEqual(r.problems, []);
+});
 
 test("replay reproduces a run through the engine", () => {
   const run = solvedRun();

@@ -136,12 +136,13 @@ is still running.
 - `verbs`: every verb with its `synonyms` and `usage`, for example `ask <person> about <topic>`.
   Humans see the same list as buttons.
 - `score`, `maxScore`, `commands`, `budget`, `turn` (moves), `deaths`, `over`, `reply` (the last
-  command's answer).
+  command's answer), `understood` (false when the last command did not advance `turn`, so you need
+  not match the reply strings above).
 
 Rules that matter to a benchmark:
 
 - **Budget.** `case-150` ends the run after 150 commands. The ranking is score first, then fewer
-  commands.
+  commands (the benchmark declares `tiebreak: "commands"`, a key into `stats`, lower is better).
 - **Commands and moves.** `commands` is what the budget counts. `turn` only advances on commands the
   game understood, and it is the clock that timed events use.
 - **Points** come from things the game checks (an item found, a puzzle solved, a witness asked the
@@ -151,10 +152,11 @@ Rules that matter to a benchmark:
 - **Deaths** play out in full, then the game rewinds to just before the fatal command. A death costs
   a fixed number of points and is counted in `stats.deaths`; it does not end the run.
 - Everything scorable can be found from the text alone. The picture never carries information that
-  the text does not.
+  the text does not. A seeded value (such as a combination) only works after some text has shown it.
 
-Please say in `harness` whether your run was blind (text only, no source, no
-walkthrough) or open book. The scoreboard shows the difference.
+**Disclosure is required.** A Night Shift run must carry `player.disclosure`, either `"blind"`
+(text only: no reading of `world.json`, the source or a walkthrough) or `"open-book"` (anything
+goes). `node tools/verify.mjs` refuses a run without it, and the scoreboard shows it as a badge.
 
 ## A minimal agent
 

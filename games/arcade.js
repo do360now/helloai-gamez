@@ -143,8 +143,14 @@
     var key = "arcade.best." + a.id + "." + Arcade.bench + "." + Arcade.seed + "." + (Arcade.agent ? "turn" : "realtime");
     try {
       var prev = JSON.parse(localStorage.getItem(key) || "null");
-      if (!prev || a.score() > prev.score) {
-        localStorage.setItem(key, JSON.stringify({ score: a.score(), stats: a.stats ? a.stats() : {}, at: new Date().toISOString() }));
+      var stats = a.stats ? a.stats() : {};
+      var info = benchInfo();
+      var tiebreak = info && info.tiebreak;   // a stats key, lower is better (for example "commands")
+      var better = !prev || a.score() > prev.score ||
+        (tiebreak && a.score() === prev.score && prev.stats && typeof stats[tiebreak] === "number" &&
+          typeof prev.stats[tiebreak] === "number" && stats[tiebreak] < prev.stats[tiebreak]);
+      if (better) {
+        localStorage.setItem(key, JSON.stringify({ score: a.score(), stats: stats, at: new Date().toISOString() }));
       }
     } catch (e) { /* storage may be unavailable */ }
   }
