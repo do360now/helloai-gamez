@@ -76,3 +76,33 @@ test("missing object error when a verb needs one", () => {
   assert.deepEqual(parse("take", verbs, nouns), { verb: "take", error: "missing" });
   assert.deepEqual(parse("use key", verbs, oneKey), { verb: "use", object: "officekey", error: "missing" });
 });
+
+// Review fixes: trailing words after a noun, a direction after look, and a typed code.
+test("trailing words after a known noun are dropped", () => {
+  const turn = [{ verb: "turn", synonyms: ["flip"], args: 1, preps: [], usage: "turn <object>" }];
+  const photo = [{ id: "photo", nouns: ["photo", "framed photo"] }];
+  assert.deepEqual(parse("turn photo over", turn, photo), { verb: "turn", object: "photo" });
+  assert.deepEqual(parse("turn the framed photo around", turn, photo), { verb: "turn", object: "photo" });
+  assert.deepEqual(parse("turn the fish over", turn, photo), { verb: "turn", error: "noun", word: "fish" });
+});
+
+test("a direction after a one-argument verb parses as dir", () => {
+  assert.deepEqual(parse("look north", verbs, nouns), { verb: "look", dir: "north" });
+  assert.deepEqual(parse("look at the east", verbs, nouns), { verb: "look", dir: "east" });
+});
+
+test("a number after the noun, or in the second slot, is a code", () => {
+  const vs = verbs.concat([
+    { verb: "open", synonyms: [], args: 1, preps: [], usage: "open <object>" },
+    { verb: "turn", synonyms: [], args: 1, preps: [], usage: "turn <object>" },
+    { verb: "unlock", synonyms: [], args: 2, preps: ["with", "using"], usage: "unlock <object> with <object>" },
+  ]);
+  const ns = nouns.concat([{ id: "safe", nouns: ["safe", "dial"] }]);
+  assert.deepEqual(parse("open safe with 0451", vs, ns), { verb: "open", object: "safe", code: "0451" });
+  assert.deepEqual(parse("turn dial to 0451", vs, ns), { verb: "turn", object: "safe", code: "0451" });
+  assert.deepEqual(parse("unlock safe with 0451", vs, ns), { verb: "unlock", object: "safe", code: "0451" });
+  assert.deepEqual(parse("open safe", vs, ns), { verb: "open", object: "safe" });
+  assert.deepEqual(parse("open safe with crowbar", vs, ns), { verb: "open", object: "safe", error: "noun", word: "crowbar" });
+  assert.deepEqual(parse("open door with key", vs, oneKey), { verb: "open", object: "officedoor", target: "officekey" });
+  assert.deepEqual(parse("open door with the brass key", vs, ns), { verb: "open", object: "officedoor", target: "officekey" });
+});

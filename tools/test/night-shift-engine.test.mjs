@@ -184,7 +184,7 @@ test("unknown verb, unknown noun and ambiguity reply and count as a turn", () =>
 
 test("help, score and wait", () => {
   const g = game();
-  assert.match(g.command("help").reply, /^look \| look at <object>\ntake <object>\n/);
+  assert.match(g.command("help").reply, /^look \| look at <object> \(l, look at, examine, x\)\ntake <object> \(get, pick up\)\n/);
   assert.equal(g.command("score").reply, "Score: 0 of 33, move 2, command 2 of 150.");
   assert.equal(g.command("wait").reply, "Time passes.");
 });
@@ -193,7 +193,7 @@ test("state has the seam fields", () => {
   const g = game();
   g.command("look");
   const s = g.state();
-  assert.deepEqual(Object.keys(s).sort(), ["budget", "commands", "deaths", "exits", "inventory", "maxScore", "objects", "over", "reply", "room", "score", "transcript", "turn", "verbs"].sort());
+  assert.deepEqual(Object.keys(s).sort(), ["budget", "commands", "deaths", "exits", "inventory", "maxScore", "objects", "over", "reply", "room", "score", "transcript", "turn", "understood", "verbs"].sort());
   assert.deepEqual(s.exits, [{ dir: "north", to: "office", name: "the office door" }, { dir: "east", to: "closet", name: "the closet" }]);
   assert.deepEqual(s.verbs[0], { verb: "look", synonyms: ["l", "look at", "examine", "x"], usage: "look | look at <object>", args: 1 });
   assert.deepEqual(s.transcript, [{ cmd: "look", reply: s.room.text }]);
@@ -248,7 +248,7 @@ test("death replies with the full message, costs 5, counts, and rewinds everythi
   assert.equal(g.state().score, 10);
   const r = g.command("pull cord");
   assert.equal(r.reply, "Zap. You are dead.\n...and then you are back where you were, a little wiser.");
-  assert.deepEqual(r.events, [{ type: "died", penalty: 5 }, { type: "rewound" }]);
+  assert.deepEqual(r.events, [{ type: "died", id: "pull-cord", penalty: 5 }, { type: "rewound" }]);
   const s = g.state();
   assert.equal(s.score, 5);
   assert.equal(s.deaths, 1);
@@ -383,4 +383,77 @@ test("a command that throws inside the engine is rolled back, logged and counted
   const s = g.state();
   assert.deepEqual([s.commands, s.turn, s.transcript.length, s.score], [2, 1, 2, 5]);
   assert.equal(g.command("take key").reply, "Taken.");
+});
+
+// Review fixes.
+test("a rule can require a typed code from a seeded parameter", () => {
+  const w = world();
+  w.verbs.push({ verb: "dial", synonyms: [], args: 1, preps: [], usage: "dial <object> to <number>" });
+  w.rules.push({ id: "dial-safe", when: { verb: "dial", object: "safe", code: { param: "combo" } }, do: [{ reply: "Click." }, { flag: "dialed", value: true }] });
+  w.rules.push({ id: "dial-safe-wrong", when: { verb: "dial", object: "safe" }, do: [{ reply: "The dial spins." }] });
+  const g = createGame(w, { random: fixed([0.5]), bench: "case-150" });
+  g.command("search mat"); g.command("take key"); g.command("use key on door"); g.command("north");
+  assert.equal(g.command("dial safe to 1111").reply, "The dial spins.");
+  assert.equal(g.command("dial safe").reply, "The dial spins.");
+  assert.equal(g.command("dial safe to 2222").reply, "Click.");
+  assert.equal(g.state().turn, 7);
+});
+
+test("a verb with fallback look examines the object when no rule matches", () => {
+  const w = world();
+  w.verbs.push({ verb: "read", synonyms: [], args: 1, preps: [], usage: "read <object>", fallback: "look" });
+  const g = createGame(w, { random: fixed([0.5]) });
+  assert.equal(g.command("read mat").reply, "A doormat.");
+  assert.equal(g.command("pull mat").reply, "Nothing happens.");
+});
+
+test("rule precedence counts individual conditions, not require keys", () => {
+  const w = world();
+  w.verbs.push({ verb: "push", synonyms: [], args: 1, preps: [], usage: "push <object>" });
+  w.rules.push({ id: "mat-a", when: { verb: "push", object: "mat" }, require: { flags: { foundKey: true, askedWeather: true, bellRang: false } }, do: [{ reply: "three" }] });
+  w.rules.push({ id: "mat-b", when: { verb: "push", object: "mat" }, require: { has: ["key"] }, do: [{ reply: "one" }] });
+  const g = createGame(w, { random: fixed([0.5]) });
+  g.command("search mat"); g.command("take key"); g.command("ask bob about weather");
+  assert.equal(g.command("push mat").reply, "three");
+});
+
+test("died event carries the rule id, apply refuses after over, and onOver fires once", async () => {
+  const g = game();
+  assert.deepEqual(g.command("pull cord").events, [{ type: "died", id: "pull-cord", penalty: 5 }, { type: "rewound" }]);
+  const { arcadeAdapter } = await import("../../games/night-shift/engine.js");
+  const overs = [];
+  const a = arcadeAdapter({ world: world(), random: fixed([0.5]), bench: () => "case-150", onOver: (reason) => overs.push(reason) });
+  a.start();
+  for (const c of ["search mat", "take key", "use key on door", "north"]) await a.apply(c);
+  assert.equal(await a.apply("open safe"), true);
+  assert.deepEqual(overs, ["win"]);
+  assert.equal(await a.apply("look"), false);
+  assert.deepEqual(overs, ["win"]);
+});
+
+test("articles: people and proper-named things get none, other names do", () => {
+  const w = world();
+  w.objects.cab = { name: "Block Drop cabinet", nouns: ["cabinet"], text: "A cabinet." };
+  w.objects.sign = { name: "Starlight sign", nouns: ["sign"], text: "A sign.", proper: true };
+  w.rooms.hall.objects.push("cab", "sign");
+  const g = createGame(w, { random: fixed([0.5]) });
+  assert.match(g.state().room.text, /You see: a mat, a door, Bob, a cord, a Block Drop cabinet, Starlight sign\./);
+});
+
+test("help lists synonyms, and look <direction> describes the exit", () => {
+  const g = game();
+  assert.match(g.command("help").reply, /^look \| look at <object> \(l, look at, examine, x\)\n/);
+  assert.equal(g.command("look north").reply, "That way lies the office door.");
+  assert.equal(g.command("look up").reply, "There is nothing that way.");
+});
+
+test("state reports whether the last command was understood", () => {
+  const g = game();
+  assert.equal(g.state().understood, true);
+  g.command("xyzzy");
+  assert.equal(g.state().understood, false);
+  g.command("take banana");
+  assert.equal(g.state().understood, false);
+  g.command("look");
+  assert.equal(g.state().understood, true);
 });

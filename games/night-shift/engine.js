@@ -26,9 +26,9 @@ const OVER = "The night is over.";
 
 function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
 
-// "a mat", "an owl", "Bob" (proper names keep no article).
-export function withArticle(name) {
-  if (/^[A-Z]/.test(name)) return name;
+// "a mat", "an owl"; people and objects marked proper keep no article ("Bob", "Starlight sign").
+export function withArticle(name, proper) {
+  if (proper) return name;
   return (/^[aeiou]/i.test(name) ? "an " : "a ") + name;
 }
 
@@ -86,6 +86,7 @@ export function createGame(world, opts = {}) {
     over: false,
     reason: null,
     reply: "",
+    understood: true,
     transcript: [],
   };
   for (const [rid, room] of Object.entries(world.rooms)) for (const oid of room.objects || []) S.placed[pid(oid)] = rid;
@@ -107,6 +108,7 @@ export function createGame(world, opts = {}) {
     if (n && !list.includes(n)) list.push(n);
     return list;
   };
+  const isProper = (id) => !!(obj(id).person || obj(id).proper);
   const visible = (id) => S.placed[id] === S.room && !(obj(id).hidden && !S.revealed[id]);
   const held = (id) => S.inv.includes(id);
   const present = (id) => visible(id) || held(id);
@@ -133,13 +135,18 @@ export function createGame(world, opts = {}) {
     if (typeof req.minTurn === "number" && S.turn < req.minTurn) return false;
     return true;
   }
-  const reqCount = (req) => (req ? Object.keys(req).length : 0);
+  const reqCount = (req) => {
+    if (!req) return 0;
+    let n = 0;
+    for (const [k, v] of Object.entries(req)) n += Array.isArray(v) ? v.length : v && typeof v === "object" ? Object.keys(v).length : 1;
+    return n;
+  };
 
   function roomText() {
     const room = world.rooms[S.room];
     let t = sub(room.text);
     for (const x of room.extra || []) if (holds(x.require)) t += " " + sub(x.text);
-    const seen = visibleObjects().map((id) => withArticle(objName(id)));
+    const seen = visibleObjects().map((id) => withArticle(objName(id), isProper(id)));
     if (seen.length) t += "\nYou see: " + listNames(seen) + ".";
     const ex = exits().map((e) => e.dir + (e.name ? " (" + e.name + ")" : ""));
     if (ex.length) t += "\nExits: " + listNames(ex) + ".";
@@ -185,11 +192,12 @@ export function createGame(world, opts = {}) {
     const name = p.object && !isExit ? objName(p.object) : null;
     switch (p.verb) {
       case "look":
+        if (p.dir) { const e = exits().find((x) => x.dir === p.dir); return e ? "That way lies " + (e.name || e.dir) + "." : "There is nothing that way."; }
         if (!p.object) return roomText();
         if (isExit) return "That way lies " + exits().find((e) => "exit:" + e.dir === p.object).name + ".";
         return sub(obj(p.object).text || "You see nothing special about the " + name + ".");
       case "inventory":
-        return S.inv.length ? "You are carrying: " + listNames(S.inv.map((id) => withArticle(objName(id)))) + "." : "You are carrying nothing.";
+        return S.inv.length ? "You are carrying: " + listNames(S.inv.map((id) => withArticle(objName(id), isProper(id)))) + "." : "You are carrying nothing.";
       case "go": {
         let e = null;
         if (p.dir) e = exits().find((x) => x.dir === p.dir);
@@ -218,7 +226,7 @@ export function createGame(world, opts = {}) {
         const o = obj(p.object);
         if (!o.person) return "The " + name + " has nothing to say.";
         const [tid, t] = findTopic(o, p.topic);
-        if (!t) return name + " has nothing to say about that.";
+        if (!t) return o.topicDefault ? sub(o.topicDefault) : name + " has nothing to say about that.";
         if (t.require && !holds(t.require)) return t.fail ? sub(t.fail) : name + " says nothing.";
         events.push({ type: "said", npc: p.object, topic: tid });
         const sid = p.object + ":" + tid;
@@ -236,7 +244,7 @@ export function createGame(world, opts = {}) {
         return topics.length ? name + " will talk about: " + listNames(topics) + "." : name + " has nothing to say.";
       }
       case "help":
-        return world.verbs.map((v) => v.usage).join("\n");
+        return world.verbs.map((v) => v.usage + (v.synonyms && v.synonyms.length ? " (" + v.synonyms.join(", ") + ")" : "")).join("\n");
       case "score":
         return "Score: " + S.score + " of " + maxScore + ", move " + S.turn + ", command " + S.commands + (budget ? " of " + budget : "") + ".";
       case "wait":
@@ -253,13 +261,14 @@ export function createGame(world, opts = {}) {
     if (when.target && pid(when.target) !== p.target) return false;
     if (when.dir && when.dir !== p.dir) return false;
     if (when.topic && normalize(when.topic) !== normalize(p.topic || "")) return false;
+    if (when.code !== undefined && String(pid(when.code)) !== String(p.code || "")) return false;
     if (when.object && !present(p.object)) return false;
     return true;
   }
 
   // Runs a rule's effects. Returns {reply, died, won}.
   function run(rule, events) {
-    const out = { reply: [], died: null, won: null };
+    const out = { reply: [], died: null, won: null, id: rule.id };
     for (const e of rule.do || []) {
       if (e.reply !== undefined) out.reply.push(sub(e.reply));
       if (e.flag !== undefined) S.flags[e.flag] = e.value === undefined ? true : e.value;
@@ -282,16 +291,18 @@ export function createGame(world, opts = {}) {
     return out;
   }
 
-  // Among the rules matching the command, the one with the most require conditions that hold wins
-  // (ties go to the later rule), so a specific rule can override a general one.
+  // Among the rules matching the command, the most specific one whose require holds wins: the most
+  // when conditions plus require conditions, ties to the later rule. So a specific rule overrides a general one.
+  const specificity = (r) => Object.keys(r.when).length + reqCount(r.require);
   function fire(p, events) {
-    const matched = (world.rules || []).filter((r) => r.when && matches(r.when, p));
-    let best = null;
-    for (const r of matched) if (holds(r.require) && (!best || reqCount(r.require) >= reqCount(best.require))) best = r;
-    if (best) return { fired: true, ...run(best, events) };
-    const failed = matched.find((r) => r.fail);
-    if (failed) return { fired: true, reply: [sub(failed.fail)], died: null, won: null };
-    return { fired: false, reply: [], died: null, won: null };
+    const matched = (world.rules || []).map((r, i) => ({ r, i })).filter(({ r }) => r.when && matches(r.when, p));
+    // Most specific first; on a tie the later rule comes first.
+    matched.sort((a, b) => specificity(b.r) - specificity(a.r) || b.i - a.i);
+    for (const { r } of matched) {
+      if (holds(r.require)) return { fired: true, ...run(r, events) };
+      if (r.fail) return { fired: true, reply: [sub(r.fail)], died: null, won: null, id: r.id };
+    }
+    return { fired: false, reply: [], died: null, won: null, id: null };
   }
 
   function turnRules(events) {
@@ -300,7 +311,7 @@ export function createGame(world, opts = {}) {
       if (!r.when || !r.when.turn || !holds(r.require)) continue;
       const out = run(r, events);
       replies.push(...out.reply);
-      if (out.died) return { replies, died: out.died };
+      if (out.died) return { replies, died: out.died, id: r.id };
       if (out.won) return { replies, won: out.won };
     }
     return { replies };
@@ -330,6 +341,7 @@ export function createGame(world, opts = {}) {
     } catch (e) {
       restore(before);
       S.commands++;
+      S.understood = false;
       return finish(ERROR_REPLY, [{ type: "error", text: cmd }], { cmd });
     }
   }
@@ -337,11 +349,13 @@ export function createGame(world, opts = {}) {
   function execute(cmd, before) {
     S.commands++;
     const events = [];
-    const p = parse(cmd, world.verbs, nouns());
+    let p = parse(cmd, world.verbs, nouns());
     let reply;
     let died = null;
     let won = null;
+    let diedBy = null;
     const understood = !p.error;
+    S.understood = understood;
     if (understood) S.turn++;
     if (p.error === "verb") {
       events.push({ type: "unknown", text: cmd });
@@ -356,15 +370,17 @@ export function createGame(world, opts = {}) {
       const what = !p.object ? "" : p.object.startsWith("exit:") ? objName(p.object) : "the " + objName(p.object);
       reply = p.object ? capitalize(p.verb) + " " + what + " " + (prep ? prep[1] : "with") + " what?" : capitalize(p.verb) + " what?";
     } else {
-      const r = fire(p, events);
-      died = r.died; won = r.won;
+      let r = fire(p, events);
+      const fv = world.verbs.find((x) => x.verb === p.verb);
+      if (!r.fired && fv && fv.fallback && p.object) { p = { ...p, verb: fv.fallback }; r = fire(p, events); }
+      died = r.died; won = r.won; diedBy = r.id || null;
       const text = r.reply.join("\n");
       reply = !r.fired || (!text && !died && !won) ? [text, defaults(p, events)].filter(Boolean).join("\n") : text;
     }
     if (understood && !died && !won) {
       const t = turnRules(events);
       if (t.replies.length) reply = [reply, ...t.replies].filter(Boolean).join("\n");
-      died = t.died || null; won = t.won || null;
+      died = t.died || null; won = t.won || null; if (t.died) diedBy = t.id;
     }
     if (died) {
       const turn = S.turn;
@@ -375,7 +391,7 @@ export function createGame(world, opts = {}) {
       restore(before);
       S.turn = turn; S.commands = commands; S.deaths = deaths; S.score = score; S.transcript = transcript;
       events.length = 0;
-      events.push({ type: "died", penalty: deathPenalty }, { type: "rewound" });
+      events.push({ type: "died", id: diedBy, penalty: deathPenalty }, { type: "rewound" });
       reply = died + "\n" + REWIND;
     } else if (won) {
       S.over = true; S.reason = "win";
@@ -385,8 +401,15 @@ export function createGame(world, opts = {}) {
     return finish(reply, events, { cmd });
   }
 
-  function snapshot() { return structuredClone(S); }
-  function restore(s) { S = structuredClone(s); }
+  // The state is plain data (objects, arrays, strings, numbers, booleans), so a hand-rolled clone is
+  // several times faster than structuredClone, which matters to the solver.
+  function clone(v) {
+    if (Array.isArray(v)) return v.map(clone);
+    if (v && typeof v === "object") { const o = {}; for (const k in v) o[k] = clone(v[k]); return o; }
+    return v;
+  }
+  function snapshot() { return clone(S); }
+  function restore(s) { S = clone(s); }
 
   function state() {
     return {
@@ -406,6 +429,7 @@ export function createGame(world, opts = {}) {
       budget,
       deaths: S.deaths,
       over: S.over,
+      understood: S.understood,
       reply: S.reply,
       transcript: S.transcript.slice(),
     };
@@ -463,9 +487,10 @@ export function arcadeAdapter(opts) {
       return lines.join("\n");
     },
     apply(action) {
-      if (!adapter.game || !String(action).trim()) return Promise.resolve(false);
+      if (!adapter.game || adapter.game.over || !String(action).trim()) return Promise.resolve(false);
       const r = adapter.game.command(action);
       if (opts.onChange) opts.onChange(r.events);
+      if (adapter.game.over && opts.onOver) opts.onOver(adapter.game.reason);
       return Promise.resolve(true);
     },
   };

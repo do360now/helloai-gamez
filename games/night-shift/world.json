@@ -5,128 +5,965 @@
   "deathPenalty": 5,
   "maxScore": 45,
   "benchmarks": {
-    "case-150": { "label": "Case 150", "budget": 150 }
+    "case-150": {
+      "label": "Case 150",
+      "budget": 150
+    }
   },
   "params": {
-    "combo": { "choices": ["1989", "0451", "2600"] },
-    "keyLocker": { "choices": ["locker1", "locker2", "locker3"] },
-    "witness": { "choices": ["Dale the delivery driver", "Rudy the repair tech", "Priya, the regular who never loses"] }
+    "combo": {
+      "choices": [
+        "1989",
+        "0451",
+        "2600"
+      ]
+    },
+    "keyLocker": {
+      "choices": [
+        "locker1",
+        "locker2",
+        "locker3"
+      ]
+    },
+    "witness": {
+      "choices": [
+        "Dale the delivery driver",
+        "Rudy the repair tech",
+        "Priya, the regular who never loses"
+      ]
+    }
   },
   "verbs": [
-    { "verb": "look", "synonyms": ["l", "look at", "examine", "x", "inspect", "check"], "args": 1, "preps": [], "usage": "look | look at <object>", "optional": true },
-    { "verb": "inventory", "synonyms": ["i", "inv"], "args": 0, "preps": [], "usage": "inventory" },
-    { "verb": "go", "synonyms": ["walk", "run", "head"], "args": 1, "preps": [], "usage": "go <direction>" },
-    { "verb": "take", "synonyms": ["get", "pick up", "grab"], "args": 1, "preps": [], "usage": "take <object>" },
-    { "verb": "drop", "synonyms": ["put down", "leave"], "args": 1, "preps": [], "usage": "drop <object>" },
-    { "verb": "open", "synonyms": [], "args": 1, "preps": [], "usage": "open <object>" },
-    { "verb": "close", "synonyms": ["shut"], "args": 1, "preps": [], "usage": "close <object>" },
-    { "verb": "unlock", "synonyms": [], "args": 2, "preps": ["with", "using"], "usage": "unlock <object> with <object>" },
-    { "verb": "lock", "synonyms": [], "args": 2, "preps": ["with", "using"], "usage": "lock <object> with <object>" },
-    { "verb": "use", "synonyms": [], "args": 2, "preps": ["on", "with", "in"], "usage": "use <object> on <object>" },
-    { "verb": "put", "synonyms": ["insert", "place", "feed"], "args": 2, "preps": ["in", "into", "on", "onto"], "usage": "put <object> in <object>" },
-    { "verb": "give", "synonyms": ["hand", "offer"], "args": 2, "preps": ["to"], "usage": "give <object> to <person>" },
-    { "verb": "ask", "synonyms": ["question"], "args": 2, "preps": ["about"], "usage": "ask <person> about <topic>", "topic": true },
-    { "verb": "talk", "synonyms": ["talk to", "speak to", "speak", "greet", "hello"], "args": 1, "preps": [], "usage": "talk to <person>" },
-    { "verb": "read", "synonyms": [], "args": 1, "preps": [], "usage": "read <object>" },
-    { "verb": "search", "synonyms": ["look under", "look behind", "look in", "look inside", "rummage"], "args": 1, "preps": [], "usage": "search <object>" },
-    { "verb": "push", "synonyms": ["shove"], "args": 1, "preps": [], "usage": "push <object>" },
-    { "verb": "pull", "synonyms": ["yank", "tug"], "args": 1, "preps": [], "usage": "pull <object>" },
-    { "verb": "turn", "synonyms": ["flip", "turn over", "rotate"], "args": 1, "preps": [], "usage": "turn <object>" },
-    { "verb": "play", "synonyms": [], "args": 1, "preps": [], "usage": "play <object>" },
-    { "verb": "drink", "synonyms": ["sip", "taste"], "args": 1, "preps": [], "usage": "drink <object>" },
-    { "verb": "eat", "synonyms": [], "args": 1, "preps": [], "usage": "eat <object>" },
-    { "verb": "climb", "synonyms": ["climb on", "climb up"], "args": 1, "preps": [], "usage": "climb <object>" },
-    { "verb": "enter", "synonyms": ["go in", "go into"], "args": 1, "preps": [], "usage": "enter <object>" },
-    { "verb": "listen", "synonyms": ["listen to"], "args": 1, "preps": [], "usage": "listen | listen to <object>", "optional": true },
-    { "verb": "smell", "synonyms": ["sniff"], "args": 1, "preps": [], "usage": "smell <object>" },
-    { "verb": "knock", "synonyms": ["knock on"], "args": 1, "preps": [], "usage": "knock on <object>" },
-    { "verb": "press", "synonyms": ["hit"], "args": 1, "preps": [], "usage": "press <object>" },
-    { "verb": "break", "synonyms": ["smash", "kick"], "args": 1, "preps": [], "usage": "break <object>" },
-    { "verb": "throw", "synonyms": ["toss"], "args": 2, "preps": ["at", "on", "into", "in"], "usage": "throw <object> at <object>" },
-    { "verb": "move", "synonyms": ["slide", "drag"], "args": 1, "preps": [], "usage": "move <object>" },
-    { "verb": "clean", "synonyms": ["mop", "wipe", "scrub"], "args": 1, "preps": [], "usage": "clean <object>" },
-    { "verb": "sit", "synonyms": ["sit on", "sit in"], "args": 1, "preps": [], "usage": "sit on <object>" },
-    { "verb": "wear", "synonyms": ["put on"], "args": 1, "preps": [], "usage": "wear <object>" },
-    { "verb": "call", "synonyms": ["phone", "dial"], "args": 1, "preps": [], "usage": "call <object>" },
-    { "verb": "pay", "synonyms": [], "args": 1, "preps": [], "usage": "pay <person>" },
-    { "verb": "wait", "synonyms": ["z"], "args": 0, "preps": [], "usage": "wait" },
-    { "verb": "score", "synonyms": [], "args": 0, "preps": [], "usage": "score" },
-    { "verb": "help", "synonyms": ["verbs", "?"], "args": 0, "preps": [], "usage": "help" }
+    {
+      "verb": "look",
+      "synonyms": [
+        "l",
+        "look at",
+        "examine",
+        "x",
+        "inspect",
+        "check"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "look | look at <object>",
+      "optional": true
+    },
+    {
+      "verb": "inventory",
+      "synonyms": [
+        "i",
+        "inv"
+      ],
+      "args": 0,
+      "preps": [],
+      "usage": "inventory"
+    },
+    {
+      "verb": "go",
+      "synonyms": [
+        "walk",
+        "run",
+        "head"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "go <direction>"
+    },
+    {
+      "verb": "take",
+      "synonyms": [
+        "get",
+        "pick up",
+        "grab"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "take <object>"
+    },
+    {
+      "verb": "drop",
+      "synonyms": [
+        "put down"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "drop <object>"
+    },
+    {
+      "verb": "open",
+      "synonyms": [],
+      "args": 1,
+      "preps": [],
+      "usage": "open <object> | open <object> with <number>"
+    },
+    {
+      "verb": "close",
+      "synonyms": [
+        "shut"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "close <object>"
+    },
+    {
+      "verb": "unlock",
+      "synonyms": [],
+      "args": 2,
+      "preps": [
+        "with",
+        "using"
+      ],
+      "usage": "unlock <object> with <object>"
+    },
+    {
+      "verb": "lock",
+      "synonyms": [],
+      "args": 2,
+      "preps": [
+        "with",
+        "using"
+      ],
+      "usage": "lock <object> with <object>"
+    },
+    {
+      "verb": "use",
+      "synonyms": [],
+      "args": 2,
+      "preps": [
+        "on",
+        "with",
+        "in"
+      ],
+      "usage": "use <object> on <object>"
+    },
+    {
+      "verb": "put",
+      "synonyms": [
+        "insert",
+        "place",
+        "feed"
+      ],
+      "args": 2,
+      "preps": [
+        "in",
+        "into",
+        "on",
+        "onto"
+      ],
+      "usage": "put <object> in <object>"
+    },
+    {
+      "verb": "give",
+      "synonyms": [
+        "hand",
+        "offer"
+      ],
+      "args": 2,
+      "preps": [
+        "to"
+      ],
+      "usage": "give <object> to <person>"
+    },
+    {
+      "verb": "ask",
+      "synonyms": [
+        "question"
+      ],
+      "args": 2,
+      "preps": [
+        "about"
+      ],
+      "usage": "ask <person> about <topic>",
+      "topic": true
+    },
+    {
+      "verb": "talk",
+      "synonyms": [
+        "talk to",
+        "speak to",
+        "speak",
+        "greet",
+        "hello"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "talk to <person>"
+    },
+    {
+      "verb": "read",
+      "synonyms": [],
+      "args": 1,
+      "preps": [],
+      "usage": "read <object>",
+      "fallback": "look"
+    },
+    {
+      "verb": "search",
+      "synonyms": [
+        "look under",
+        "look behind",
+        "look in",
+        "look inside",
+        "rummage"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "search <object>",
+      "fallback": "look"
+    },
+    {
+      "verb": "push",
+      "synonyms": [
+        "shove"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "push <object>"
+    },
+    {
+      "verb": "pull",
+      "synonyms": [
+        "yank",
+        "tug"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "pull <object>"
+    },
+    {
+      "verb": "turn",
+      "synonyms": [
+        "flip",
+        "turn over",
+        "rotate"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "turn <object> | turn <object> to <number>"
+    },
+    {
+      "verb": "play",
+      "synonyms": [],
+      "args": 1,
+      "preps": [],
+      "usage": "play <object>"
+    },
+    {
+      "verb": "drink",
+      "synonyms": [
+        "sip",
+        "taste"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "drink <object>"
+    },
+    {
+      "verb": "eat",
+      "synonyms": [],
+      "args": 1,
+      "preps": [],
+      "usage": "eat <object>"
+    },
+    {
+      "verb": "climb",
+      "synonyms": [
+        "climb on",
+        "climb up"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "climb <object>"
+    },
+    {
+      "verb": "enter",
+      "synonyms": [],
+      "args": 1,
+      "preps": [],
+      "usage": "enter <object>"
+    },
+    {
+      "verb": "listen",
+      "synonyms": [
+        "listen to"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "listen | listen to <object>",
+      "optional": true
+    },
+    {
+      "verb": "smell",
+      "synonyms": [
+        "sniff"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "smell <object>"
+    },
+    {
+      "verb": "knock",
+      "synonyms": [
+        "knock on"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "knock on <object>"
+    },
+    {
+      "verb": "press",
+      "synonyms": [
+        "hit"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "press <object>"
+    },
+    {
+      "verb": "break",
+      "synonyms": [
+        "smash",
+        "kick"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "break <object>"
+    },
+    {
+      "verb": "throw",
+      "synonyms": [
+        "toss"
+      ],
+      "args": 2,
+      "preps": [
+        "at",
+        "on",
+        "into",
+        "in"
+      ],
+      "usage": "throw <object> at <object>"
+    },
+    {
+      "verb": "move",
+      "synonyms": [
+        "slide",
+        "drag"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "move <object>"
+    },
+    {
+      "verb": "clean",
+      "synonyms": [
+        "mop",
+        "wipe",
+        "scrub"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "clean <object>"
+    },
+    {
+      "verb": "sit",
+      "synonyms": [
+        "sit on",
+        "sit in"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "sit on <object>"
+    },
+    {
+      "verb": "wear",
+      "synonyms": [
+        "put on"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "wear <object>"
+    },
+    {
+      "verb": "call",
+      "synonyms": [
+        "phone",
+        "dial"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "call <object>"
+    },
+    {
+      "verb": "pay",
+      "synonyms": [],
+      "args": 1,
+      "preps": [],
+      "usage": "pay <person>"
+    },
+    {
+      "verb": "wait",
+      "synonyms": [
+        "z"
+      ],
+      "args": 0,
+      "preps": [],
+      "usage": "wait"
+    },
+    {
+      "verb": "score",
+      "synonyms": [],
+      "args": 0,
+      "preps": [],
+      "usage": "score"
+    },
+    {
+      "verb": "help",
+      "synonyms": [
+        "verbs"
+      ],
+      "args": 0,
+      "preps": [],
+      "usage": "help"
+    }
   ],
   "rooms": {
     "floor": {
       "name": "Arcade floor",
       "text": "Two in the morning at the Starlight Arcade. The cabinets are still on, each one running its attract screen for nobody, and their glow puts long colored shadows across the carpet you were hired to vacuum. A Block Drop cabinet stands by the front window. Beside it is a square of carpet that is cleaner than the rest, where a cabinet used to be. Your mop and bucket wait by the door to the prize counter.",
       "extra": [
-        { "require": { "flags": { "officeOpen": true } }, "text": "The office door stands open." },
-        { "require": { "flags": { "serviceSeen": true } }, "text": "The Block Drop cabinet is sulking in service mode." }
+        {
+          "require": {
+            "flags": {
+              "officeOpen": true
+            }
+          },
+          "text": "The office door stands open."
+        },
+        {
+          "require": {
+            "flags": {
+              "serviceSeen": true
+            }
+          },
+          "text": "The Block Drop cabinet is sulking in service mode."
+        }
       ],
       "exits": [
-        { "dir": "north", "to": "office", "name": "the office door", "require": { "flags": { "officeOpen": true } }, "fail": "The office door is locked." },
-        { "dir": "east", "to": "counter", "name": "the prize counter" }
+        {
+          "dir": "north",
+          "to": "office",
+          "name": "the office door",
+          "require": {
+            "flags": {
+              "officeOpen": true
+            }
+          },
+          "fail": "The office door is locked."
+        },
+        {
+          "dir": "east",
+          "to": "counter",
+          "name": "the prize counter"
+        }
       ],
-      "objects": ["cabinet", "board", "gap", "mop", "bucket", "cord", "token", "door"],
+      "objects": [
+        "cabinet",
+        "board",
+        "gap",
+        "mop",
+        "bucket",
+        "cord",
+        "token",
+        "door"
+      ],
       "draw": [
-        ["fill",1],
-        ["rect",0,112,320,6,8],
-        ["dither",0,118,320,82,8,0],
-        ["dither",0,118,320,10,0,8],
-        ["rect",10,40,70,62,15],
-        ["rect",11,41,68,60,11],
-        ["dither",12,42,66,58,11,3],
-        ["line",45,40,45,101,15],
-        ["line",10,70,79,70,15],
-        ["rect",196,70,34,90,5],
-        ["rect",201,78,24,26,0],
-        ["rect",204,82,6,6,14],
-        ["rect",214,90,6,6,10],
-        ["rect",200,110,26,6,8],
-        ["rect",234,64,34,96,3],
-        ["rect",239,72,24,28,0],
-        ["rect",244,78,8,8,12],
-        ["rect",252,86,8,6,14],
-        ["rect",238,108,26,6,8],
-        ["rect",140,62,36,68,0],
-        ["rect",141,63,34,66,6],
-        ["rect",142,64,32,64,6],
-        ["line",158,64,158,128,0],
-        ["rect",168,98,4,4,14],
-        ["rect",140,58,36,4,8],
-        ["rect",40,50,56,110,4],
-        ["rect",40,50,56,4,12],
-        ["rect",48,62,40,40,0],
-        ["rect",52,66,8,8,14],
-        ["rect",60,66,8,8,14],
-        ["rect",60,74,8,8,10],
-        ["rect",68,82,8,8,12],
-        ["rect",52,90,8,8,9],
-        ["rect",76,90,8,8,10],
-        ["rect",44,106,48,10,7],
-        ["line",58,108,58,114,15],
-        ["rect",56,106,4,3,12],
-        ["rect",76,109,5,4,14],
-        ["rect",84,109,5,4,10],
-        ["rect",66,126,8,3,0],
-        ["rect",44,136,48,24,5],
-        ["rect",36,26,64,18,15],
-        ["rect",37,27,62,16,0],
-        ["rect",40,30,6,10,14],
-        ["rect",48,30,6,10,14],
-        ["rect",56,30,6,10,10],
-        ["rect",66,30,6,10,12],
-        ["rect",74,30,6,10,12],
-        ["rect",82,30,6,10,14],
-        ["dither",100,150,40,32,7,15],
-        ["rect",100,150,40,1,15],
-        ["line",70,160,86,168,14],
-        ["line",86,168,98,166,14],
-        ["line",98,166,112,174,14],
-        ["rect",112,173,3,3,12],
-        ["line",280,112,294,152,6],
-        ["line",281,112,295,152,6],
-        ["poly",7,[286,148,302,148,304,156,284,156]],
-        ["rect",274,152,22,18,9],
-        ["rect",274,152,22,3,11]
+        [
+          "fill",
+          1
+        ],
+        [
+          "rect",
+          0,
+          112,
+          320,
+          6,
+          8
+        ],
+        [
+          "dither",
+          0,
+          118,
+          320,
+          82,
+          8,
+          0
+        ],
+        [
+          "dither",
+          0,
+          118,
+          320,
+          10,
+          0,
+          8
+        ],
+        [
+          "rect",
+          10,
+          40,
+          70,
+          62,
+          15
+        ],
+        [
+          "rect",
+          11,
+          41,
+          68,
+          60,
+          11
+        ],
+        [
+          "dither",
+          12,
+          42,
+          66,
+          58,
+          11,
+          3
+        ],
+        [
+          "line",
+          45,
+          40,
+          45,
+          101,
+          15
+        ],
+        [
+          "line",
+          10,
+          70,
+          79,
+          70,
+          15
+        ],
+        [
+          "rect",
+          196,
+          70,
+          34,
+          90,
+          5
+        ],
+        [
+          "rect",
+          201,
+          78,
+          24,
+          26,
+          0
+        ],
+        [
+          "rect",
+          204,
+          82,
+          6,
+          6,
+          14
+        ],
+        [
+          "rect",
+          214,
+          90,
+          6,
+          6,
+          10
+        ],
+        [
+          "rect",
+          200,
+          110,
+          26,
+          6,
+          8
+        ],
+        [
+          "rect",
+          234,
+          64,
+          34,
+          96,
+          3
+        ],
+        [
+          "rect",
+          239,
+          72,
+          24,
+          28,
+          0
+        ],
+        [
+          "rect",
+          244,
+          78,
+          8,
+          8,
+          12
+        ],
+        [
+          "rect",
+          252,
+          86,
+          8,
+          6,
+          14
+        ],
+        [
+          "rect",
+          238,
+          108,
+          26,
+          6,
+          8
+        ],
+        [
+          "rect",
+          140,
+          62,
+          36,
+          68,
+          0
+        ],
+        [
+          "rect",
+          141,
+          63,
+          34,
+          66,
+          6
+        ],
+        [
+          "rect",
+          142,
+          64,
+          32,
+          64,
+          6
+        ],
+        [
+          "line",
+          158,
+          64,
+          158,
+          128,
+          0
+        ],
+        [
+          "rect",
+          168,
+          98,
+          4,
+          4,
+          14
+        ],
+        [
+          "rect",
+          140,
+          58,
+          36,
+          4,
+          8
+        ],
+        [
+          "rect",
+          40,
+          50,
+          56,
+          110,
+          4
+        ],
+        [
+          "rect",
+          40,
+          50,
+          56,
+          4,
+          12
+        ],
+        [
+          "rect",
+          48,
+          62,
+          40,
+          40,
+          0
+        ],
+        [
+          "rect",
+          52,
+          66,
+          8,
+          8,
+          14
+        ],
+        [
+          "rect",
+          60,
+          66,
+          8,
+          8,
+          14
+        ],
+        [
+          "rect",
+          60,
+          74,
+          8,
+          8,
+          10
+        ],
+        [
+          "rect",
+          68,
+          82,
+          8,
+          8,
+          12
+        ],
+        [
+          "rect",
+          52,
+          90,
+          8,
+          8,
+          9
+        ],
+        [
+          "rect",
+          76,
+          90,
+          8,
+          8,
+          10
+        ],
+        [
+          "rect",
+          44,
+          106,
+          48,
+          10,
+          7
+        ],
+        [
+          "line",
+          58,
+          108,
+          58,
+          114,
+          15
+        ],
+        [
+          "rect",
+          56,
+          106,
+          4,
+          3,
+          12
+        ],
+        [
+          "rect",
+          76,
+          109,
+          5,
+          4,
+          14
+        ],
+        [
+          "rect",
+          84,
+          109,
+          5,
+          4,
+          10
+        ],
+        [
+          "rect",
+          66,
+          126,
+          8,
+          3,
+          0
+        ],
+        [
+          "rect",
+          44,
+          136,
+          48,
+          24,
+          5
+        ],
+        [
+          "rect",
+          36,
+          26,
+          64,
+          18,
+          15
+        ],
+        [
+          "rect",
+          37,
+          27,
+          62,
+          16,
+          0
+        ],
+        [
+          "rect",
+          40,
+          30,
+          6,
+          10,
+          14
+        ],
+        [
+          "rect",
+          48,
+          30,
+          6,
+          10,
+          14
+        ],
+        [
+          "rect",
+          56,
+          30,
+          6,
+          10,
+          10
+        ],
+        [
+          "rect",
+          66,
+          30,
+          6,
+          10,
+          12
+        ],
+        [
+          "rect",
+          74,
+          30,
+          6,
+          10,
+          12
+        ],
+        [
+          "rect",
+          82,
+          30,
+          6,
+          10,
+          14
+        ],
+        [
+          "dither",
+          100,
+          150,
+          40,
+          32,
+          7,
+          15
+        ],
+        [
+          "rect",
+          100,
+          150,
+          40,
+          1,
+          15
+        ],
+        [
+          "line",
+          70,
+          160,
+          86,
+          168,
+          14
+        ],
+        [
+          "line",
+          86,
+          168,
+          98,
+          166,
+          14
+        ],
+        [
+          "line",
+          98,
+          166,
+          112,
+          174,
+          14
+        ],
+        [
+          "rect",
+          112,
+          173,
+          3,
+          3,
+          12
+        ],
+        [
+          "line",
+          280,
+          112,
+          294,
+          152,
+          6
+        ],
+        [
+          "line",
+          281,
+          112,
+          295,
+          152,
+          6
+        ],
+        [
+          "poly",
+          7,
+          [
+            286,
+            148,
+            302,
+            148,
+            304,
+            156,
+            284,
+            156
+          ]
+        ],
+        [
+          "rect",
+          274,
+          152,
+          22,
+          18,
+          9
+        ],
+        [
+          "rect",
+          274,
+          152,
+          22,
+          3,
+          11
+        ]
       ]
     },
     "counter": {
@@ -134,175 +971,1050 @@
       "text": "The prize counter. A steel grille is rolled down over the shelves of plush bears and plastic sunglasses, and a slush machine churns a blue drink that nobody has bought since summer. Behind the counter, three staff lockers lean against the wall, and a pickup ledger lies open beside the register.",
       "extra": [],
       "exits": [
-        { "dir": "west", "to": "floor", "name": "the arcade floor" }
+        {
+          "dir": "west",
+          "to": "floor",
+          "name": "the arcade floor"
+        }
       ],
-      "objects": ["grille", "slush", "ledger", "locker1", "locker2", "locker3", "officekey", "register"],
+      "objects": [
+        "grille",
+        "slush",
+        "ledger",
+        "locker1",
+        "locker2",
+        "locker3",
+        "officekey",
+        "register"
+      ],
       "draw": [
-        ["fill",3],
-        ["rect",0,112,320,6,8],
-        ["dither",0,118,320,82,8,0],
-        ["rect",10,40,30,90,7],
-        ["rect",10,40,30,4,15],
-        ["rect",24,70,3,10,14],
-        ["rect",12,100,26,1,8],
-        ["rect",44,40,30,90,7],
-        ["rect",44,40,30,4,15],
-        ["rect",58,70,3,10,14],
-        ["rect",46,100,26,1,8],
-        ["rect",78,40,30,90,7],
-        ["rect",78,40,30,4,15],
-        ["rect",92,70,3,10,14],
-        ["rect",80,100,26,1,8],
-        ["rect",120,40,140,54,1],
-        ["rect",120,66,140,2,6],
-        ["poly",12,[132,56,142,56,142,66,132,66]],
-        ["poly",12,[160,56,170,56,170,66,160,66]],
-        ["rect",190,54,14,12,14],
-        ["rect",214,56,12,10,14],
-        ["rect",236,58,14,8,11],
-        ["rect",130,80,12,14,13],
-        ["rect",160,82,12,12,12],
-        ["rect",196,84,16,10,11],
-        ["rect",226,80,12,14,13],
-        ["line",120,40,120,93,8],
-        ["line",126,40,126,93,8],
-        ["line",132,40,132,93,8],
-        ["line",138,40,138,93,8],
-        ["line",144,40,144,93,8],
-        ["line",150,40,150,93,8],
-        ["line",156,40,156,93,8],
-        ["line",162,40,162,93,8],
-        ["line",168,40,168,93,8],
-        ["line",174,40,174,93,8],
-        ["line",180,40,180,93,8],
-        ["line",186,40,186,93,8],
-        ["line",192,40,192,93,8],
-        ["line",198,40,198,93,8],
-        ["line",204,40,204,93,8],
-        ["line",210,40,210,93,8],
-        ["line",216,40,216,93,8],
-        ["line",222,40,222,93,8],
-        ["line",228,40,228,93,8],
-        ["line",234,40,234,93,8],
-        ["line",240,40,240,93,8],
-        ["line",246,40,246,93,8],
-        ["line",252,40,252,93,8],
-        ["line",258,40,258,93,8],
-        ["rect",120,40,140,2,7],
-        ["rect",120,92,140,3,7],
-        ["rect",110,108,155,10,6],
-        ["rect",110,118,155,50,6],
-        ["rect",110,118,155,2,0],
-        ["rect",116,126,143,36,4],
-        ["rect",140,98,30,10,15],
-        ["rect",142,100,12,1,0],
-        ["rect",142,103,26,1,0],
-        ["rect",155,99,1,9,0],
-        ["rect",215,94,30,14,8],
-        ["rect",218,96,16,5,10],
-        ["rect",236,98,6,6,7],
-        ["rect",270,70,34,90,9],
-        ["rect",270,70,34,14,11],
-        ["rect",274,88,26,34,1],
-        ["rect",278,92,18,26,9],
-        ["dither",278,100,18,18,9,11],
-        ["rect",284,128,6,8,0],
-        ["rect",274,150,26,6,0]
+        [
+          "fill",
+          3
+        ],
+        [
+          "rect",
+          0,
+          112,
+          320,
+          6,
+          8
+        ],
+        [
+          "dither",
+          0,
+          118,
+          320,
+          82,
+          8,
+          0
+        ],
+        [
+          "rect",
+          10,
+          40,
+          30,
+          90,
+          7
+        ],
+        [
+          "rect",
+          10,
+          40,
+          30,
+          4,
+          15
+        ],
+        [
+          "rect",
+          24,
+          70,
+          3,
+          10,
+          14
+        ],
+        [
+          "rect",
+          12,
+          100,
+          26,
+          1,
+          8
+        ],
+        [
+          "rect",
+          44,
+          40,
+          30,
+          90,
+          7
+        ],
+        [
+          "rect",
+          44,
+          40,
+          30,
+          4,
+          15
+        ],
+        [
+          "rect",
+          58,
+          70,
+          3,
+          10,
+          14
+        ],
+        [
+          "rect",
+          46,
+          100,
+          26,
+          1,
+          8
+        ],
+        [
+          "rect",
+          78,
+          40,
+          30,
+          90,
+          7
+        ],
+        [
+          "rect",
+          78,
+          40,
+          30,
+          4,
+          15
+        ],
+        [
+          "rect",
+          92,
+          70,
+          3,
+          10,
+          14
+        ],
+        [
+          "rect",
+          80,
+          100,
+          26,
+          1,
+          8
+        ],
+        [
+          "rect",
+          120,
+          40,
+          140,
+          54,
+          1
+        ],
+        [
+          "rect",
+          120,
+          66,
+          140,
+          2,
+          6
+        ],
+        [
+          "poly",
+          12,
+          [
+            132,
+            56,
+            142,
+            56,
+            142,
+            66,
+            132,
+            66
+          ]
+        ],
+        [
+          "poly",
+          12,
+          [
+            160,
+            56,
+            170,
+            56,
+            170,
+            66,
+            160,
+            66
+          ]
+        ],
+        [
+          "rect",
+          190,
+          54,
+          14,
+          12,
+          14
+        ],
+        [
+          "rect",
+          214,
+          56,
+          12,
+          10,
+          14
+        ],
+        [
+          "rect",
+          236,
+          58,
+          14,
+          8,
+          11
+        ],
+        [
+          "rect",
+          130,
+          80,
+          12,
+          14,
+          13
+        ],
+        [
+          "rect",
+          160,
+          82,
+          12,
+          12,
+          12
+        ],
+        [
+          "rect",
+          196,
+          84,
+          16,
+          10,
+          11
+        ],
+        [
+          "rect",
+          226,
+          80,
+          12,
+          14,
+          13
+        ],
+        [
+          "line",
+          120,
+          40,
+          120,
+          93,
+          8
+        ],
+        [
+          "line",
+          126,
+          40,
+          126,
+          93,
+          8
+        ],
+        [
+          "line",
+          132,
+          40,
+          132,
+          93,
+          8
+        ],
+        [
+          "line",
+          138,
+          40,
+          138,
+          93,
+          8
+        ],
+        [
+          "line",
+          144,
+          40,
+          144,
+          93,
+          8
+        ],
+        [
+          "line",
+          150,
+          40,
+          150,
+          93,
+          8
+        ],
+        [
+          "line",
+          156,
+          40,
+          156,
+          93,
+          8
+        ],
+        [
+          "line",
+          162,
+          40,
+          162,
+          93,
+          8
+        ],
+        [
+          "line",
+          168,
+          40,
+          168,
+          93,
+          8
+        ],
+        [
+          "line",
+          174,
+          40,
+          174,
+          93,
+          8
+        ],
+        [
+          "line",
+          180,
+          40,
+          180,
+          93,
+          8
+        ],
+        [
+          "line",
+          186,
+          40,
+          186,
+          93,
+          8
+        ],
+        [
+          "line",
+          192,
+          40,
+          192,
+          93,
+          8
+        ],
+        [
+          "line",
+          198,
+          40,
+          198,
+          93,
+          8
+        ],
+        [
+          "line",
+          204,
+          40,
+          204,
+          93,
+          8
+        ],
+        [
+          "line",
+          210,
+          40,
+          210,
+          93,
+          8
+        ],
+        [
+          "line",
+          216,
+          40,
+          216,
+          93,
+          8
+        ],
+        [
+          "line",
+          222,
+          40,
+          222,
+          93,
+          8
+        ],
+        [
+          "line",
+          228,
+          40,
+          228,
+          93,
+          8
+        ],
+        [
+          "line",
+          234,
+          40,
+          234,
+          93,
+          8
+        ],
+        [
+          "line",
+          240,
+          40,
+          240,
+          93,
+          8
+        ],
+        [
+          "line",
+          246,
+          40,
+          246,
+          93,
+          8
+        ],
+        [
+          "line",
+          252,
+          40,
+          252,
+          93,
+          8
+        ],
+        [
+          "line",
+          258,
+          40,
+          258,
+          93,
+          8
+        ],
+        [
+          "rect",
+          120,
+          40,
+          140,
+          2,
+          7
+        ],
+        [
+          "rect",
+          120,
+          92,
+          140,
+          3,
+          7
+        ],
+        [
+          "rect",
+          110,
+          108,
+          155,
+          10,
+          6
+        ],
+        [
+          "rect",
+          110,
+          118,
+          155,
+          50,
+          6
+        ],
+        [
+          "rect",
+          110,
+          118,
+          155,
+          2,
+          0
+        ],
+        [
+          "rect",
+          116,
+          126,
+          143,
+          36,
+          4
+        ],
+        [
+          "rect",
+          140,
+          98,
+          30,
+          10,
+          15
+        ],
+        [
+          "rect",
+          142,
+          100,
+          12,
+          1,
+          0
+        ],
+        [
+          "rect",
+          142,
+          103,
+          26,
+          1,
+          0
+        ],
+        [
+          "rect",
+          155,
+          99,
+          1,
+          9,
+          0
+        ],
+        [
+          "rect",
+          215,
+          94,
+          30,
+          14,
+          8
+        ],
+        [
+          "rect",
+          218,
+          96,
+          16,
+          5,
+          10
+        ],
+        [
+          "rect",
+          236,
+          98,
+          6,
+          6,
+          7
+        ],
+        [
+          "rect",
+          270,
+          70,
+          34,
+          90,
+          9
+        ],
+        [
+          "rect",
+          270,
+          70,
+          34,
+          14,
+          11
+        ],
+        [
+          "rect",
+          274,
+          88,
+          26,
+          34,
+          1
+        ],
+        [
+          "rect",
+          278,
+          92,
+          18,
+          26,
+          9
+        ],
+        [
+          "dither",
+          278,
+          100,
+          18,
+          18,
+          9,
+          11
+        ],
+        [
+          "rect",
+          284,
+          128,
+          6,
+          8,
+          0
+        ],
+        [
+          "rect",
+          274,
+          150,
+          26,
+          6,
+          0
+        ]
       ]
     },
     "office": {
       "name": "Back office",
       "text": "A back office the size of a closet: a desk with a chair, a floor safe under it, and a panel of little keyed switches on the wall, one per cabinet. The desk lamp is on. Marge, who owns the place, is doing the books at two in the morning and does not look surprised to see you.",
       "extra": [
-        { "require": { "flags": { "safeOpen": true } }, "text": "The safe hangs open." }
+        {
+          "require": {
+            "flags": {
+              "safeOpen": true
+            }
+          },
+          "text": "The safe hangs open."
+        }
       ],
       "exits": [
-        { "dir": "south", "to": "floor", "name": "the arcade floor" }
+        {
+          "dir": "south",
+          "to": "floor",
+          "name": "the arcade floor"
+        }
       ],
-      "objects": ["desk", "safe", "photo", "panel", "marge"],
+      "objects": [
+        "desk",
+        "safe",
+        "photo",
+        "panel",
+        "marge"
+      ],
       "draw": [
-        ["fill",8],
-        ["dither",0,0,320,112,8,7],
-        ["rect",0,112,320,6,0],
-        ["rect",0,118,320,82,6],
-        ["dither",0,118,320,82,6,0],
-        ["rect",30,50,26,34,14],
-        ["rect",32,52,22,30,3],
-        ["poly",2,[34,80,43,64,52,80]],
-        ["poly",12,[40,62,46,62,46,68,40,68]],
-        ["rect",250,40,50,60,7],
-        ["rect",252,42,46,56,8],
-        ["rect",256,48,8,10,12],
-        ["rect",272,48,8,10,10],
-        ["rect",288,48,8,10,12],
-        ["rect",256,64,8,10,10],
-        ["rect",272,64,8,10,12],
-        ["rect",288,64,8,10,10],
-        ["rect",90,110,140,14,6],
-        ["rect",90,110,140,2,14],
-        ["rect",94,124,6,46,6],
-        ["rect",220,124,6,46,6],
-        ["rect",106,114,12,10,15],
-        ["rect",60,118,24,4,0],
-        ["rect",62,122,4,44,0],
-        ["rect",80,122,4,44,0],
-        ["rect",98,96,3,14,0],
-        ["poly",14,[92,84,108,84,104,96,96,96]],
-        ["rect",186,76,30,32,5],
-        ["rect",190,56,22,22,12],
-        ["rect",190,52,22,8,15],
-        ["rect",195,64,3,3,0],
-        ["rect",204,64,3,3,0],
-        ["rect",196,72,10,2,4],
-        ["rect",145,140,40,30,8],
-        ["rect",145,140,40,3,7],
-        ["rect",149,146,32,20,0],
-        ["rect",160,150,10,10,7],
-        ["rect",164,154,2,2,14]
+        [
+          "fill",
+          8
+        ],
+        [
+          "dither",
+          0,
+          0,
+          320,
+          112,
+          8,
+          7
+        ],
+        [
+          "rect",
+          0,
+          112,
+          320,
+          6,
+          0
+        ],
+        [
+          "rect",
+          0,
+          118,
+          320,
+          82,
+          6
+        ],
+        [
+          "dither",
+          0,
+          118,
+          320,
+          82,
+          6,
+          0
+        ],
+        [
+          "rect",
+          30,
+          50,
+          26,
+          34,
+          14
+        ],
+        [
+          "rect",
+          32,
+          52,
+          22,
+          30,
+          3
+        ],
+        [
+          "poly",
+          2,
+          [
+            34,
+            80,
+            43,
+            64,
+            52,
+            80
+          ]
+        ],
+        [
+          "poly",
+          12,
+          [
+            40,
+            62,
+            46,
+            62,
+            46,
+            68,
+            40,
+            68
+          ]
+        ],
+        [
+          "rect",
+          250,
+          40,
+          50,
+          60,
+          7
+        ],
+        [
+          "rect",
+          252,
+          42,
+          46,
+          56,
+          8
+        ],
+        [
+          "rect",
+          256,
+          48,
+          8,
+          10,
+          12
+        ],
+        [
+          "rect",
+          272,
+          48,
+          8,
+          10,
+          10
+        ],
+        [
+          "rect",
+          288,
+          48,
+          8,
+          10,
+          12
+        ],
+        [
+          "rect",
+          256,
+          64,
+          8,
+          10,
+          10
+        ],
+        [
+          "rect",
+          272,
+          64,
+          8,
+          10,
+          12
+        ],
+        [
+          "rect",
+          288,
+          64,
+          8,
+          10,
+          10
+        ],
+        [
+          "rect",
+          90,
+          110,
+          140,
+          14,
+          6
+        ],
+        [
+          "rect",
+          90,
+          110,
+          140,
+          2,
+          14
+        ],
+        [
+          "rect",
+          94,
+          124,
+          6,
+          46,
+          6
+        ],
+        [
+          "rect",
+          220,
+          124,
+          6,
+          46,
+          6
+        ],
+        [
+          "rect",
+          106,
+          114,
+          12,
+          10,
+          15
+        ],
+        [
+          "rect",
+          60,
+          118,
+          24,
+          4,
+          0
+        ],
+        [
+          "rect",
+          62,
+          122,
+          4,
+          44,
+          0
+        ],
+        [
+          "rect",
+          80,
+          122,
+          4,
+          44,
+          0
+        ],
+        [
+          "rect",
+          98,
+          96,
+          3,
+          14,
+          0
+        ],
+        [
+          "poly",
+          14,
+          [
+            92,
+            84,
+            108,
+            84,
+            104,
+            96,
+            96,
+            96
+          ]
+        ],
+        [
+          "rect",
+          186,
+          76,
+          30,
+          32,
+          5
+        ],
+        [
+          "rect",
+          190,
+          56,
+          22,
+          22,
+          12
+        ],
+        [
+          "rect",
+          190,
+          52,
+          22,
+          8,
+          15
+        ],
+        [
+          "rect",
+          195,
+          64,
+          3,
+          3,
+          0
+        ],
+        [
+          "rect",
+          204,
+          64,
+          3,
+          3,
+          0
+        ],
+        [
+          "rect",
+          196,
+          72,
+          10,
+          2,
+          4
+        ],
+        [
+          "rect",
+          145,
+          140,
+          40,
+          30,
+          8
+        ],
+        [
+          "rect",
+          145,
+          140,
+          40,
+          3,
+          7
+        ],
+        [
+          "rect",
+          149,
+          146,
+          32,
+          20,
+          0
+        ],
+        [
+          "rect",
+          160,
+          150,
+          10,
+          10,
+          7
+        ],
+        [
+          "rect",
+          164,
+          154,
+          2,
+          2,
+          14
+        ]
       ]
     }
   },
   "objects": {
     "cabinet": {
       "name": "Block Drop cabinet",
-      "nouns": ["block drop cabinet", "cabinet", "block drop", "machine", "game"],
-      "text": "A Block Drop cabinet, the arcade's pride, with a coin slot, a joystick worn smooth, and the high score board glowing above the screen. The attract screen drops blocks for no one.",
-      "hotspot": [40, 50, 56, 110]
+      "nouns": [
+        "block drop cabinet",
+        "cabinet",
+        "block drop",
+        "machine",
+        "game"
+      ],
+      "text": "A Block Drop cabinet, the arcade's pride, with a coin slot, a joystick worn smooth, and the high score board glowing above the screen. The attract screen drops blocks for no one. The gap under the cabinet is too low for a hand, and something small catches the light in the dust under there.",
+      "hotspot": [
+        40,
+        50,
+        56,
+        110
+      ]
     },
     "board": {
       "name": "high score board",
-      "nouns": ["high score board", "board", "scores", "high scores", "score board"],
+      "nouns": [
+        "high score board",
+        "board",
+        "scores",
+        "high scores",
+        "score board"
+      ],
       "text": "The high score board lists ten names. The top one is new: ZZZ, 999,999 points, entered at 3:07 this morning. Nobody was playing at 3:07; you locked the doors at midnight. Below it, the honest scores, the best of them by someone who signs as PRI.",
-      "hotspot": [36, 26, 64, 18]
+      "hotspot": [
+        36,
+        26,
+        64,
+        18
+      ]
     },
     "gap": {
       "name": "clean square of carpet",
-      "nouns": ["clean square of carpet", "square", "carpet", "clean square", "space", "gap"],
-      "text": "A rectangle of carpet, cleaner and darker than the rest, with four dents where the feet of a cabinet stood for years. A power cord trails from the wall into the space and ends in nothing.",
-      "hotspot": [100, 150, 40, 32]
+      "nouns": [
+        "clean square of carpet",
+        "square",
+        "carpet",
+        "clean square",
+        "space",
+        "gap"
+      ],
+      "text": "A rectangle of carpet, cleaner and darker than the rest, with four dents where the feet of a cabinet stood for years. A power cord trails from the wall into the space and ends in nothing. The ledger at the prize counter would say what left and when.",
+      "hotspot": [
+        100,
+        150,
+        40,
+        32
+      ]
     },
     "mop": {
       "name": "mop",
-      "nouns": ["mop"],
+      "nouns": [
+        "mop"
+      ],
       "text": "A string mop, mostly gray. It came with the job.",
       "takeable": true,
-      "hotspot": [276, 118, 22, 34]
+      "hotspot": [
+        276,
+        118,
+        22,
+        34
+      ]
     },
     "bucket": {
       "name": "bucket",
-      "nouns": ["bucket", "mop bucket"],
+      "nouns": [
+        "bucket",
+        "mop bucket"
+      ],
       "text": "A yellow bucket on wheels, half full of water that was clean once.",
-      "hotspot": [274, 152, 22, 18]
+      "hotspot": [
+        274,
+        152,
+        22,
+        18
+      ]
     },
     "cord": {
       "name": "frayed power cord",
-      "nouns": ["frayed power cord", "cord", "power cord", "frayed cord", "wire", "cable"],
+      "nouns": [
+        "frayed power cord",
+        "cord",
+        "power cord",
+        "frayed cord",
+        "wire",
+        "cable"
+      ],
       "text": "The power cord that fed the missing cabinet. It trails from the wall into the clean square of carpet, and the insulation near the plug is split open to the copper.",
-      "hotspot": [66, 158, 50, 20]
+      "hotspot": [
+        66,
+        158,
+        50,
+        20
+      ]
     },
     "token": {
       "name": "arcade token",
-      "nouns": ["arcade token", "token", "coin"],
+      "nouns": [
+        "arcade token",
+        "token",
+        "coin"
+      ],
       "text": "A brass Starlight token, good for one play.",
       "takeable": true,
       "hidden": true,
@@ -310,55 +2022,141 @@
     },
     "door": {
       "name": "office door",
-      "nouns": ["office door", "door"],
+      "nouns": [
+        "office door",
+        "door"
+      ],
       "text": "A plain door with OFFICE stenciled on it and a brass lock that the owner is particular about.",
-      "hotspot": [140, 62, 36, 68]
+      "hotspot": [
+        140,
+        62,
+        36,
+        68
+      ]
     },
     "grille": {
       "name": "steel grille",
-      "nouns": ["steel grille", "grille", "gate", "shutter", "shelves", "prizes"],
+      "nouns": [
+        "steel grille",
+        "grille",
+        "gate",
+        "shutter",
+        "shelves",
+        "prizes"
+      ],
       "text": "A steel grille, padlocked at the floor. Behind it, bears, sunglasses and a radio-controlled car that has been the top prize for three years.",
-      "hotspot": [120, 40, 140, 54]
+      "hotspot": [
+        120,
+        40,
+        140,
+        54
+      ]
     },
     "slush": {
       "name": "slush machine",
-      "nouns": ["slush machine", "slush", "machine", "drink", "blue drink", "blue raspberry"],
+      "nouns": [
+        "slush machine",
+        "slush",
+        "machine",
+        "drink",
+        "blue drink",
+        "blue raspberry"
+      ],
       "text": "A slush machine churning Blue Raspberry. The date on the hygiene sticker is from before you were hired.",
-      "hotspot": [270, 70, 34, 90]
+      "hotspot": [
+        270,
+        70,
+        34,
+        90
+      ]
     },
     "ledger": {
       "name": "pickup ledger",
-      "nouns": ["pickup ledger", "ledger", "book", "log", "logbook"],
+      "nouns": [
+        "pickup ledger",
+        "ledger",
+        "book",
+        "log",
+        "logbook"
+      ],
       "text": "A pickup ledger: every delivery and collection, with a time and a signature.",
-      "hotspot": [140, 96, 30, 12]
+      "hotspot": [
+        140,
+        96,
+        30,
+        12
+      ]
     },
     "register": {
       "name": "register",
-      "nouns": ["register", "cash register", "till"],
+      "nouns": [
+        "register",
+        "cash register",
+        "till"
+      ],
       "text": "An old cash register. Closed, and you were told on your first night never to touch it.",
-      "hotspot": [215, 94, 30, 14]
+      "hotspot": [
+        215,
+        94,
+        30,
+        14
+      ]
     },
     "locker1": {
       "name": "first locker",
-      "nouns": ["first locker", "locker one", "left locker", "locker 1"],
+      "nouns": [
+        "first locker",
+        "locker one",
+        "left locker",
+        "locker 1"
+      ],
       "text": "The first of three gray staff lockers, dented at knee height.",
-      "hotspot": [10, 40, 30, 90]
+      "hotspot": [
+        10,
+        40,
+        30,
+        90
+      ]
     },
     "locker2": {
       "name": "second locker",
-      "nouns": ["second locker", "locker two", "middle locker", "locker 2"],
+      "nouns": [
+        "second locker",
+        "locker two",
+        "middle locker",
+        "locker 2"
+      ],
       "text": "The middle of three gray staff lockers. Someone has stuck a Block Drop sticker on it.",
-      "hotspot": [44, 40, 30, 90]
+      "hotspot": [
+        44,
+        40,
+        30,
+        90
+      ]
     },
     "locker3": {
       "name": "third locker",
-      "nouns": ["third locker", "locker three", "right locker", "locker 3"],
+      "nouns": [
+        "third locker",
+        "locker three",
+        "right locker",
+        "locker 3"
+      ],
       "text": "The last of three gray staff lockers. Its door does not quite close.",
-      "hotspot": [78, 40, 30, 90]
+      "hotspot": [
+        78,
+        40,
+        30,
+        90
+      ]
     },
     "officekey": {
       "name": "brass key",
-      "nouns": ["brass key", "key", "office key"],
+      "nouns": [
+        "brass key",
+        "key",
+        "office key"
+      ],
       "text": "A brass key on a hook ring, with OFFICE scratched into the bow.",
       "takeable": true,
       "hidden": true,
@@ -366,296 +2164,1013 @@
     },
     "desk": {
       "name": "desk",
-      "nouns": ["desk", "chair", "lamp", "desk lamp"],
+      "nouns": [
+        "desk",
+        "chair",
+        "lamp",
+        "desk lamp"
+      ],
       "text": "A steel desk under a lamp, covered in invoices. A framed photo stands at the corner.",
-      "hotspot": [90, 110, 140, 14]
+      "hotspot": [
+        90,
+        110,
+        140,
+        14
+      ]
     },
     "safe": {
       "name": "floor safe",
-      "nouns": ["floor safe", "safe", "dial"],
-      "text": "A squat floor safe under the desk with a four-digit combination dial.",
-      "hotspot": [145, 140, 40, 30]
+      "nouns": [
+        "floor safe",
+        "safe",
+        "dial"
+      ],
+      "text": "A squat floor safe under the desk with a four-digit combination dial. You would open it with the right four digits.",
+      "hotspot": [
+        145,
+        140,
+        40,
+        30
+      ]
     },
     "photo": {
       "name": "framed photo",
-      "nouns": ["framed photo", "photo", "photograph", "picture", "frame"],
-      "text": "Opening day, 1979: a younger Marge and a man in a wide tie cut a ribbon in front of the arcade. The frame is light, and something is written on the back of the print.",
-      "hotspot": [30, 50, 26, 34]
+      "nouns": [
+        "framed photo",
+        "photo",
+        "photograph",
+        "picture",
+        "frame"
+      ],
+      "text": "Opening day, 1979: a younger Marge and a man in a wide tie cut a ribbon in front of the arcade. The frame is light, and something is written on the back of the print. You could turn it over.",
+      "hotspot": [
+        30,
+        50,
+        26,
+        34
+      ]
     },
     "panel": {
       "name": "switch panel",
-      "nouns": ["switch panel", "panel", "switches", "key switch", "key switches", "switch"],
+      "nouns": [
+        "switch panel",
+        "panel",
+        "switches",
+        "key switch",
+        "key switches",
+        "switch"
+      ],
       "text": "A panel of keyed switches, one per cabinet, each labeled with a game. Turned to EDIT, a switch lets whoever holds the key rewrite that cabinet's high score board. The Block Drop switch is turned to EDIT right now.",
-      "hotspot": [250, 40, 50, 60]
+      "hotspot": [
+        250,
+        40,
+        50,
+        60
+      ]
     },
     "marge": {
       "name": "Marge",
-      "nouns": ["marge", "owner", "woman", "boss"],
+      "nouns": [
+        "marge",
+        "owner",
+        "woman",
+        "boss"
+      ],
       "text": "Marge Okafor, sixty, owner of the Starlight since opening day. Reading glasses, a cardigan, and a pencil she never puts down.",
       "person": true,
-      "hotspot": [186, 52, 30, 56],
+      "hotspot": [
+        186,
+        52,
+        30,
+        56
+      ],
       "topics": {
-        "cabinet": {
-          "synonyms": ["missing cabinet", "gap", "carpet", "clean square", "space"],
-          "reply": "\"The Galaxy Patrol cabinet. Gone when I came down at one. ${witness} was in and out of here all evening, if you want somewhere to start.\""
-        },
         "board": {
-          "synonyms": ["high score board", "scores", "high scores", "score board", "zzz"],
+          "synonyms": [
+            "high score board",
+            "scores",
+            "high scores",
+            "score board",
+            "zzz"
+          ],
           "reply": "\"Nobody scores 999,999. Only the office panel can edit a board, and the panel key never leaves my ring.\" She touches the ring on her belt and frowns."
         },
         "panel": {
-          "synonyms": ["switches", "switch", "key switch", "edit"],
+          "synonyms": [
+            "switches",
+            "switch",
+            "key switch",
+            "edit"
+          ],
           "reply": "\"Turned to EDIT? I never leave it on EDIT.\" She looks at the panel for a long moment and says nothing else."
         },
         "safe": {
-          "synonyms": ["combination", "dial"],
+          "synonyms": [
+            "combination",
+            "dial"
+          ],
           "reply": "\"The safe is my business. You are the janitor.\""
         },
         "photo": {
-          "synonyms": ["picture", "photograph"],
+          "synonyms": [
+            "picture",
+            "photograph"
+          ],
           "reply": "\"Opening day. That's Walt, my first partner. He's gone now, and so is his head for numbers.\""
         },
         "night": {
-          "synonyms": ["job", "work", "shift", "arcade", "starlight"],
+          "synonyms": [
+            "job",
+            "work",
+            "shift",
+            "arcade",
+            "starlight",
+            "weather",
+            "janitor"
+          ],
           "reply": "\"Vacuum, mop, lock up. And now, apparently, find my cabinet.\""
+        },
+        "galaxy": {
+          "synonyms": [
+            "galaxy patrol",
+            "galaxy patrol cabinet",
+            "missing cabinet",
+            "cabinet",
+            "gap",
+            "carpet",
+            "clean square",
+            "space"
+          ],
+          "reply": "\"The Galaxy Patrol cabinet. Gone when I came down at one. ${witness} was in and out of here all evening, if you want somewhere to start.\""
+        },
+        "pickup": {
+          "synonyms": [
+            "ledger",
+            "pickup ledger",
+            "delivery",
+            "collection",
+            "signature"
+          ],
+          "reply": "\"Pickups go in the ledger. Nobody told me about a pickup tonight, and nobody signs my ledger at three in the morning with my say-so.\""
+        },
+        "rudy": {
+          "synonyms": [
+            "repair tech",
+            "tech",
+            "repairman"
+          ],
+          "reply": "\"Rudy fixes the cabinets. He was in and out all evening with his toolbox, and he knows every one of those machines better than I do.\""
+        },
+        "dale": {
+          "synonyms": [
+            "delivery driver",
+            "driver",
+            "delivery"
+          ],
+          "reply": "\"Dale drives for the distributor. He brings the new cabinets in and takes the dead ones out, and he was here after closing with the van.\""
+        },
+        "priya": {
+          "synonyms": [
+            "regular",
+            "pri",
+            "the regular who never loses",
+            "best player"
+          ],
+          "reply": "\"Priya. Signs PRI. She has held the honest top score on that Block Drop for a year, and she does not take kindly to being pushed off it.\""
+        },
+        "walt": {
+          "synonyms": [
+            "partner",
+            "first partner",
+            "man in the photo"
+          ],
+          "reply": "\"Walt. My first partner. He kept the numbers in his head and then one day he didn't, so he started writing them down where he thought I'd never look.\""
+        },
+        "token": {
+          "synonyms": [
+            "tokens",
+            "arcade token",
+            "coin"
+          ],
+          "reply": "\"Tokens are a dollar for four at the counter. Drop one in a cabinet and it plays, unless the machine's in service mode, in which case it tells you things it shouldn't.\""
+        },
+        "key": {
+          "synonyms": [
+            "brass key",
+            "office key",
+            "keys",
+            "ring"
+          ],
+          "reply": "\"The office key hangs in a staff locker so the night man can get in. The panel keys stay on my ring.\" She touches her belt again."
+        },
+        "lockers": {
+          "synonyms": [
+            "locker",
+            "staff lockers"
+          ],
+          "reply": "\"Staff lockers. Nothing in them worth stealing, which is why nobody locks them.\""
+        },
+        "mop": {
+          "synonyms": [
+            "bucket",
+            "mop bucket",
+            "cleaning"
+          ],
+          "reply": "\"The mop is for the floor. Also for reaching under things, if you're the type.\""
+        },
+        "slush": {
+          "synonyms": [
+            "slush machine",
+            "blue drink",
+            "drink"
+          ],
+          "reply": "\"Don't drink from that. I mean it.\""
+        },
+        "grille": {
+          "synonyms": [
+            "prizes",
+            "prize counter",
+            "counter"
+          ],
+          "reply": "\"The prizes stay behind the grille until morning. The padlock key is on my ring, and the ring is on my belt.\""
+        },
+        "register": {
+          "synonyms": [
+            "cash register",
+            "till",
+            "money"
+          ],
+          "reply": "\"The register is mine. You were told.\""
         }
-      }
+      },
+      "topicDefault": "Marge looks at you over her glasses. \"Is this about my cabinet? Then ask about that. Otherwise the floor needs you more than I do.\""
     }
   },
   "rules": [
     {
       "id": "notice-board",
-      "when": { "verb": "look", "object": "board" },
-      "do": [{ "score": 5 }, { "flag": "sawBoard", "value": true }]
+      "when": {
+        "verb": "look",
+        "object": "board"
+      },
+      "do": [
+        {
+          "score": 5
+        },
+        {
+          "flag": "sawBoard",
+          "value": true
+        }
+      ]
     },
     {
       "id": "find-token",
-      "when": { "verb": "search", "object": "cabinet" },
-      "require": { "flags": { "foundToken": false } },
+      "when": {
+        "verb": "search",
+        "object": "cabinet"
+      },
+      "require": {
+        "flags": {
+          "foundToken": false
+        }
+      },
       "do": [
-        { "reveal": "token" },
-        { "flag": "foundToken", "value": true },
-        { "score": 5 },
-        { "reply": "You get down on the carpet and look under the cabinet. Dust, a bottle cap, and a brass arcade token, which rolls out when you poke it with the mop handle." }
+        {
+          "reveal": "token"
+        },
+        {
+          "flag": "foundToken",
+          "value": true
+        },
+        {
+          "score": 5
+        },
+        {
+          "reply": "You get down on the carpet and look under the cabinet. Dust, a bottle cap, and a brass arcade token, which rolls out when you poke it with the mop handle."
+        }
       ]
     },
     {
       "id": "find-token-again",
-      "when": { "verb": "search", "object": "cabinet" },
-      "require": { "flags": { "foundToken": true } },
-      "do": [{ "reply": "Dust and a bottle cap. Nothing else under there." }]
+      "when": {
+        "verb": "search",
+        "object": "cabinet"
+      },
+      "require": {
+        "flags": {
+          "foundToken": true
+        }
+      },
+      "do": [
+        {
+          "reply": "Dust and a bottle cap. Nothing else under there."
+        }
+      ]
     },
     {
       "id": "service-mode",
-      "when": { "verb": "put", "object": "token", "target": "cabinet" },
-      "require": { "has": ["token"], "flags": { "serviceSeen": false } },
+      "when": {
+        "verb": "put",
+        "object": "token",
+        "target": "cabinet"
+      },
+      "require": {
+        "has": [
+          "token"
+        ],
+        "flags": {
+          "serviceSeen": false
+        }
+      },
       "do": [
-        { "move": "token", "to": null },
-        { "flag": "serviceSeen", "value": true },
-        { "score": 10 },
-        { "reply": "The token drops. Instead of a game, the screen flips to a service page nobody was meant to see: LAST BOARD EDIT 03:07 FROM OFFICE PANEL. The cabinet keeps the token." }
+        {
+          "move": "token",
+          "to": null
+        },
+        {
+          "flag": "serviceSeen",
+          "value": true
+        },
+        {
+          "score": 10
+        },
+        {
+          "reply": "The token drops. Instead of a game, the screen flips to a service page nobody was meant to see: LAST BOARD EDIT 03:07 FROM OFFICE PANEL. The cabinet keeps the token."
+        }
       ]
     },
     {
       "id": "service-mode-use",
-      "when": { "verb": "use", "object": "token", "target": "cabinet" },
-      "require": { "has": ["token"], "flags": { "serviceSeen": false } },
+      "when": {
+        "verb": "use",
+        "object": "token",
+        "target": "cabinet"
+      },
+      "require": {
+        "has": [
+          "token"
+        ],
+        "flags": {
+          "serviceSeen": false
+        }
+      },
       "do": [
-        { "move": "token", "to": null },
-        { "flag": "serviceSeen", "value": true },
-        { "score": 10, "id": "service-mode" },
-        { "reply": "The token drops. Instead of a game, the screen flips to a service page nobody was meant to see: LAST BOARD EDIT 03:07 FROM OFFICE PANEL. The cabinet keeps the token." }
+        {
+          "move": "token",
+          "to": null
+        },
+        {
+          "flag": "serviceSeen",
+          "value": true
+        },
+        {
+          "score": 10,
+          "id": "service-mode"
+        },
+        {
+          "reply": "The token drops. Instead of a game, the screen flips to a service page nobody was meant to see: LAST BOARD EDIT 03:07 FROM OFFICE PANEL. The cabinet keeps the token."
+        }
       ]
     },
     {
       "id": "play-cabinet",
-      "when": { "verb": "play", "object": "cabinet" },
-      "do": [{ "reply": "The coin slot wants a token, and the attract screen wants an audience. You have neither." }]
+      "when": {
+        "verb": "play",
+        "object": "cabinet"
+      },
+      "do": [
+        {
+          "reply": "The coin slot wants a token, and the attract screen wants an audience. You have neither."
+        }
+      ]
     },
     {
       "id": "play-cabinet-service",
-      "when": { "verb": "play", "object": "cabinet" },
-      "require": { "flags": { "serviceSeen": true } },
-      "do": [{ "reply": "The cabinet is stuck on its service page: LAST BOARD EDIT 03:07 FROM OFFICE PANEL." }]
+      "when": {
+        "verb": "play",
+        "object": "cabinet"
+      },
+      "require": {
+        "flags": {
+          "serviceSeen": true
+        }
+      },
+      "do": [
+        {
+          "reply": "The cabinet is stuck on its service page: LAST BOARD EDIT 03:07 FROM OFFICE PANEL."
+        }
+      ]
     },
     {
       "id": "pull-cord",
-      "when": { "verb": "pull", "object": "cord" },
-      "do": [{ "die": "You take hold of the frayed cord and pull. The split insulation finds your palm, the wall outlet finds the rest of you, and for one bright instant you are the best-lit thing in the Starlight. The attract screens never notice." }]
+      "when": {
+        "verb": "pull",
+        "object": "cord"
+      },
+      "do": [
+        {
+          "die": "You take hold of the frayed cord and pull. The split insulation finds your palm, the wall outlet finds the rest of you, and for one bright instant you are the best-lit thing in the Starlight. The attract screens never notice."
+        }
+      ]
     },
     {
       "id": "take-cord",
-      "when": { "verb": "take", "object": "cord" },
-      "do": [{ "die": "You grab the cord by the bare part. It is still plugged in. Your last thought is that someone should really have unplugged that." }]
+      "when": {
+        "verb": "take",
+        "object": "cord"
+      },
+      "do": [
+        {
+          "die": "You grab the cord by the bare part. It is still plugged in. Your last thought is that someone should really have unplugged that."
+        }
+      ]
     },
     {
       "id": "unplug-cord",
-      "when": { "verb": "use", "object": "mop", "target": "cord" },
-      "do": [{ "reply": "You nudge the cord aside with the mop handle. It sparks against the baseboard. Good instinct not to use your hand." }]
+      "when": {
+        "verb": "use",
+        "object": "mop",
+        "target": "cord"
+      },
+      "do": [
+        {
+          "reply": "You nudge the cord aside with the mop handle. It sparks against the baseboard. Good instinct not to use your hand."
+        }
+      ]
     },
     {
       "id": "clean-floor",
-      "when": { "verb": "clean", "object": "gap" },
-      "do": [{ "reply": "It is already the cleanest carpet in the building. That is rather the point." }]
+      "when": {
+        "verb": "clean",
+        "object": "gap"
+      },
+      "do": [
+        {
+          "reply": "It is already the cleanest carpet in the building. That is rather the point."
+        }
+      ]
     },
     {
       "id": "read-ledger",
-      "when": { "verb": "read", "object": "ledger" },
+      "when": {
+        "verb": "read",
+        "object": "ledger"
+      },
       "do": [
-        { "score": 5 },
-        { "flag": "readLedger", "value": true },
-        { "reply": "The last line, in a hurried hand: 2:50 AM, PICKUP, 1 CABINET (GALAXY PATROL), and a signature that is mostly a loop. Two-fifty. Seventeen minutes before somebody typed ZZZ into the high score board." }
+        {
+          "score": 5
+        },
+        {
+          "flag": "readLedger",
+          "value": true
+        },
+        {
+          "reply": "The last line, in a hurried hand: 2:50 AM, PICKUP, 1 CABINET (GALAXY PATROL), and a signature that is mostly a loop. Two-fifty. Seventeen minutes before somebody typed ZZZ into the high score board."
+        }
       ]
     },
     {
       "id": "read-ledger-look",
-      "when": { "verb": "look", "object": "ledger" },
+      "when": {
+        "verb": "look",
+        "object": "ledger"
+      },
       "do": [
-        { "score": 5, "id": "read-ledger" },
-        { "flag": "readLedger", "value": true },
-        { "reply": "The last line, in a hurried hand: 2:50 AM, PICKUP, 1 CABINET (GALAXY PATROL), and a signature that is mostly a loop. Two-fifty. Seventeen minutes before somebody typed ZZZ into the high score board." }
+        {
+          "score": 5,
+          "id": "read-ledger"
+        },
+        {
+          "flag": "readLedger",
+          "value": true
+        },
+        {
+          "reply": "The last line, in a hurried hand: 2:50 AM, PICKUP, 1 CABINET (GALAXY PATROL), and a signature that is mostly a loop. Two-fifty. Seventeen minutes before somebody typed ZZZ into the high score board."
+        }
       ]
     },
     {
       "id": "drink-slush",
-      "when": { "verb": "drink", "object": "slush" },
-      "do": [{ "die": "You pull the lever and drink straight from the spout. The Blue Raspberry has been fermenting since Labor Day, and it has opinions. You sit down on the floor to think about them and do not get up." }]
-    },
-    {
-      "id": "open-locker1",
-      "when": { "verb": "open", "object": "locker1" },
-      "require": { "param": { "keyLocker": "locker1" }, "flags": { "foundKey": false } },
-      "do": [{ "reveal": "officekey" }, { "flag": "foundKey", "value": true }, { "reply": "The locker opens with a squeal. A raincoat, a lunch box, and on a hook inside the door, a brass key." }]
-    },
-    {
-      "id": "open-locker2",
-      "when": { "verb": "open", "object": "locker2" },
-      "require": { "param": { "keyLocker": "locker2" }, "flags": { "foundKey": false } },
-      "do": [{ "reveal": "officekey" }, { "flag": "foundKey", "value": true }, { "reply": "The locker opens with a squeal. A raincoat, a lunch box, and on a hook inside the door, a brass key." }]
-    },
-    {
-      "id": "open-locker3",
-      "when": { "verb": "open", "object": "locker3" },
-      "require": { "param": { "keyLocker": "locker3" }, "flags": { "foundKey": false } },
-      "do": [{ "reveal": "officekey" }, { "flag": "foundKey", "value": true }, { "reply": "The locker opens with a squeal. A raincoat, a lunch box, and on a hook inside the door, a brass key." }]
-    },
-    {
-      "id": "open-locker-empty",
-      "when": { "verb": "open", "object": "locker1" },
-      "do": [{ "reply": "A sock, a paperback with the cover torn off, and a smell. Nothing useful." }]
-    },
-    {
-      "id": "open-locker-empty-2",
-      "when": { "verb": "open", "object": "locker2" },
-      "do": [{ "reply": "Empty but for a crumpled Starlight apron." }]
-    },
-    {
-      "id": "open-locker-empty-3",
-      "when": { "verb": "open", "object": "locker3" },
-      "do": [{ "reply": "The door swings loose. Inside, a single boot." }]
-    },
-    {
-      "id": "open-grille",
-      "when": { "verb": "open", "object": "grille" },
-      "do": [{ "reply": "The padlock at the floor disagrees." }]
-    },
-    {
-      "id": "open-register",
-      "when": { "verb": "open", "object": "register" },
-      "do": [{ "reply": "You were told never to touch it. You don't." }]
-    },
-    {
-      "id": "unlock-office",
-      "when": { "verb": "unlock", "object": "door", "target": "officekey" },
-      "require": { "has": ["officekey"], "flags": { "officeOpen": false } },
-      "fail": "You have nothing that fits that lock.",
-      "do": [{ "flag": "officeOpen", "value": true }, { "score": 10 }, { "reply": "The brass key turns and the office door swings in on a desk lamp and a surprised silence." }]
-    },
-    {
-      "id": "unlock-office-use",
-      "when": { "verb": "use", "object": "officekey", "target": "door" },
-      "require": { "has": ["officekey"], "flags": { "officeOpen": false } },
-      "do": [{ "flag": "officeOpen", "value": true }, { "score": 10, "id": "unlock-office" }, { "reply": "The brass key turns and the office door swings in on a desk lamp and a surprised silence." }]
-    },
-    {
-      "id": "open-door-with-key",
-      "when": { "verb": "open", "object": "door" },
-      "require": { "has": ["officekey"], "flags": { "officeOpen": false } },
-      "do": [{ "flag": "officeOpen", "value": true }, { "score": 10, "id": "unlock-office" }, { "reply": "The brass key turns and the office door swings in on a desk lamp and a surprised silence." }]
-    },
-    {
-      "id": "open-door-locked",
-      "when": { "verb": "open", "object": "door" },
-      "require": { "flags": { "officeOpen": false } },
-      "do": [{ "reply": "It's locked." }]
-    },
-    {
-      "id": "open-door-open",
-      "when": { "verb": "open", "object": "door" },
-      "require": { "flags": { "officeOpen": true } },
-      "do": [{ "reply": "It is already open." }]
-    },
-    {
-      "id": "knock-door",
-      "when": { "verb": "knock", "object": "door" },
-      "do": [{ "reply": "From inside, a pencil stops moving. Nobody answers." }]
-    },
-    {
-      "id": "turn-photo",
-      "when": { "verb": "turn", "object": "photo" },
-      "do": [{ "flag": "readPhoto", "value": true }, { "reply": "You turn the frame over. On the back of the print, in pencil, in a hand that is not Marge's: ${combo}. Under it, smaller: DON'T FORGET AGAIN, WALT." }]
-    },
-    {
-      "id": "read-photo",
-      "when": { "verb": "read", "object": "photo" },
-      "do": [{ "flag": "readPhoto", "value": true }, { "reply": "On the back of the print, in pencil, in a hand that is not Marge's: ${combo}. Under it, smaller: DON'T FORGET AGAIN, WALT." }]
-    },
-    {
-      "id": "search-photo",
-      "when": { "verb": "search", "object": "photo" },
-      "do": [{ "flag": "readPhoto", "value": true }, { "reply": "Behind the print, in pencil: ${combo}. Under it, smaller: DON'T FORGET AGAIN, WALT." }]
-    },
-    {
-      "id": "take-photo",
-      "when": { "verb": "take", "object": "photo" },
-      "do": [{ "reply": "Marge clears her throat. You put it back." }]
-    },
-    {
-      "id": "open-safe",
-      "when": { "verb": "open", "object": "safe" },
-      "require": { "flags": { "readPhoto": true, "safeOpen": false } },
-      "fail": "The dial needs a four-digit combination, and you don't know it.",
+      "when": {
+        "verb": "drink",
+        "object": "slush"
+      },
       "do": [
-        { "flag": "safeOpen", "value": true },
-        { "score": 10 },
-        { "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)" }
+        {
+          "die": "You pull the lever and drink straight from the spout. The Blue Raspberry has been fermenting since Labor Day, and it has opinions. You sit down on the floor to think about them and do not get up."
+        }
       ]
     },
     {
-      "id": "turn-safe",
-      "when": { "verb": "turn", "object": "safe" },
-      "require": { "flags": { "readPhoto": true, "safeOpen": false } },
-      "fail": "You spin the dial. It spins. You have no idea what number to stop on.",
+      "id": "open-locker1",
+      "when": {
+        "verb": "open",
+        "object": "locker1"
+      },
+      "require": {
+        "param": {
+          "keyLocker": "locker1"
+        },
+        "flags": {
+          "foundKey": false
+        }
+      },
       "do": [
-        { "flag": "safeOpen", "value": true },
-        { "score": 10, "id": "open-safe" },
-        { "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)" }
+        {
+          "reveal": "officekey"
+        },
+        {
+          "flag": "foundKey",
+          "value": true
+        },
+        {
+          "reply": "The locker opens with a squeal. A raincoat, a lunch box, and on a hook inside the door, a brass key."
+        }
+      ]
+    },
+    {
+      "id": "open-locker2",
+      "when": {
+        "verb": "open",
+        "object": "locker2"
+      },
+      "require": {
+        "param": {
+          "keyLocker": "locker2"
+        },
+        "flags": {
+          "foundKey": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "officekey"
+        },
+        {
+          "flag": "foundKey",
+          "value": true
+        },
+        {
+          "reply": "The locker opens with a squeal. A raincoat, a lunch box, and on a hook inside the door, a brass key."
+        }
+      ]
+    },
+    {
+      "id": "open-locker3",
+      "when": {
+        "verb": "open",
+        "object": "locker3"
+      },
+      "require": {
+        "param": {
+          "keyLocker": "locker3"
+        },
+        "flags": {
+          "foundKey": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "officekey"
+        },
+        {
+          "flag": "foundKey",
+          "value": true
+        },
+        {
+          "reply": "The locker opens with a squeal. A raincoat, a lunch box, and on a hook inside the door, a brass key."
+        }
+      ]
+    },
+    {
+      "id": "open-locker-empty",
+      "when": {
+        "verb": "open",
+        "object": "locker1"
+      },
+      "do": [
+        {
+          "reply": "A sock, a paperback with the cover torn off, and a smell. Nothing useful."
+        }
+      ]
+    },
+    {
+      "id": "open-locker-empty-2",
+      "when": {
+        "verb": "open",
+        "object": "locker2"
+      },
+      "do": [
+        {
+          "reply": "Empty but for a crumpled Starlight apron."
+        }
+      ]
+    },
+    {
+      "id": "open-locker-empty-3",
+      "when": {
+        "verb": "open",
+        "object": "locker3"
+      },
+      "do": [
+        {
+          "reply": "The door swings loose. Inside, a single boot."
+        }
+      ]
+    },
+    {
+      "id": "open-grille",
+      "when": {
+        "verb": "open",
+        "object": "grille"
+      },
+      "do": [
+        {
+          "reply": "The padlock at the floor disagrees."
+        }
+      ]
+    },
+    {
+      "id": "open-register",
+      "when": {
+        "verb": "open",
+        "object": "register"
+      },
+      "do": [
+        {
+          "reply": "You were told never to touch it. You don't."
+        }
+      ]
+    },
+    {
+      "id": "unlock-office",
+      "when": {
+        "verb": "unlock",
+        "object": "door",
+        "target": "officekey"
+      },
+      "require": {
+        "has": [
+          "officekey"
+        ],
+        "flags": {
+          "officeOpen": false
+        }
+      },
+      "fail": "You have nothing that fits that lock.",
+      "do": [
+        {
+          "flag": "officeOpen",
+          "value": true
+        },
+        {
+          "score": 10
+        },
+        {
+          "reply": "The brass key turns. Unlocked. The office door swings open onto a desk lamp and a surprised silence. You are still on the floor; the office is north."
+        }
+      ]
+    },
+    {
+      "id": "unlock-office-use",
+      "when": {
+        "verb": "use",
+        "object": "officekey",
+        "target": "door"
+      },
+      "require": {
+        "has": [
+          "officekey"
+        ],
+        "flags": {
+          "officeOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "officeOpen",
+          "value": true
+        },
+        {
+          "score": 10,
+          "id": "unlock-office"
+        },
+        {
+          "reply": "The brass key turns. Unlocked. The office door swings open onto a desk lamp and a surprised silence. You are still on the floor; the office is north."
+        }
+      ]
+    },
+    {
+      "id": "open-door-with-key",
+      "when": {
+        "verb": "open",
+        "object": "door"
+      },
+      "require": {
+        "has": [
+          "officekey"
+        ],
+        "flags": {
+          "officeOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "officeOpen",
+          "value": true
+        },
+        {
+          "score": 10,
+          "id": "unlock-office"
+        },
+        {
+          "reply": "The brass key turns. Unlocked. The office door swings open onto a desk lamp and a surprised silence. You are still on the floor; the office is north."
+        }
+      ]
+    },
+    {
+      "id": "open-door-locked",
+      "when": {
+        "verb": "open",
+        "object": "door"
+      },
+      "require": {
+        "flags": {
+          "officeOpen": false
+        }
+      },
+      "do": [
+        {
+          "reply": "It's locked."
+        }
+      ]
+    },
+    {
+      "id": "open-door-open",
+      "when": {
+        "verb": "open",
+        "object": "door"
+      },
+      "require": {
+        "flags": {
+          "officeOpen": true
+        }
+      },
+      "do": [
+        {
+          "reply": "It is already open."
+        }
+      ]
+    },
+    {
+      "id": "knock-door",
+      "when": {
+        "verb": "knock",
+        "object": "door"
+      },
+      "do": [
+        {
+          "reply": "From inside, a pencil stops moving. Nobody answers."
+        }
+      ]
+    },
+    {
+      "id": "turn-photo",
+      "when": {
+        "verb": "turn",
+        "object": "photo"
+      },
+      "do": [
+        {
+          "flag": "readPhoto",
+          "value": true
+        },
+        {
+          "reply": "You turn the frame over. On the back of the print, in pencil, in a hand that is not Marge's: ${combo}. Under it, smaller: DON'T FORGET AGAIN, WALT."
+        }
+      ]
+    },
+    {
+      "id": "read-photo",
+      "when": {
+        "verb": "read",
+        "object": "photo"
+      },
+      "do": [
+        {
+          "flag": "readPhoto",
+          "value": true
+        },
+        {
+          "reply": "On the back of the print, in pencil, in a hand that is not Marge's: ${combo}. Under it, smaller: DON'T FORGET AGAIN, WALT."
+        }
+      ]
+    },
+    {
+      "id": "search-photo",
+      "when": {
+        "verb": "search",
+        "object": "photo"
+      },
+      "do": [
+        {
+          "flag": "readPhoto",
+          "value": true
+        },
+        {
+          "reply": "Behind the print, in pencil: ${combo}. Under it, smaller: DON'T FORGET AGAIN, WALT."
+        }
+      ]
+    },
+    {
+      "id": "take-photo",
+      "when": {
+        "verb": "take",
+        "object": "photo"
+      },
+      "do": [
+        {
+          "reply": "Marge clears her throat. You put it back."
+        }
       ]
     },
     {
       "id": "turn-panel",
-      "when": { "verb": "turn", "object": "panel" },
-      "do": [{ "reply": "The switches need their little keys. Without one, they don't turn." }]
+      "when": {
+        "verb": "turn",
+        "object": "panel"
+      },
+      "do": [
+        {
+          "reply": "The switches need their little keys. Without one, they don't turn."
+        }
+      ]
     },
     {
       "id": "sit-chair",
-      "when": { "verb": "sit", "object": "desk" },
-      "do": [{ "reply": "Marge is in the chair. She looks at you over her glasses until you stop." }]
+      "when": {
+        "verb": "sit",
+        "object": "desk"
+      },
+      "do": [
+        {
+          "reply": "Marge is in the chair. She looks at you over her glasses until you stop."
+        }
+      ]
     },
     {
       "id": "take-mop-hint",
-      "when": { "verb": "clean", "object": "cord" },
-      "do": [{ "reply": "You mop around the cord, carefully, as around something asleep." }]
+      "when": {
+        "verb": "clean",
+        "object": "cord"
+      },
+      "do": [
+        {
+          "reply": "You mop around the cord, carefully, as around something asleep."
+        }
+      ]
+    },
+    {
+      "id": "open-safe",
+      "when": {
+        "verb": "open",
+        "object": "safe",
+        "code": {
+          "param": "combo"
+        }
+      },
+      "require": {
+        "flags": {
+          "readPhoto": true,
+          "safeOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "safeOpen",
+          "value": true
+        },
+        {
+          "score": 10
+        },
+        {
+          "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)"
+        }
+      ],
+      "fail": "You try a number. The dial does not care for guesses, and neither does Marge, who is watching. Find the combination first."
+    },
+    {
+      "id": "turn-safe",
+      "when": {
+        "verb": "turn",
+        "object": "safe",
+        "code": {
+          "param": "combo"
+        }
+      },
+      "require": {
+        "flags": {
+          "readPhoto": true,
+          "safeOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "safeOpen",
+          "value": true
+        },
+        {
+          "score": 10,
+          "id": "open-safe"
+        },
+        {
+          "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)"
+        }
+      ],
+      "fail": "You try a number. The dial does not care for guesses, and neither does Marge, who is watching. Find the combination first."
+    },
+    {
+      "id": "unlock-safe-code",
+      "when": {
+        "verb": "unlock",
+        "object": "safe",
+        "code": {
+          "param": "combo"
+        }
+      },
+      "require": {
+        "flags": {
+          "readPhoto": true,
+          "safeOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "safeOpen",
+          "value": true
+        },
+        {
+          "score": 10,
+          "id": "open-safe"
+        },
+        {
+          "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)"
+        }
+      ],
+      "fail": "You try a number. The dial does not care for guesses, and neither does Marge, who is watching. Find the combination first."
+    },
+    {
+      "id": "open-safe-nocode",
+      "when": {
+        "verb": "open",
+        "object": "safe"
+      },
+      "do": [
+        {
+          "reply": "The dial needs the right four-digit combination, and that was not it. Open the safe with the number, if you know it."
+        }
+      ]
+    },
+    {
+      "id": "turn-safe-nocode",
+      "when": {
+        "verb": "turn",
+        "object": "safe"
+      },
+      "do": [
+        {
+          "reply": "You spin the dial. It stops on nothing. It wants four particular digits, and it will not say which."
+        }
+      ]
+    },
+    {
+      "id": "unlock-safe-nocode",
+      "when": {
+        "verb": "unlock",
+        "object": "safe"
+      },
+      "do": [
+        {
+          "reply": "There is no keyhole, only a dial that wants four digits."
+        }
+      ]
+    },
+    {
+      "id": "unlock-door-open",
+      "when": {
+        "verb": "unlock",
+        "object": "door"
+      },
+      "require": {
+        "flags": {
+          "officeOpen": true
+        }
+      },
+      "do": [
+        {
+          "reply": "The office door is already unlocked and open."
+        }
+      ]
     }
   ]
 }

@@ -28,7 +28,7 @@ function playSlice(g) {
   step("unlock door with key", 10);
   step("north", 0);
   step("turn photo", 0);
-  const r = step("open safe", 10);
+  const r = step("open safe with " + g.params.combo, 10);
   return { scores, last: r };
 }
 
@@ -61,7 +61,13 @@ test("the wrong locker is empty, the office is locked without the key, and the s
   g.command("east"); g.command("open first locker"); g.command("take key"); g.command("west");
   g.command("unlock door with key"); g.command("north");
   assert.match(g.command("open safe").reply, /combination/);
+  assert.match(g.command("open safe with 9999").reply, /not it|guess|stops|will not/i);
+  assert.match(g.command("open safe with " + g.params.combo).reply, /guess/i);
+  assert.equal(g.state().over, false);
   assert.equal(g.state().score, 10);
+  g.command("turn photo over");
+  assert.equal(g.command("turn dial to " + g.params.combo).reply.includes("To be continued"), true);
+  assert.equal(g.state().score, 20);
 });
 
 test("deaths rewind with the penalty and the game goes on", () => {
@@ -140,4 +146,47 @@ test("fuzz: no command throws and every command is logged once", () => {
   }
   assert.ok(count > 3000, String(count));
   assert.equal(base.state().commands, 0);
+});
+
+test("unlocking the door does not move you, and the door then opens or is already open", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  g.command("east"); g.command("open first locker"); g.command("take key"); g.command("west");
+  const r = g.command("unlock office door with brass key");
+  assert.doesNotMatch(r.reply, /swings in|you step|inside/i);
+  assert.match(r.reply, /unlock/i);
+  assert.equal(g.state().room.id, "floor");
+  assert.equal(g.command("open office door").reply, "It is already open.");
+  g.command("north");
+  assert.equal(g.state().room.id, "office");
+});
+
+test("read and search fall back to examining, and read still scores the board", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  const r = g.command("read high score board");
+  assert.match(r.reply, /ZZZ/);
+  assert.equal(g.state().score, 5);
+  g.command("east"); g.command("open first locker"); g.command("take key"); g.command("west");
+  g.command("unlock door with key"); g.command("north");
+  assert.match(g.command("search desk").reply, /invoices/);
+  assert.match(g.command("read panel").reply, /EDIT/);
+  assert.equal(g.command("leave").reply.includes("Drop"), false);
+  assert.equal(g.command("go in").reply.includes("Enter"), false);
+});
+
+test("Marge answers every name and thing the texts mention, and has a flavour reply otherwise", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  g.command("east"); g.command("open first locker"); g.command("take key"); g.command("west");
+  g.command("unlock door with key"); g.command("north");
+  for (const t of ["galaxy patrol", "pickup", "ledger", "rudy", "dale", "priya", "walt", "token", "key", "lockers", "mop", "slush", "grille", "register"]) {
+    const r = g.command("ask marge about " + t);
+    assert.doesNotMatch(r.reply, /nothing to say/, t);
+  }
+  const r = g.command("ask marge about the weather");
+  assert.doesNotMatch(r.reply, /nothing to say about that/);
+  assert.ok(r.reply.length > 20);
+});
+
+test("the token is hinted in the text before it is found", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  assert.match(g.command("look at cabinet").reply, /under/i);
 });
