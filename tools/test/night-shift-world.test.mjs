@@ -84,3 +84,16 @@ test("Marge drops the seeded witness name", () => {
   g.command("unlock door with key"); g.command("north");
   assert.match(g.command("ask marge about the cabinet").reply, new RegExp(g.params.witness));
 });
+
+test("named exits can be looked at and walked through, and never crash", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  assert.equal(g.command("look at prize counter").reply, "That way lies the prize counter.");
+  assert.equal(g.command("look at office door").reply.startsWith("A plain door"), true);
+  assert.equal(g.command("go office door").reply, "The office door is locked.");
+  assert.equal(g.command("go prize counter").reply, g.state().room.text);
+  assert.equal(g.state().room.id, "counter");
+  assert.equal(g.command("enter arcade floor").reply, g.state().room.text);
+  assert.equal(g.state().room.id, "floor");
+  assert.equal(g.command("take prize counter").reply, "That is a way out, not a thing.");
+  assert.deepEqual([g.state().commands, g.state().turn, g.state().transcript.length], [6, 6, 6]);
+});

@@ -60,14 +60,15 @@ test("apply runs the command, calls onChange with the events, and logs ok", asyn
   assert.equal(await a.apply("dance"), true);
   assert.equal(calls[calls.length - 1], "change:unknown");
   assert.equal(await a.apply("   "), false);
-  assert.equal(a.game.state().turn, 2);
+  assert.equal(a.game.state().commands, 2);
+  assert.equal(a.game.state().turn, 1);
 });
 
 test("text has the header, room, inventory, verbs and the last exchange only", async () => {
   const { a } = make();
   a.start();
   assert.equal(a.text(), [
-    "test-world case-150 seed 20261022 turn 0/150",
+    "test-world case-150 seed 20261022 command 0/150 move 0",
     "score 0 of 7  deaths 0",
     "== Hall ==",
     "A hall.\nYou see: a coin, a box.\nExits: north (a loop).",
@@ -77,7 +78,7 @@ test("text has the header, room, inventory, verbs and the last exchange only", a
   await a.apply("look at box");
   await a.apply("take coin");
   const t = a.text();
-  assert.match(t, /^test-world case-150 seed 20261022 turn 2\/150\n/);
+  assert.match(t, /^test-world case-150 seed 20261022 command 2\/150 move 2\n/);
   assert.match(t, /\ninventory: a coin\n/);
   assert.match(t, /\n> take coin\nTaken\.$/);
   assert.doesNotMatch(t, /look at box/);
@@ -101,7 +102,7 @@ test("stats report the win and over", async () => {
   await a.apply("open box");
   assert.equal(a.over(), true);
   assert.equal(a.score(), 7);
-  assert.deepEqual(a.stats(), { maxScore: 7, turns: 1, deaths: 0, won: 1 });
+  assert.deepEqual(a.stats(), { maxScore: 7, commands: 1, moves: 1, deaths: 0, won: 1 });
   assert.match(a.text(), /\nscore 7 of 7  deaths 0  OVER\n/);
 });
 

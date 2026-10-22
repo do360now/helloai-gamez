@@ -169,10 +169,12 @@ test("unknown verb, unknown noun and ambiguity reply and count as a turn", () =>
   const r = g.command("frobnicate mat");
   assert.equal(r.reply, "I don't understand that. Type 'help' for the verbs.");
   assert.deepEqual(r.events, [{ type: "unknown", text: "frobnicate mat" }]);
-  assert.equal(g.state().turn, 1);
+  assert.equal(g.state().commands, 1);
+  assert.equal(g.state().turn, 0);
   assert.equal(g.command("take banana").reply, "You don't see any banana here.");
   assert.equal(g.command("take").reply, "Take what?");
-  assert.equal(g.state().turn, 3);
+  assert.equal(g.state().commands, 3);
+  assert.equal(g.state().turn, 0);
   g.command("search mat");
   g.command("take key");
   g.command("east");
@@ -183,7 +185,7 @@ test("unknown verb, unknown noun and ambiguity reply and count as a turn", () =>
 test("help, score and wait", () => {
   const g = game();
   assert.match(g.command("help").reply, /^look \| look at <object>\ntake <object>\n/);
-  assert.equal(g.command("score").reply, "Score: 0 of 33, turn 2 of 150.");
+  assert.equal(g.command("score").reply, "Score: 0 of 33, move 2, command 2 of 150.");
   assert.equal(g.command("wait").reply, "Time passes.");
 });
 
@@ -191,7 +193,7 @@ test("state has the seam fields", () => {
   const g = game();
   g.command("look");
   const s = g.state();
-  assert.deepEqual(Object.keys(s).sort(), ["budget", "deaths", "exits", "inventory", "maxScore", "objects", "over", "reply", "room", "score", "transcript", "turn", "verbs"].sort());
+  assert.deepEqual(Object.keys(s).sort(), ["budget", "commands", "deaths", "exits", "inventory", "maxScore", "objects", "over", "reply", "room", "score", "transcript", "turn", "verbs"].sort());
   assert.deepEqual(s.exits, [{ dir: "north", to: "office", name: "the office door" }, { dir: "east", to: "closet", name: "the closet" }]);
   assert.deepEqual(s.verbs[0], { verb: "look", synonyms: ["l", "look at", "examine", "x"], usage: "look | look at <object>", args: 1 });
   assert.deepEqual(s.transcript, [{ cmd: "look", reply: s.room.text }]);
@@ -271,11 +273,11 @@ test("win sets over with reason win and refuses further commands without a turn"
   const g = game();
   g.command("search mat"); g.command("take key"); g.command("use key on door"); g.command("north");
   const r = g.command("open safe");
-  assert.equal(r.reply, "The safe swings open. You win.\nFinal score: 25 of 33 in 5 turns.");
+  assert.equal(r.reply, "The safe swings open. You win.\nFinal score: 25 of 33 in 5 commands.");
   assert.deepEqual(r.events, [{ type: "scored", points: 10, id: "open-safe" }, { type: "over", reason: "win" }]);
   assert.equal(g.state().over, true);
   assert.equal(g.reason, "win");
-  assert.deepEqual(g.stats, { maxScore: 33, turns: 5, deaths: 0, won: 1 });
+  assert.deepEqual(g.stats, { maxScore: 33, commands: 5, moves: 5, deaths: 0, won: 1 });
   assert.deepEqual(g.command("look"), { reply: "The night is over.", events: [] });
   assert.equal(g.state().turn, 5);
 });
@@ -291,13 +293,13 @@ test("budget: command 150 applies and ends the run; 151 is refused", () => {
   assert.equal(g.reason, "budget");
   assert.deepEqual(g.command("take key"), { reply: "The night is over.", events: [] });
   assert.equal(g.state().turn, 150);
-  assert.deepEqual(g.stats, { maxScore: 33, turns: 150, deaths: 0, won: 0 });
+  assert.deepEqual(g.stats, { maxScore: 33, commands: 150, moves: 150, deaths: 0, won: 0 });
 });
 
 test("no benchmark means no budget", () => {
   const g = createGame(world(), { random: fixed([0.5]) });
   assert.equal(g.state().budget, null);
-  assert.equal(g.command("score").reply, "Score: 0 of 33, turn 1.");
+  assert.equal(g.command("score").reply, "Score: 0 of 33, move 1, command 1.");
 });
 
 test("reveal makes a hidden object visible and listed; exit effect opens a new exit", () => {
@@ -337,4 +339,34 @@ test("maxScore counts an aliased score id once", () => {
   const w = world();
   w.rules.push({ id: "open-safe-alias", when: { verb: "push", object: "safe" }, do: [{ score: 10, id: "open-safe" }] });
   assert.equal(createGame(w, { random: fixed([0.5]) }).maxScore, 33);
+});
+
+test("an exit named like an object does not make the noun ambiguous", () => {
+  const g = game();
+  assert.equal(g.command("look at office door").reply, "A heavy door.");
+  assert.equal(g.command("go office door").reply, "The door is locked.");
+  assert.equal(g.command("take closet").reply, "That is a way out, not a thing.");
+  assert.equal(g.command("look at closet").reply, "That way lies the closet.");
+  assert.equal(g.command("go closet").reply, g.state().room.text);
+  assert.equal(g.state().room.id, "closet");
+});
+
+test("a parser error counts as a command but not as a move, and fires no turn rule", () => {
+  const w = world();
+  w.rules.push({ id: "clock", when: { turn: true }, require: { minTurn: 1, flags: { clockSeen: false } }, do: [{ flag: "clockSeen", value: true }, { reply: "A clock ticks." }] });
+  const g = createGame(w, { random: fixed([0.5]), bench: "case-150" });
+  assert.equal(g.command("frobnicate").reply, "I don't understand that. Type 'help' for the verbs.");
+  assert.equal(g.command("take banana").reply, "You don't see any banana here.");
+  assert.deepEqual([g.state().commands, g.state().turn], [2, 0]);
+  assert.equal(g.command("wait").reply, "Time passes.\nA clock ticks.");
+  assert.deepEqual([g.state().commands, g.state().turn], [3, 1]);
+  assert.equal(g.command("wait").reply, "Time passes.");
+});
+
+test("budget counts commands including parser errors", () => {
+  const g = game();
+  for (let i = 0; i < 150; i++) g.command("xyzzy");
+  assert.equal(g.state().over, true);
+  assert.equal(g.state().turn, 0);
+  assert.equal(g.state().commands, 150);
 });

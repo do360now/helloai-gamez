@@ -81,6 +81,7 @@ export function createGame(world, opts = {}) {
     addedExits: {},
     score: 0,
     turn: 0,
+    commands: 0,
     deaths: 0,
     over: false,
     reason: null,
@@ -142,7 +143,12 @@ export function createGame(world, opts = {}) {
     const list = [];
     for (const id of visibleObjects()) list.push({ id, nouns: nounsOf(id) });
     for (const id of S.inv) list.push({ id, nouns: nounsOf(id) });
-    for (const e of exits()) if (e.name) list.push({ id: "exit:" + e.dir, nouns: [normalize(e.name)] });
+    const taken = new Set(list.flatMap((n) => n.nouns));
+    for (const e of exits()) {
+      if (!e.name) continue;
+      const n = normalize(e.name);
+      if (!taken.has(n)) list.push({ id: "exit:" + e.dir, nouns: [n] });
+    }
     return list;
   }
 
@@ -164,16 +170,27 @@ export function createGame(world, opts = {}) {
 
   // Default handling for a parsed command when no rule replied. Returns the reply.
   function defaults(p, events) {
-    const name = p.object ? objName(p.object) : null;
+    if (p.object && p.object.startsWith("exit:")) {
+      if (p.verb === "enter") p = { ...p, verb: "go" };
+      else if (p.verb !== "look" && p.verb !== "go") return "That is a way out, not a thing.";
+    }
+    const isExit = !!p.object && p.object.startsWith("exit:");
+    const name = p.object && !isExit ? objName(p.object) : null;
     switch (p.verb) {
       case "look":
         if (!p.object) return roomText();
-        if (p.object.startsWith("exit:")) return "That way lies " + exits().find((e) => "exit:" + e.dir === p.object).name + ".";
+        if (isExit) return "That way lies " + exits().find((e) => "exit:" + e.dir === p.object).name + ".";
         return sub(obj(p.object).text || "You see nothing special about the " + name + ".");
       case "inventory":
         return S.inv.length ? "You are carrying: " + listNames(S.inv.map((id) => withArticle(objName(id)))) + "." : "You are carrying nothing.";
       case "go": {
-        const e = p.dir ? exits().find((x) => x.dir === p.dir) : exits().find((x) => "exit:" + x.dir === p.object);
+        let e = null;
+        if (p.dir) e = exits().find((x) => x.dir === p.dir);
+        else if (isExit) e = exits().find((x) => "exit:" + x.dir === p.object);
+        else {
+          const ns = nounsOf(p.object);
+          e = exits().find((x) => x.name && ns.some((n) => normalize(x.name).split(" ").join(" ").includes(n)));
+        }
         if (!e) return p.dir ? "You can't go " + p.dir + " from here." : "You can't go there.";
         return move(e, events);
       }
@@ -214,7 +231,7 @@ export function createGame(world, opts = {}) {
       case "help":
         return world.verbs.map((v) => v.usage).join("\n");
       case "score":
-        return "Score: " + S.score + " of " + maxScore + ", turn " + S.turn + (budget ? " of " + budget : "") + ".";
+        return "Score: " + S.score + " of " + maxScore + ", move " + S.turn + ", command " + S.commands + (budget ? " of " + budget : "") + ".";
       case "wait":
         return "Time passes.";
       default:
@@ -283,7 +300,7 @@ export function createGame(world, opts = {}) {
   }
 
   function finish(reply, events, before) {
-    if (!S.over && budget && S.turn >= budget) {
+    if (!S.over && budget && S.commands >= budget) {
       S.over = true; S.reason = "budget";
       events.push({ type: "over", reason: "budget" });
       reply += "\n" + OVER + " Final score: " + S.score + " of " + maxScore + ".";
@@ -297,19 +314,21 @@ export function createGame(world, opts = {}) {
     const cmd = String(text).trim().replace(/\s+/g, " ");
     if (S.over) return { reply: OVER, events: [] };
     const before = snapshot();
-    S.turn++;
+    S.commands++;
     const events = [];
     const p = parse(cmd, world.verbs, nouns());
     let reply;
     let died = null;
     let won = null;
+    const understood = !p.error;
+    if (understood) S.turn++;
     if (p.error === "verb") {
       events.push({ type: "unknown", text: cmd });
       reply = UNKNOWN_VERB;
     } else if (p.error === "noun") {
       reply = "You don't see any " + p.word + " here.";
     } else if (p.error === "ambiguous") {
-      reply = "Which " + p.word + ": " + p.ids.map((id) => "the " + objName(id)).join(" or ") + "?";
+      reply = "Which " + p.word + ": " + p.ids.map((id) => "the " + (id.startsWith("exit:") ? id.slice(5) + " exit" : objName(id))).join(" or ") + "?";
     } else if (p.error === "missing") {
       const v = world.verbs.find((x) => x.verb === p.verb);
       const prep = ((v && v.usage) || "").match(/<[^>]+>\s+(\w+)\s+</);
@@ -320,25 +339,26 @@ export function createGame(world, opts = {}) {
       const text = r.reply.join("\n");
       reply = !r.fired || (!text && !died && !won) ? [text, defaults(p, events)].filter(Boolean).join("\n") : text;
     }
-    if (!died && !won) {
+    if (understood && !died && !won) {
       const t = turnRules(events);
       if (t.replies.length) reply = [reply, ...t.replies].filter(Boolean).join("\n");
       died = t.died || null; won = t.won || null;
     }
     if (died) {
       const turn = S.turn;
+      const commands = S.commands;
       const deaths = S.deaths + 1;
       const score = Math.max(0, before.score - deathPenalty);
       const transcript = S.transcript;
       restore(before);
-      S.turn = turn; S.deaths = deaths; S.score = score; S.transcript = transcript;
+      S.turn = turn; S.commands = commands; S.deaths = deaths; S.score = score; S.transcript = transcript;
       events.length = 0;
       events.push({ type: "died", penalty: deathPenalty }, { type: "rewound" });
       reply = died + "\n" + REWIND;
     } else if (won) {
       S.over = true; S.reason = "win";
       events.push({ type: "over", reason: "win" });
-      reply = [reply, won].filter(Boolean).join("\n") + "\nFinal score: " + S.score + " of " + maxScore + " in " + S.turn + " turns.";
+      reply = [reply, won].filter(Boolean).join("\n") + "\nFinal score: " + S.score + " of " + maxScore + " in " + S.commands + " commands.";
     }
     return finish(reply, events, { cmd });
   }
@@ -360,6 +380,7 @@ export function createGame(world, opts = {}) {
       score: S.score,
       maxScore,
       turn: S.turn,
+      commands: S.commands,
       budget,
       deaths: S.deaths,
       over: S.over,
@@ -374,7 +395,7 @@ export function createGame(world, opts = {}) {
     get reason() { return S.reason; },
     get over() { return S.over; },
     get score() { return S.score; },
-    get stats() { return { maxScore, turns: S.turn, deaths: S.deaths, won: S.reason === "win" ? 1 : 0 }; },
+    get stats() { return { maxScore, commands: S.commands, moves: S.turn, deaths: S.deaths, won: S.reason === "win" ? 1 : 0 }; },
   };
 }
 
@@ -408,7 +429,7 @@ export function arcadeAdapter(opts) {
       if (!g) return "";
       const s = g.state();
       const lines = [
-        world.id + (g.bench ? " " + g.bench : "") + (typeof opts.seed === "function" ? " seed " + opts.seed() : "") + " turn " + s.turn + (s.budget ? "/" + s.budget : ""),
+        world.id + (g.bench ? " " + g.bench : "") + (typeof opts.seed === "function" ? " seed " + opts.seed() : "") + " command " + s.commands + (s.budget ? "/" + s.budget : "") + " move " + s.turn,
         "score " + s.score + " of " + s.maxScore + "  deaths " + s.deaths + (s.over ? "  OVER" : ""),
         "== " + s.room.name + " ==",
         s.room.text,
