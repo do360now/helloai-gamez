@@ -34,6 +34,19 @@ function picture(seed, build) {
   return list;
 }
 
+// A room's picture as a function of the flags its text depends on: scene(flags, seed, build) returns
+// draw(state) where state maps those flags to booleans, and `build` reads them as p.on.<flag>. A picture may
+// follow only flags named in its room's extra lines, so it never shows what the room text does not say.
+function scene(flags, seed, build) {
+  function draw(state) {
+    var on = {};
+    flags.forEach(function (f) { on[f] = !!(state && state[f]); });
+    return picture(seed, function (p) { p.on = on; build(p); });
+  }
+  draw.flags = flags;
+  return draw;
+}
+
 // The Starlight's carpet: dim confetti on a dark ground, smaller towards the back wall.
 function confetti(p, y0, y1, ramps, count) {
   for (var k = 0; k < count; k++) {
@@ -59,7 +72,7 @@ function carpet(p) {
   };
 }
 
-var floor = picture(7, function (p) {
+var floor = scene(["officeOpen", "serviceSeen"], 7, function (p) {
   var op = p.op;
   var WALL = p.ramp("#06041a", "#4a3f86"), C = carpet(p), CARP = C.ground, CONC = C.dots[0], CONM = C.dots[1], CONY = C.dots[2];
   var WOOD = p.ramp("#140904", "#9a6638"), MET = p.ramp("#08080e", "#c4c8d6"), RED = p.ramp("#1e0206", "#ff4a5e");
@@ -138,6 +151,13 @@ var floor = picture(7, function (p) {
   op("rect", 144, 86, 12, 34, WOOD + 5); op("rect", 160, 86, 12, 34, WOOD + 5);
   op("line", 144, 86, 155, 86, WOOD + 9); op("line", 160, 86, 171, 86, WOOD + 9);
   op("ellipse", 169, 99, 2, 2, YEL + 6); op("rect", 168, 98, 1, 1, 15);
+  if (p.on.officeOpen) {
+    // The door swung in: Marge's lamp lights the office beyond.
+    op("vgrad", 140, 62, 36, 64, WARM + 4, WARM + 1);
+    op("rect", 146, 98, 30, 4, WOOD + 6); op("rect", 146, 102, 30, 24, WOOD + 2);
+    op("poly", WOOD + 8, [140, 62, 147, 66, 147, 122, 140, 126]);
+    op("ellipse", 150, 92, 3, 2, WARM + 7);
+  }
 
   // The wall socket the power cord is still plugged into.
   op("rect", 104, 110, 6, 9, MET + 9); op("rect", 105, 113, 4, 4, 0); op("rect", 106, 112, 2, 6, MET + 3);
@@ -151,6 +171,7 @@ var floor = picture(7, function (p) {
   op("light", 68, 160, 36, 6, -6); op("light", 214, 160, 22, 5, -6); op("light", 252, 160, 22, 5, -6);
   op("light", 68, 172, 52, 22, 6); op("light", 213, 170, 34, 16, 5); op("light", 251, 170, 34, 16, 5);
   op("light", 310, 150, 30, 30, 4);
+  if (p.on.officeOpen) op("light", 158, 134, 30, 14, 4);
 
   // The square where a cabinet stood for years: cleaner and darker, with four dents from its feet.
   op("shade", 100, 150, 40, 32, -3);
@@ -194,6 +215,12 @@ var floor = picture(7, function (p) {
   op("rect", 60, 128, 4, 5, RED + 6); op("rect", 61, 129, 1, 3, 12); op("rect", 70, 128, 4, 5, RED + 6); op("rect", 71, 129, 1, 3, 12);
   op("text", 59, 136, "25", MET + 9);
   op("rect", bd.x, 150, bd.w, 10, MET + 2);
+  if (p.on.serviceSeen) {
+    // Service mode: a test pattern instead of the attract screen.
+    op("rect", 47, 65, 40, 38, 1);
+    op("text", 49, 68, "SERVICE", 15); op("text", 59, 75, "MODE", 14);
+    [12, 14, 10, 11, 9, 13, 15].forEach(function (c, n) { op("rect", 50 + n * 5, 84, 5, 14, c); });
+  }
 
   // Purple cabinet: a scrolling shooter.
   var pc = cabinet(196, 70, 34, 90, PUR, "left");
@@ -242,7 +269,7 @@ var floor = picture(7, function (p) {
   op("rect", 290, 148, 6, 6, MET + 9);
 });
 
-var counter = picture(11, function (p) {
+var counter = scene(["grilleOpen"], 11, function (p) {
   var op = p.op, k, x;
   var WALL = p.ramp("#03100f", "#2f7470"), C = carpet(p), CARP = C.ground;
   var MET = p.ramp("#08080e", "#c4c8d6"), WOOD = p.ramp("#140904", "#b07a48"), LOCK = p.ramp("#0e1218", "#a8b4c0");
@@ -286,13 +313,19 @@ var counter = picture(11, function (p) {
     op("ellipse", x + 3, 80, 2, 2, 0); op("ellipse", x + 8, 80, 2, 2, 0); op("line", x + 5, 79, x + 6, 79, [PINK, GOLD, BLUE, RED][k] + 6);
   }
   bear(192, 80, PINK); bear(204, 80, BEAR); bear(216, 80, PINK); bear(228, 80, BEAR);
-  // The grille itself, rolled down and padlocked at the bottom.
-  op("rect", 116, 34, 148, 7, MET + 4); op("rect", 116, 34, 148, 1, MET + 9);
-  for (x = 121; x < 260; x += 5) op("rect", x, 41, 1, 53, MET + 7);
-  [52, 70, 88].forEach(function (y) { op("rect", 120, y, 140, 1, MET + 9); });
-  op("rect", 118, 92, 144, 3, MET + 10);
-  op("rect", 186, 94, 8, 7, GOLD + 5); op("rect", 187, 91, 6, 1, MET + 10); op("rect", 187, 91, 1, 4, MET + 10); op("rect", 192, 91, 1, 4, MET + 10);
-  op("rect", 189, 96, 2, 2, GOLD);
+  // The grille itself: rolled down and padlocked at the bottom, or rolled up far enough to duck under.
+  var bottom = p.on.grilleOpen ? 60 : 92;
+  op("rect", 116, 34, 148, p.on.grilleOpen ? 10 : 7, MET + 4); op("rect", 116, 34, 148, 1, MET + 9);
+  for (x = 121; x < 260; x += 5) op("rect", x, 41, 1, bottom - 39, MET + 7);
+  [52, 70, 88].forEach(function (y) { if (y < bottom) op("rect", 120, y, 140, 1, MET + 9); });
+  op("rect", 118, bottom, 144, 3, MET + 10);
+  if (p.on.grilleOpen) {
+    // The padlock, open, left on the counter.
+    op("rect", 196, 101, 8, 6, GOLD + 5); op("rect", 197, 97, 1, 4, MET + 10); op("rect", 197, 97, 5, 1, MET + 10); op("rect", 199, 103, 2, 2, GOLD);
+  } else {
+    op("rect", 186, 94, 8, 7, GOLD + 5); op("rect", 187, 91, 6, 1, MET + 10); op("rect", 187, 91, 1, 4, MET + 10); op("rect", 192, 91, 1, 4, MET + 10);
+    op("rect", 189, 96, 2, 2, GOLD);
+  }
 
   // Three staff lockers; the middle one has a Block Drop sticker, the last does not quite close.
   function locker(x) {
@@ -344,7 +377,7 @@ var counter = picture(11, function (p) {
   op("rect", 272, 150, 4, 10, MET + 3); op("rect", 298, 150, 4, 10, MET + 3);
 });
 
-var office = picture(13, function (p) {
+var office = scene(["safeOpen"], 13, function (p) {
   var op = p.op, k, x;
   var PANEL = p.ramp("#0c0804", "#8a6438"), FLOOR = p.ramp("#060403", "#6a4630"), DESK = p.ramp("#060a08", "#9ab4a2");
   var LAMP = p.ramp("#2a1a04", "#fff4c0", 8), SKIN = p.ramp("#2a1206", "#f0b08a", 8), HAIR = p.ramp("#24242a", "#ececf0", 8);
@@ -365,13 +398,9 @@ var office = picture(13, function (p) {
   op("ellipse", 127, 26, 8, 8, STEEL + 2); op("ellipse", 127, 26, 7, 7, PAPER + 6);
   op("line", 127, 26, 127, 20, 0); op("line", 127, 26, 130, 24, 0); op("rect", 127, 26, 1, 1, 4);
 
-  // Opening day, 1979, in a light frame.
-  op("rect", 30, 50, 26, 34, GOLD + 5); op("rect", 31, 51, 24, 32, GOLD + 2);
-  op("vgrad", 33, 53, 20, 28, SEPIA + 4, SEPIA + 6);
-  op("rect", 34, 58, 18, 14, SEPIA + 2); op("rect", 36, 59, 14, 3, SEPIA + 7); op("rect", 41, 64, 4, 8, SEPIA);
-  op("rect", 37, 68, 3, 10, SEPIA + 1); op("ellipse", 38, 66, 1, 2, SEPIA + 6);
-  op("rect", 46, 68, 3, 10, SEPIA + 1); op("ellipse", 47, 66, 1, 2, SEPIA + 6);
-  op("line", 34, 72, 52, 72, 12);
+  // A calendar from the distributor on the wall.
+  op("rect", 32, 52, 22, 30, PAPER + 6); op("rect", 32, 52, 22, 9, CARD + 4); op("rect", 41, 50, 4, 3, STEEL + 6);
+  for (k = 0; k < 20; k++) op("rect", 34 + (k % 5) * 4, 64 + Math.floor(k / 5) * 4, 2, 2, PAPER + 2);
 
   // Keyed switch panel, one switch per cabinet; Block Drop's is turned to EDIT.
   op("rect", 250, 40, 50, 60, STEEL + 2); op("vgrad", 252, 42, 46, 56, STEEL + 5, STEEL + 3);
@@ -411,10 +440,23 @@ var office = picture(13, function (p) {
     op("poly", PAPER + 5 + (n % 3), [s[0], s[1] + s[3], s[0] + s[2], s[1] + s[3] + 1, s[0] + s[2] + 1, s[1] + 1, s[0] + 1, s[1]]);
   });
   op("light", 106, 104, 70, 12, 4);
+  // Opening day, 1979, in a light frame standing at the corner of the desk.
+  op("rect", 216, 96, 12, 14, GOLD + 6); op("rect", 217, 97, 10, 12, GOLD + 2);
+  op("vgrad", 218, 98, 8, 10, SEPIA + 5, SEPIA + 3);
+  op("rect", 219, 102, 1, 5, SEPIA); op("ellipse", 219, 101, 1, 1, SEPIA + 7);
+  op("rect", 223, 102, 1, 5, SEPIA); op("ellipse", 223, 101, 1, 1, SEPIA + 7);
+  op("line", 218, 105, 225, 105, 12);
+  op("line", 226, 109, 229, 111, GOLD + 3);
   op("rect", 145, 140, 40, 30, SAFE + 1); op("vgrad", 147, 142, 36, 26, SAFE + 5, SAFE + 2);
   op("ellipse", 162, 155, 7, 7, STEEL + 6); op("ellipse", 162, 155, 5, 5, STEEL + 2); op("line", 162, 148, 162, 150, GOLD + 7);
   op("rect", 174, 150, 3, 10, STEEL + 7); op("rect", 148, 144, 10, 3, GOLD + 4);
   op("rect", 145, 170, 40, 2, 0);
+  if (p.on.safeOpen) {
+    // The door hangs open on its hinge; the inside stays in shadow.
+    op("rect", 147, 142, 36, 26, SAFE); op("rect", 149, 144, 32, 22, 0);
+    op("poly", SAFE + 4, [185, 140, 196, 136, 196, 174, 185, 170]);
+    op("ellipse", 191, 155, 3, 5, STEEL + 5);
+  }
 
   // Guest chair by the door.
   op("rect", 56, 118, 30, 4, CARD + 1); op("rect", 56, 92, 4, 28, STEEL + 3); op("rect", 56, 92, 28, 10, CARD + 2);
@@ -422,7 +464,7 @@ var office = picture(13, function (p) {
   op("light", 70, 168, 20, 4, -4);
 });
 
-var hallway = picture(17, function (p) {
+var hallway = scene([], 17, function (p) {
   var op = p.op, k, x, y;
   // One-point perspective: vanishing point (160, 76), far wall 110..210 x 40..112.
   var WALL = p.ramp("#050806", "#7a8a7c"), CEIL = p.ramp("#040504", "#4a544c", 8), LINO = p.ramp("#050505", "#8a8474");
@@ -487,7 +529,7 @@ var hallway = picture(17, function (p) {
   op("shade", 0, 180, 320, 20, -1);
 });
 
-var dock = picture(19, function (p) {
+var dock = scene([], 19, function (p) {
   var op = p.op, k, x, y;
   var BRICK = p.ramp("#0c0504", "#8a4430"), CONC = p.ramp("#060606", "#8e8c86"), MET = p.ramp("#08080e", "#c4c8d6");
   var NIGHT = p.ramp("#010206", "#20283e", 8), SOD = p.ramp("#1e0e02", "#ffb860", 8), HAZ = p.ramp("#2a2000", "#ffd030", 8);
@@ -559,7 +601,7 @@ var dock = picture(19, function (p) {
   op("light", 160, 150, 170, 60, 2);
 });
 
-var alley = picture(23, function (p) {
+var alley = scene(["vanOpen"], 23, function (p) {
   var op = p.op, k, x, y;
   var SKY = p.ramp("#030201", "#3a2410", 8), BRICK = p.ramp("#080404", "#a06040"), ASPH = p.ramp("#020202", "#8a6a48");
   var VAN = p.ramp("#0e0e10", "#f6f2e8"), MET = p.ramp("#08080a", "#c8c4bc"), DUMP = p.ramp("#020c06", "#4a9a6a");
@@ -578,7 +620,7 @@ var alley = picture(23, function (p) {
   }
   op("rect", 0, 18, 320, 2, BRICK + 6);
   // Drainpipe.
-  op("rect", 224, 18, 3, 94, MET + 3); op("rect", 224, 18, 1, 94, MET + 6);
+  op("rect", 266, 18, 3, 94, MET + 3); op("rect", 266, 18, 1, 94, MET + 6);
 
   // The diner's back door under its buzzing sign.
   op("rect", 8, 22, 40, 12, 0); op("text", 10, 24, "DINER", NEON, 1);  op("rect", 6, 36, 42, 2, MET + 4);
@@ -591,11 +633,12 @@ var alley = picture(23, function (p) {
   op("rect", 274, 54, 46, 8, MET + 6); for (y = 55; y < 62; y += 2) op("rect", 274, y, 46, 1, MET + 3);
   op("rect", 274, 62, 3, 50, MET + 5);
 
-  // Payphone on the wall.
-  op("rect", 56, 60, 18, 40, MET + 5); op("rect", 58, 62, 14, 8, MET + 9); op("rect", 59, 63, 12, 6, 0); op("text", 60, 64, "25", SOD + 6);
-  op("rect", 58, 74, 4, 20, 0); op("rect", 59, 76, 2, 16, MET + 2); op("line", 60, 94, 64, 102, 0);
-  for (k = 0; k < 9; k++) op("rect", 64 + (k % 3) * 3, 74 + Math.floor(k / 3) * 4, 2, 2, MET + 11);
-  op("rect", 70, 72, 1, 1, 15);
+  // Payphone on the wall beside the dumpster.
+  var ph = 214;
+  op("rect", ph, 60, 18, 40, MET + 5); op("rect", ph + 2, 62, 14, 8, MET + 9); op("rect", ph + 3, 63, 12, 6, 0); op("text", ph + 4, 64, "25", SOD + 6);
+  op("rect", ph + 2, 74, 4, 20, 0); op("rect", ph + 3, 76, 2, 16, MET + 2); op("line", ph + 4, 94, ph + 8, 102, 0);
+  for (k = 0; k < 9; k++) op("rect", ph + 8 + (k % 3) * 3, 74 + Math.floor(k / 3) * 4, 2, 2, MET + 11);
+  op("rect", ph + 14, 72, 1, 1, 15);
 
   // Wet asphalt.
   op("vgrad", 0, 112, 320, 88, ASPH + 1, ASPH + 3);
@@ -614,6 +657,13 @@ var alley = picture(23, function (p) {
   op("rect", 100, 104, 110, 2, LOGO + 6);
   op("ellipse", 122, 126, 10, 10, 0); op("ellipse", 122, 126, 5, 5, MET + 4); op("ellipse", 122, 126, 2, 2, MET + 8);
   op("ellipse", 192, 126, 10, 10, 0); op("ellipse", 192, 126, 5, 5, MET + 4); op("ellipse", 192, 126, 2, 2, MET + 8);
+  if (p.on.vanOpen) {
+    // The back doors stand open: one swung out towards us, the dark of the cargo bay behind it.
+    op("rect", 100, 66, 4, 52, 0);
+    op("poly", VAN + 12, [100, 64, 88, 70, 88, 116, 100, 120]);
+    op("poly", SKY + 1, [97, 70, 91, 73, 91, 88, 97, 86]);
+    op("line", 100, 64, 100, 120, VAN + 6);
+  }
 
   // Dumpster with its lid up and the truck's sign.
   op("poly", DUMP + 3, [238, 86, 306, 86, 312, 62, 244, 62]);
@@ -640,7 +690,7 @@ var alley = picture(23, function (p) {
   for (k = 0; k < 8; k++) op("rect", 230 + k * 9, 113, 1, 2 + (k % 3), ASPH + 7);
 });
 
-var van = picture(29, function (p) {
+var van = scene([], 29, function (p) {
   var op = p.op, k, x, y;
   var PLY = p.ramp("#0c0804", "#a07e52"), RIB = p.ramp("#06060a", "#a8acb8", 8), FLOOR = p.ramp("#030303", "#4a4a48", 8);
   var BLANK = p.ramp("#04081a", "#5a76c8"), STRAP = p.ramp("#200a00", "#ff9a30", 8), PAPER = p.ramp("#3a3830", "#fcf8ec", 8);
@@ -687,7 +737,7 @@ var van = picture(29, function (p) {
   op("rect", 0, 0, 10, 200, 0); op("rect", 310, 0, 10, 200, 0);
 });
 
-var diner = picture(31, function (p) {
+var diner = scene([], 31, function (p) {
   var op = p.op, k, x, y;
   var TILE = p.ramp("#04100c", "#8ad8b8"), CHROME = p.ramp("#08080c", "#eef0f6"), RED = p.ramp("#1a0406", "#f0505a");
   var WHITE = p.ramp("#2a2a2c", "#fcfcf8", 8), SKINL = p.ramp("#1a0a04", "#b07848", 8), SKIND = p.ramp("#2a160a", "#f0b890", 8);
@@ -784,7 +834,7 @@ var diner = picture(31, function (p) {
   op("shade", 0, 186, 320, 14, -1);
 });
 
-var workshop = picture(37, function (p) {
+var workshop = scene([], 37, function (p) {
   var op = p.op, k, x, y;
   var BLOCK = p.ramp("#040404", "#6a6862"), FLOOR = p.ramp("#030303", "#5a5852"), PIPE = p.ramp("#06060a", "#a8acb4", 8);
   var BENCH = p.ramp("#120802", "#b07a44"), CRT = p.ramp("#020604", "#4a6a58", 8), PCB = p.ramp("#021404", "#40b060", 8);
@@ -870,7 +920,7 @@ var workshop = picture(37, function (p) {
   op("light", 160, 44, 40, 14, 3);
 });
 
-var stockroom = picture(41, function (p) {
+var stockroom = scene([], 41, function (p) {
   var op = p.op, k, x, y;
   var WALL = p.ramp("#03040a", "#46567a"), FLOOR = p.ramp("#030303", "#5a5650"), SHELF = p.ramp("#06060a", "#b0b4c0", 8);
   var BEAR = p.ramp("#1e0e04", "#d8a060", 8), PINK = p.ramp("#2a0618", "#ff8ad0", 8), CYAN = p.ramp("#04202a", "#6af0ff", 8);
@@ -934,7 +984,18 @@ var stockroom = picture(41, function (p) {
   op("light", 160, 150, 160, 50, 2);
 });
 
-export const PICTURES = {
+const SCENES = {
   floor: floor, counter: counter, office: office, hallway: hallway, dock: dock, alley: alley, van: van,
   diner: diner, workshop: workshop, stockroom: stockroom,
 };
+
+// The flags each room's picture follows.
+export const PICTURE_FLAGS = {};
+// Each room's picture as the game opens (every flag false).
+export const PICTURES = {};
+Object.keys(SCENES).forEach(function (id) { PICTURE_FLAGS[id] = SCENES[id].flags.slice(); PICTURES[id] = SCENES[id]({}); });
+
+// The draw list for a room in a given state ({ flag: boolean }); null for a room with no picture.
+export function pictureFor(id, flags) {
+  return Object.prototype.hasOwnProperty.call(SCENES, id) ? SCENES[id](flags || {}) : null;
+}

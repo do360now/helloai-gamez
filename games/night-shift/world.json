@@ -4812,10 +4812,10 @@
       ],
       "text": "Opening day, 1979: a younger Marge and a man in a wide tie cut a ribbon in front of the arcade. The frame is light, and something is written on the back of the print. You could turn it over.",
       "hotspot": [
-        30,
-        50,
-        26,
-        34
+        214,
+        94,
+        16,
+        18
       ]
     },
     "panel": {
@@ -5246,7 +5246,7 @@
       ],
       "text": "A payphone on the arcade's wall, its cord chewed by weather. The last-number redial button is worn shiny. It wants a quarter.",
       "hotspot": [
-        56,
+        214,
         60,
         18,
         40

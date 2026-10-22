@@ -2,7 +2,7 @@
 // engine except through submit(), which goes through Arcade.onKeyAction so a typed or tapped command
 // is logged exactly like an agent's.
 import * as Render from "./render.js";
-import { PICTURES } from "./pictures.js";
+import { pictureFor } from "./pictures.js";
 
 export function mount(root, game, world, submit) {
   var $ = function (id) { return root.querySelector("#" + id); };
@@ -12,8 +12,9 @@ export function mount(root, game, world, submit) {
   var pending = null; // {verb, usage, args}: a verb chosen by tap, waiting for the rest of its arguments
   var history = [], hpos = 0;
   var s = null;
-  // The room's picture, compiled once per room; palette cycling animates it unless the player asked for less motion.
-  var pic = null, picRoom = null;
+  // The room's picture, compiled once per room and state (the flags its text depends on); palette cycling
+  // animates it unless the player asked for less motion.
+  var pic = null, picKey = null;
   var still = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   function pad(n, w) { return String(n).padStart(w, "0"); }
@@ -116,9 +117,10 @@ export function mount(root, game, world, submit) {
   function paint() {
     s = game.state();
     var room = world.rooms[s.room.id];
-    if (s.room.id !== picRoom) {
-      picRoom = s.room.id;
-      try { pic = Render.compile(PICTURES[picRoom] || (room && room.draw) || [["fill", 0]]); } catch (e) { pic = null; }
+    var key = s.room.id + " " + JSON.stringify(s.room.flags || {});
+    if (key !== picKey) {
+      picKey = key;
+      try { pic = Render.compile(pictureFor(s.room.id, s.room.flags) || (room && room.draw) || [["fill", 0]]); } catch (e) { pic = null; }
     }
     showPicture(performance.now());
     bar.textContent = "Score: " + s.score + " of " + s.maxScore + "   |   " + s.room.name + "   |   Command " + (s.commands != null ? s.commands : s.turn) + (s.budget ? "/" + s.budget : "") + "   |   Move " + s.turn + (s.deaths ? "   |   Deaths " + s.deaths : "");

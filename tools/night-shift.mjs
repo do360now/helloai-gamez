@@ -277,15 +277,23 @@ export function paramCombosEach(world) {
 // opts.combos: "all" (the Cartesian product of every parameter, the default and what CI runs) or
 // "each" (every choice of every parameter, varied one at a time; faster, used by the tests).
 // The page draws pictures.js and falls back to world.json's draw lists: every room needs a picture that
-// compiles, and every picture belongs to a room.
-export function pictureProblems(world, pics = pictures && pictures.PICTURES) {
-  if (!pics) return ["pictures.js could not be imported"];
+// compiles in every state it follows, every picture belongs to a room, and a picture follows only flags its
+// room's extra lines name (so it never shows what the room text does not say).
+export function pictureProblems(world, mod = pictures) {
+  if (!mod) return ["pictures.js could not be imported"];
   const problems = [];
-  for (const rid of Object.keys(world.rooms)) {
-    if (!pics[rid]) { problems.push("room " + rid + " has no picture"); continue; }
-    if (DRAW_VALIDATOR) for (const p of DRAW_VALIDATOR(pics[rid])) problems.push("picture " + rid + ": " + p);
+  for (const [rid, room] of Object.entries(world.rooms)) {
+    const flags = mod.PICTURE_FLAGS[rid];
+    if (!flags) { problems.push("room " + rid + " has no picture"); continue; }
+    const told = new Set((room.extra || []).flatMap((x) => Object.keys((x.require || {}).flags || {})));
+    for (const f of flags) if (!told.has(f)) problems.push("picture " + rid + " follows flag " + f + ", which no extra line of the room names");
+    for (let m = 0; m < 1 << flags.length; m++) {
+      const state = Object.fromEntries(flags.map((f, i) => [f, !!(m & (1 << i))]));
+      const list = mod.pictureFor(rid, state);
+      if (DRAW_VALIDATOR) for (const p of DRAW_VALIDATOR(list)) problems.push("picture " + rid + " " + JSON.stringify(state) + ": " + p);
+    }
   }
-  for (const rid of Object.keys(pics)) if (!world.rooms[rid]) problems.push("picture " + rid + " has no room");
+  for (const rid of Object.keys(mod.PICTURE_FLAGS)) if (!world.rooms[rid]) problems.push("picture " + rid + " has no room");
   return problems;
 }
 

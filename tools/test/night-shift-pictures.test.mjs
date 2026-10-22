@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { loadWorld, pictureProblems } from "../night-shift.mjs";
-import { PICTURES } from "../../games/night-shift/pictures.js";
+import * as Pictures from "../../games/night-shift/pictures.js";
+import { createGame, mulberry32 } from "../../games/night-shift/engine.js";
+const { PICTURES, PICTURE_FLAGS, pictureFor } = Pictures;
 import { compile, present, validate, drawPicture } from "../../games/night-shift/render.js";
 
 const world = await loadWorld();
@@ -15,12 +17,23 @@ test("every room has a picture that compiles, and every picture has a room", () 
   }
 });
 
-test("pictureProblems reports a missing picture and a stray one", () => {
-  const pics = { ...PICTURES, attic: [["fill", 0]] };
-  delete pics.van;
-  const p = pictureProblems(world, pics);
+test("pictureProblems reports a missing picture, a stray one, and a flag the text never names", () => {
+  const flags = { ...PICTURE_FLAGS, attic: [], diner: ["safeOpen"] };
+  delete flags.van;
+  const p = pictureProblems(world, { PICTURE_FLAGS: flags, pictureFor: (id) => pictureFor(id, {}) || [["fill", 0]] });
   assert.ok(p.some((x) => /room van has no picture/.test(x)), p.join("; "));
   assert.ok(p.some((x) => /picture attic has no room/.test(x)), p.join("; "));
+  assert.ok(p.some((x) => /diner follows flag safeOpen/.test(x)), p.join("; "));
+});
+
+test("a picture changes with the flags its room text reports, and the game state carries only those", () => {
+  for (const [rid, flags] of Object.entries(PICTURE_FLAGS)) {
+    for (const f of flags) assert.notDeepEqual(pictureFor(rid, { [f]: true }), pictureFor(rid, {}), rid + " ignores " + f);
+  }
+  const g = createGame(world, { random: mulberry32(1), bench: "case-150" });
+  assert.deepEqual(g.state().room.flags, { officeOpen: false, serviceSeen: false });
+  g.command("east");
+  assert.deepEqual(g.state().room.flags, { grilleOpen: false });
 });
 
 test("the old 16-colour draw lists still render, pixel for pixel in EGA colours", () => {

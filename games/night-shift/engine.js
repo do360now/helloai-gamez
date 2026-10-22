@@ -158,6 +158,14 @@ export function createGame(world, opts = {}) {
     return t;
   }
 
+  // The flags this room's extra lines depend on, for the picture. The text already states each of them, so
+  // this tells the page (and an agent's observation) nothing the room description does not.
+  function sceneFlags() {
+    const out = {};
+    for (const x of world.rooms[S.room].extra || []) for (const k of Object.keys((x.require || {}).flags || {})) out[k] = !!S.flags[k];
+    return out;
+  }
+
   function nouns() {
     const list = [];
     for (const id of visibleObjects()) list.push({ id, nouns: nounsOf(id) });
@@ -463,7 +471,7 @@ export function createGame(world, opts = {}) {
 
   function state() {
     return {
-      room: { id: S.room, name: sub(world.rooms[S.room].name), text: roomText() },
+      room: { id: S.room, name: sub(world.rooms[S.room].name), text: roomText(), flags: sceneFlags() },
       objects: visibleObjects().map((id) => {
         const o = obj(id);
         const ns = nounsOf(id);
