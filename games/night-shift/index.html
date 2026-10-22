@@ -41,9 +41,10 @@ h1 span{color:var(--accent)}
   <div id="log" aria-live="polite"></div>
   <div id="overbanner" hidden>The shift is over. Use DOWNLOAD RUN (JSON) in the bar at the top of the page to save your run, or reload to play again.</div>
   <form id="cmdform" autocomplete="off"><input id="cmd" aria-label="Type a command" placeholder="type a command, or tap a verb" autocapitalize="off" autocorrect="off" spellcheck="false"/><button type="submit">GO</button></form>
-  <div class="row" id="verbs-row"><b>Verbs</b><span class="row" id="verbs"></span></div>
   <div class="row"><b>Exits</b><span class="row" id="exits"></span></div>
+  <div class="row"><b>Here</b><span class="row" id="here"></span></div>
   <div class="row"><b>Carrying</b><span class="row" id="inventory"></span></div>
+  <div class="row" id="verbs-row"><b>Verbs</b><span class="row" id="verbs"></span></div>
 </div>
 <script type="module">
 import { arcadeAdapter } from "./engine.js";

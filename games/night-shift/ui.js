@@ -7,7 +7,7 @@ export function mount(root, game, world, submit) {
   var $ = function (id) { return root.querySelector("#" + id); };
   var canvas = $("scene"), ctx = canvas.getContext("2d");
   var bar = $("scorebar"), log = $("log"), verbsEl = $("verbs"), exitsEl = $("exits"), form = $("cmdform"), input = $("cmd");
-  var invEl = $("inventory");
+  var invEl = $("inventory"), hereEl = $("here");
   var pending = null; // {verb, usage, args}: a verb chosen by tap, waiting for the rest of its arguments
   var history = [], hpos = 0;
   var s = null;
@@ -77,6 +77,16 @@ export function mount(root, game, world, submit) {
     if (!s.exits.length) exitsEl.textContent = "none";
   }
 
+  // What is in the room, as buttons: a tap fills the next argument slot, or looks at it when no verb is chosen.
+  // People and objects with no hotspot on the picture are reachable this way too.
+  function paintHere() {
+    hereEl.textContent = "";
+    s.objects.forEach(function (o) {
+      hereEl.appendChild(button(o.name, (o.person ? "talk to or ask " : "look at ") + o.name, function () { supply(o.nouns && o.nouns[0] || o.name); }));
+    });
+    if (!s.objects.length) hereEl.textContent = "nothing of note";
+  }
+
   function paintInventory() {
     invEl.textContent = "";
     s.inventory.forEach(function (it) {
@@ -104,7 +114,7 @@ export function mount(root, game, world, submit) {
     var room = world.rooms[s.room.id];
     try { Render.drawPicture(ctx, (room && room.draw) || [["fill", 0]]); } catch (e) { ctx.fillStyle = "#aa0000"; ctx.fillRect(0, 0, 320, 200); }
     bar.textContent = "Score: " + s.score + " of " + s.maxScore + "   |   " + s.room.name + "   |   Command " + (s.commands != null ? s.commands : s.turn) + (s.budget ? "/" + s.budget : "") + "   |   Move " + s.turn + (s.deaths ? "   |   Deaths " + s.deaths : "");
-    paintLog(); paintVerbs(); paintExits(); paintInventory();
+    paintLog(); paintVerbs(); paintExits(); paintHere(); paintInventory();
     form.classList.toggle("over", !!s.over);
     input.disabled = !!s.over;
     $("overbanner").hidden = !s.over;
