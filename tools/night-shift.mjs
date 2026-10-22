@@ -4,7 +4,8 @@
 //   node night-shift.mjs solve [seed]     print the optimal command list and par
 //   node night-shift.mjs par              print par for the benchmark seed
 //   node night-shift.mjs verify <run.json ...>   replay recorded runs through the engine
-//   node night-shift.mjs play [seed] [--seed N] [--out run.json]   play in the terminal; stdin may be piped
+//   node night-shift.mjs play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]
+//                                         play in the terminal; stdin may be piped
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,7 +22,7 @@ const DRAW_VALIDATOR = render && typeof render.validate === "function" ? render.
 // The schema the checker enforces. Unknown keys are content bugs that would otherwise be silent no-ops.
 const WHEN_KEYS = new Set(["verb", "object", "target", "topic", "code", "dir", "turn"]);
 const REQUIRE_KEYS = new Set(["room", "has", "visible", "flags", "param", "minTurn"]);
-const EFFECT_KEYS = new Set(["reply", "flag", "value", "score", "id", "move", "to", "reveal", "exit", "die", "win"]);
+const EFFECT_KEYS = new Set(["reply", "flag", "value", "score", "id", "move", "to", "reveal", "exit", "die", "win", "goto"]);
 const RULE_KEYS = new Set(["id", "when", "require", "fail", "do"]);
 const TOPIC_KEYS = new Set(["reply", "points", "require", "fail", "synonyms"]);
 
@@ -40,15 +41,15 @@ const isRef = (v) => !!(v && typeof v === "object" && v.param);
 
 // The commands worth trying from a state: exits, takes, every rule phrased from its `when`, and
 // every topic of every person in the room. Everything else cannot change the state.
-function candidates(world, game, learned) {
+function candidates(world, game, learned, neededItems = null) {
   const s = game.state();
   const pid = pidOf(game.params);
-  const here = new Set(s.objects.map((o) => o.id).concat(s.inventory.map((o) => o.id)));
+  const here = new Set(s.objects.map((o) => o.id).concat(s.inventory.map((o) => o.id), Object.keys(world.objects).filter((id) => world.objects[id].everywhere)));
   const verbs = Object.fromEntries(world.verbs.map((v) => [v.verb, v]));
   const out = [];
   const add = (c) => { if (!out.includes(c)) out.push(c); };
   for (const e of s.exits) add(e.dir);
-  for (const o of s.objects) if (world.objects[o.id].takeable) add("take " + o.noun);
+  for (const o of s.objects) if (world.objects[o.id].takeable && (!neededItems || neededItems.has(o.id))) add("take " + o.noun);
   for (const r of world.rules || []) {
     const w = r.when;
     if (!w || !w.verb || w.turn) continue;
@@ -81,15 +82,53 @@ function keyOf(snap) {
   return JSON.stringify([snap.room, flags, snap.inv.slice().sort(), snap.placed, Object.keys(snap.revealed).sort(), Object.keys(snap.scored).sort(), snap.addedExits]);
 }
 
-// Breadth-first search over engine snapshots for the shortest command list that wins with the full
-// score. Commands that kill are pruned. `random` may be a seed number or a random function.
-// Blind (the default): a seeded value may only be typed once some text the player has read showed
-// it, so par is the shortest path a player can take from the text alone. {blind: false} is omniscient.
+// Flags that some require reads. Only these, plus scored events, items and revealed objects, count
+// as progress; a flag nothing reads cannot change what the player can do next.
+function requiredFlags(world) {
+  const out = new Set();
+  const add = (req) => { for (const k of Object.keys((req && req.flags) || {})) out.add(k); };
+  for (const r of world.rules || []) add(r.require);
+  for (const room of Object.values(world.rooms || {})) {
+    for (const e of room.exits || []) add(e.require);
+    for (const x of room.extra || []) add(x.require);
+  }
+  for (const o of Object.values(world.objects || {})) for (const t of Object.values(o.topics || {})) add(t.require);
+  return out;
+}
+
+// Items some require.has reads. Taking anything else is not progress.
+function neededItemsOf(world) {
+  const out = new Set();
+  const add = (req) => { for (const id of (req && req.has) || []) if (typeof id === "string") out.add(id); };
+  for (const r of world.rules || []) add(r.require);
+  for (const room of Object.values(world.rooms || {})) { for (const e of room.exits || []) add(e.require); for (const x of room.extra || []) add(x.require); }
+  for (const o of Object.values(world.objects || {})) for (const t of Object.values(o.topics || {})) add(t.require);
+  return out;
+}
+
+function progressOf(snap, flags, items) {
+  const out = new Set();
+  for (const id of Object.keys(snap.scored)) out.add("s:" + id);
+  for (const id of snap.inv) if (items.has(id)) out.add("i:" + id);
+  for (const id of Object.keys(snap.revealed)) out.add("r:" + id);
+  for (const [k, v] of Object.entries(snap.flags)) if (v && flags.has(k)) out.add("f:" + k);
+  return out;
+}
+
+// Plans the shortest command list to the full score and the win. Points are never lost and nothing
+// is consumed except on the thing it is for, so the plan is greedy: from the current state, a
+// breadth-first search finds the nearest state with new progress (a scored event, an item, a
+// revealed object, or a flag some rule reads), commits to it, and repeats. Commands that kill are
+// pruned. Blind (the default): a seeded value may only be typed once some text the player has read
+// showed it, so par is a path a player can take from the text alone. {blind: false} is omniscient.
+// `random` may be a seed number or a random function.
 export function solve(world, random, bench = BENCH, opts = {}) {
   const blind = opts.blind !== false;
   const rng = typeof random === "function" ? random : mulberry32(random);
   const game = createGame(world, { random: rng, bench });
   const max = game.maxScore;
+  const flags = requiredFlags(world);
+  const items = neededItemsOf(world);
   const paramNames = Object.keys(world.params || {});
   const slim = (snap) => { snap.transcript = []; snap.reply = ""; return snap; };
   const learnFrom = (learned, text) => {
@@ -97,38 +136,55 @@ export function solve(world, random, bench = BENCH, opts = {}) {
     for (const n of paramNames) if (!out.has(n) && text.includes(String(game.params[n]))) { out = new Set(out); out.add(n); }
     return out;
   };
-  const start = slim(game.snapshot());
-  const learned0 = learnFrom(new Set(), game.state().room.text);
   const keyWith = (snap, learned) => keyOf(snap) + (blind ? "|" + [...learned].sort().join(",") : "");
-  const seen = new Set([keyWith(start, learned0)]);
-  let frontier = [{ snap: start, path: [], learned: learned0 }];
+
+  let cur = slim(game.snapshot());
+  let learned = learnFrom(new Set(), game.state().room.text);
+  const path = [];
   let states = 1;
-  while (frontier.length) {
-    const next = [];
-    for (const { snap, path, learned } of frontier) {
-      game.restore(snap);
-      for (const cmd of candidates(world, game, blind ? learned : null)) {
-        game.restore(snap);
-        const r = game.command(cmd);
-        if (r.events.some((e) => e.type === "died")) continue;
-        const after = slim(game.snapshot());
-        const learnedAfter = blind ? learnFrom(learned, r.reply + "\n" + game.state().room.text) : learned;
-        if (after.over) {
-          if (after.reason === "win" && after.score === max) {
-            const actions = path.concat(cmd);
-            return { par: actions.length, actions, scored: Object.keys(after.scored).sort(), score: after.score, states, params: game.params };
+  for (let leg = 0; leg < 400; leg++) {
+    const have = progressOf(cur, flags, items);
+    const seen = new Set([keyWith(cur, learned)]);
+    let frontier = [{ snap: cur, path: [], learned }];
+    let found = null;
+    while (frontier.length && !found) {
+      const next = [];
+      for (const node of frontier) {
+        for (const cmd of (game.restore(node.snap), candidates(world, game, blind ? node.learned : null, items))) {
+          game.restore(node.snap);
+          const r = game.command(cmd);
+          if (r.events.some((e) => e.type === "died")) continue;
+          const after = slim(game.snapshot());
+          const learnedAfter = blind ? learnFrom(node.learned, r.reply + "\n" + game.state().room.text) : node.learned;
+          const p = node.path.concat(cmd);
+          if (after.over) {
+            if (after.reason === "win" && after.score === max) {
+              const actions = path.concat(p);
+              return { par: actions.length, actions, scored: Object.keys(after.scored).sort(), score: after.score, states, params: game.params };
+            }
+            continue;
           }
-          continue;
+          const k = keyWith(after, learnedAfter);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          states++;
+          if (states > MAX_STATES) return null;
+          const prog = progressOf(after, flags, items);
+          let isNew = false;
+          for (const x of prog) if (!have.has(x)) { isNew = true; break; }
+          if (isNew) { found = { snap: after, path: p, learned: learnedAfter }; break; }
+          next.push({ snap: after, path: p, learned: learnedAfter });
         }
-        const k = keyWith(after, learnedAfter);
-        if (seen.has(k)) continue;
-        seen.add(k);
-        states++;
-        if (states > MAX_STATES) return null;
-        next.push({ snap: after, path: path.concat(cmd), learned: learnedAfter });
+        if (found) break;
       }
+      frontier = next;
     }
-    frontier = next;
+    if (!found) {
+      if (opts.trace) console.error("solve: stuck after " + path.length + " commands in " + cur.room + "; progress " + [...have].join(" ") + "; path: " + path.join(" | "));
+      return null;
+    }
+    if (opts.trace) console.error("leg " + leg + ": " + found.path.join(" | "));
+    cur = found.snap; learned = found.learned; path.push(...found.path);
   }
   return null;
 }
@@ -154,14 +210,25 @@ export function paramCombos(world) {
   });
 }
 
+// Every choice of every parameter, varied one at a time with the others at their first choice.
+export function paramCombosEach(world) {
+  const names = Object.keys(world.params || {});
+  const base = Object.fromEntries(names.map((n) => [n, world.params[n].choices[0]]));
+  const picks = [base];
+  for (const n of names) for (const c of world.params[n].choices.slice(1)) picks.push({ ...base, [n]: c });
+  return paramCombos(world).filter((x) => picks.some((p) => names.every((n) => p[n] === x.pick[n])));
+}
+
 // Validates world.json and proves the benchmark invariants over every parameter combination.
-export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALIDATOR) {
+// opts.combos: "all" (the Cartesian product of every parameter, the default and what CI runs) or
+// "each" (every choice of every parameter, varied one at a time; faster, used by the tests).
+export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALIDATOR, opts = {}) {
   const problems = [];
   const objects = world.objects || {};
   const rooms = world.rooms || {};
   const params = world.params || {};
   const verbs = new Set((world.verbs || []).map((v) => v.verb));
-  const combos = paramCombos(world);
+  const combos = opts.combos === "each" ? paramCombosEach(world) : paramCombos(world);
   const isRef = (v) => v && typeof v === "object" && v.param;
   const refOk = (v, where) => { if (isRef(v) && !params[v.param]) problems.push(where + ": unknown param " + v.param); };
   const unknownKeys = (obj, allowed, where) => { for (const k of Object.keys(obj || {})) if (!allowed.has(k)) problems.push(where + ": unknown key " + k); };
@@ -197,7 +264,7 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
     for (const k of ["object", "target", "code"]) refOk(r.when[k], where);
     for (const e of r.do || []) {
       unknownKeys(e, EFFECT_KEYS, where + " do");
-      for (const k of ["reveal", "move", "to"]) refOk(e[k], where);
+      for (const k of ["reveal", "move", "to", "goto"]) refOk(e[k], where);
       if (e.exit) { if (!rooms[e.exit.room]) problems.push(where + ": unknown room " + e.exit.room); refOk(e.exit.to, where); }
       if (typeof e.score === "number") {
         const sid = e.id || r.id;
@@ -236,12 +303,13 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
         if (e.reveal !== undefined) { needObject(e.reveal, where); revealed.add(pid(e.reveal)); }
         if (e.move !== undefined) { needObject(e.move, where); moved.add(pid(e.move)); if (e.to && e.to !== "inventory") needRoom(e.to, where); }
         if (e.exit) needRoom(e.exit.to, where);
+        if (e.goto !== undefined) needRoom(e.goto, where);
       }
       for (const id of (r.require && r.require.has) || []) needObject(id, where);
       for (const id of (r.require && r.require.visible) || []) needObject(id, where);
     }
     for (const [oid, o] of Object.entries(objects)) {
-      if (!placed.has(oid) && !moved.has(oid)) problem("object " + oid + " is never placed in a room");
+      if (!placed.has(oid) && !moved.has(oid) && !o.everywhere) problem("object " + oid + " is never placed in a room");
       if (o.hidden && !revealed.has(oid)) problem("object " + oid + " is hidden and no rule reveals it");
       if (o.hotspot && !placed.has(oid) && !moved.has(oid)) problem("object " + oid + " has a hotspot but is never in a room");
     }
@@ -353,15 +421,20 @@ export async function verify(runPath, opts = {}) {
   return { ok: !problems.length, problems, run };
 }
 
-function parsePlayArgs(rest) {
-  const opts = { seed: null, out: null };
+function parsePlayArgs(rest, needDisclosure) {
+  const opts = { seed: null, out: null, disclosure: null, name: null, harness: null };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--seed") opts.seed = rest[++i];
     else if (a === "--out") opts.out = rest[++i];
+    else if (a === "--disclosure") opts.disclosure = rest[++i];
+    else if (a === "--name") opts.name = rest[++i];
+    else if (a === "--harness") opts.harness = rest[++i];
     else if (a.startsWith("--")) throw new Error("unknown option " + a);
     else opts.seed = a;
   }
+  if (opts.disclosure !== null && !["blind", "open-book"].includes(opts.disclosure)) throw new Error("--disclosure must be blind or open-book");
+  if (opts.out && needDisclosure && !opts.disclosure) throw new Error("this benchmark requires --disclosure blind|open-book with --out, so the run can be verified");
   if (opts.seed !== null) {
     if (!/^\d{1,10}$/.test(String(opts.seed))) throw new Error("seed must be a whole number, got " + opts.seed);
     opts.seed = Number(opts.seed);
@@ -370,7 +443,7 @@ function parsePlayArgs(rest) {
 }
 
 // Plays from stdin. Lines are queued as they arrive, so a piped script works as well as a terminal.
-async function play(seed, out) {
+async function play(seed, out, who = {}) {
   const readline = await import("node:readline");
   const world = await loadWorld();
   const adapter = arcadeAdapter({ world, random: mulberry32(seed), bench: () => BENCH, seed: () => seed });
@@ -395,6 +468,10 @@ async function play(seed, out) {
   rl.close();
   const run = { protocol: "arcade/0.1", game: world.id, bench: BENCH, seed, mode: "turn", actions, score: adapter.score(), over: adapter.over(), stats: adapter.stats() };
   if (out) {
+    const id = (who.name || "your-handle").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "your-handle";
+    run.player = { id, name: who.name || "Your name", kind: "human", model: null, harness: who.harness || "terminal play, turn-based", notes: "" };
+    if (who.disclosure) run.player.disclosure = who.disclosure;
+    run.date = new Date().toISOString().slice(0, 10);
     await writeFile(out, JSON.stringify(run) + "\n");
     console.log("\nrun written to " + out + " (score " + run.score + ", " + actions.length + " commands)");
   } else {
@@ -429,10 +506,10 @@ async function main(argv) {
     process.exit(failed ? 1 : 0);
   } else if (cmd === "play") {
     let opts;
-    try { opts = parsePlayArgs(rest); } catch (e) { console.error(e.message + "\nusage: play [seed] [--seed N] [--out run.json]"); process.exit(2); }
-    await play(opts.seed === null ? seed : opts.seed, opts.out);
+    try { opts = parsePlayArgs(rest, !!(bench && bench.disclosure)); } catch (e) { console.error(e.message + "\nusage: play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]"); process.exit(2); }
+    await play(opts.seed === null ? seed : opts.seed, opts.out, opts);
   } else {
-    console.log("usage: node night-shift.mjs check | solve [seed] | par | verify <run.json ...> | play [seed] [--seed N] [--out run.json]");
+    console.log("usage: node night-shift.mjs check | solve [seed] | par | verify <run.json ...> | play [seed] [--seed N] [--out run.json --disclosure blind|open-book]");
     process.exit(2);
   }
 }

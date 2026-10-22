@@ -32,15 +32,14 @@ function playSlice(g) {
   return { scores, last: r };
 }
 
-test("the slice plays through on the benchmark seed and ends with the win", () => {
+test("the slice plays through on the benchmark seed to the safe", () => {
   const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
   assert.equal(g.params.keyLocker, "locker1");
   const { last } = playSlice(g);
   assert.equal(g.state().score, 45);
-  assert.equal(g.state().maxScore, 45);
-  assert.equal(g.state().over, true);
-  assert.equal(g.reason, "win");
-  assert.match(last.reply, /To be continued/);
+  assert.equal(g.state().maxScore, 100);
+  assert.equal(g.state().over, false);
+  assert.match(last.reply, /missing from it/);
   assert.equal(g.state().turn, 13);
 });
 
@@ -66,8 +65,9 @@ test("the wrong locker is empty, the office is locked without the key, and the s
   assert.equal(g.state().over, false);
   assert.equal(g.state().score, 10);
   g.command("turn photo over");
-  assert.equal(g.command("turn dial to " + g.params.combo).reply.includes("To be continued"), true);
+  assert.match(g.command("turn dial to " + g.params.combo).reply, /missing from it/);
   assert.equal(g.state().score, 20);
+  assert.equal(g.state().over, false);
 });
 
 test("deaths rewind with the penalty and the game goes on", () => {

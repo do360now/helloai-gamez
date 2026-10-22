@@ -8,34 +8,37 @@ import { createGame, mulberry32 } from "../../games/night-shift/engine.js";
 
 const SEED = 20261022;
 const world = await loadWorld();
-const SCORED = ["find-token", "notice-board", "open-safe", "read-ledger", "service-mode", "unlock-office"];
+const SCORED = ["accuse", "back-panel", "find-token", "lou:dale", "lou:rudy", "notice-board", "open-safe", "panel-key", "phone", "read-clipboard", "read-ledger", "see-label", "service-mode", "unlock-office"];
+const PAR = 48;
+const EACH = { combos: "each" };
+const checkEach = (w, seeds) => check(w, seeds, "case-150", undefined, EACH);
 
-test("solve finds the slice path at the hand-written length, and only types a code it has seen", () => {
+test("solve finds the full path at par, and only types a code it has seen", () => {
   const s = solve(world, SEED);
   assert.ok(s, "no solution");
-  assert.equal(s.par, 13);
+  assert.equal(s.par, PAR);
   assert.ok(s.actions.some((a) => /photo/.test(a)), s.actions.join(" | "));
-  assert.equal(s.score, 45);
+  assert.equal(s.score, 100);
   assert.deepEqual(s.scored, SCORED);
   const g = createGame(world, { random: mulberry32(SEED), bench: "case-150" });
   for (const a of s.actions) g.command(a);
   assert.equal(g.reason, "win");
-  assert.equal(g.state().score, 45);
+  assert.equal(g.state().score, 100);
 });
 
 test("check passes on world.json across five seeds and reports par", () => {
-  const r = check(world, [SEED, 1, 2, 3, 4]);
+  const r = checkEach(world, [SEED, 1, 2, 3, 4]);
   assert.deepEqual(r.problems, []);
   assert.equal(r.ok, true);
-  assert.equal(r.maxScore, 45);
+  assert.equal(r.maxScore, 100);
   assert.deepEqual(r.scored, SCORED);
-  assert.equal(r.par, 13);
+  assert.equal(r.par, PAR);
 });
 
 test("check reports a declared maxScore that differs from the rules", () => {
   const w = structuredClone(world);
-  w.maxScore = 44;
-  const r = check(w, [SEED]);
+  w.maxScore = 99;
+  const r = checkEach(w, [SEED]);
   assert.equal(r.ok, false);
   assert.ok(r.problems.some((p) => /maxScore/.test(p)), r.problems.join("; "));
 });
@@ -45,7 +48,7 @@ test("check reports a hidden object no rule reveals and a reference to a missing
   w.objects.ghost = { name: "ghost", nouns: ["ghost"], text: "Boo.", hidden: true };
   w.rooms.floor.objects.push("ghost");
   w.rules.push({ id: "poke", when: { verb: "push", object: "nothing" }, do: [{ reply: "x" }] });
-  const r = check(w, [SEED]);
+  const r = checkEach(w, [SEED]);
   assert.ok(r.problems.some((p) => /ghost/.test(p)), r.problems.join("; "));
   assert.ok(r.problems.some((p) => /nothing/.test(p)), r.problems.join("; "));
 });
@@ -60,7 +63,7 @@ test("check reports a seed whose par or score differs", () => {
   for (const verb of ["open", "turn", "unlock"]) {
     w.rules.push({ id: "jam-" + verb, when: { verb, object: "safe", code: { param: "combo" } }, require: { param: { combo }, flags: { safeJammed: false } }, do: [{ flag: "safeJammed", value: true }, { reply: "The handle sticks. Try again." }] });
   }
-  const r = check(w, seeds);
+  const r = checkEach(w, seeds);
   assert.equal(r.ok, false);
   assert.ok(r.problems.some((p) => /par/.test(p)), r.problems.join("; "));
 });
@@ -68,7 +71,7 @@ test("check reports a seed whose par or score differs", () => {
 test("check reports a malformed draw list", () => {
   const w = structuredClone(world);
   w.rooms.floor.draw = [["line", 0, 0, 1.5, 1, 15]];
-  const r = check(w, [SEED]);
+  const r = checkEach(w, [SEED]);
   assert.ok(r.problems.some((p) => /draw/.test(p)), r.problems.join("; "));
 });
 
@@ -102,9 +105,9 @@ test("verify requires player.disclosure to be blind or open-book for this benchm
 test("replay reproduces a run through the engine", () => {
   const run = solvedRun();
   const r = replay(world, run);
-  assert.equal(r.score, 45);
+  assert.equal(r.score, 100);
   assert.equal(r.applied, run.actions.length);
-  assert.deepEqual(r.stats, { maxScore: 45, commands: run.actions.length, moves: run.actions.length, deaths: 0, won: 1 });
+  assert.deepEqual(r.stats, { maxScore: 100, commands: run.actions.length, moves: run.actions.length, deaths: 0, won: 1 });
 });
 
 test("verify passes a run produced by the solver", async () => {
@@ -115,10 +118,10 @@ test("verify passes a run produced by the solver", async () => {
 
 test("verify fails when the recorded score is off by one", async () => {
   const run = solvedRun();
-  run.score = 44;
+  run.score = 99;
   const r = await verify(await runFile(run));
   assert.equal(r.ok, false);
-  assert.match(r.problems.join("; "), /score 45, recorded 44/);
+  assert.match(r.problems.join("; "), /score 100, recorded 99/);
 });
 
 test("verify fails on the wrong seed and on a stat that differs", async () => {
@@ -163,16 +166,16 @@ test("check enumerates every parameter combination, not just the seeds", () => {
   const w = structuredClone(world);
   const r3 = w.rules.find((r) => r.id === "open-locker3");
   r3.do = r3.do.filter((e) => e.reveal === undefined);
-  const r = check(w, [SEED]);
+  const r = checkEach(w, [SEED]);
   assert.equal(r.ok, false);
   assert.ok(r.problems.some((p) => /locker3/.test(p)), r.problems.join("; "));
-  assert.ok(r.combos >= 27, String(r.combos));
+  assert.ok(r.combos >= 9, String(r.combos));
 });
 
 test("check reports a score id whose aliases carry different points", () => {
   const w = structuredClone(world);
   w.rules.find((r) => r.id === "read-ledger-look").do.find((e) => e.score !== undefined).score = 10;
-  const r = check(w, [SEED]);
+  const r = checkEach(w, [SEED]);
   assert.ok(r.problems.some((p) => /read-ledger/.test(p) && /10/.test(p)), r.problems.join("; "));
 });
 
@@ -181,24 +184,24 @@ test("check rejects unknown keys in when, require and do", () => {
   w.rules.find((r) => r.id === "open-safe").require = { flag: { readPhoto: true } };
   w.rules.push({ id: "bad-do", when: { verb: "push", object: "mop" }, do: [{ text: { room: "floor", append: "x" } }] });
   w.rules.push({ id: "bad-when", when: { verb: "push", object: "mop", direction: "north" }, do: [{ reply: "x" }] });
-  const r = check(w, [SEED]);
+  const r = checkEach(w, [SEED]);
   for (const key of ["flag", "text", "direction"]) assert.ok(r.problems.some((p) => p.includes("unknown key " + key)), key + ": " + r.problems.join("; "));
 });
 
 test("check: a scoring topic must be mentioned outside its own reply, and a code must appear in text", () => {
   const w = structuredClone(world);
   w.objects.marge.topics.zebra = { reply: "Zebra? Yes, the zebra.", points: 5 };
-  w.maxScore = 50;
-  let r = check(w, [SEED]);
+  w.maxScore = 105;
+  let r = checkEach(w, [SEED]);
   assert.ok(r.problems.some((p) => /zebra/.test(p)), r.problems.join("; "));
   const w2 = structuredClone(world);
   for (const id of ["turn-photo", "read-photo", "search-photo"]) w2.rules.find((x) => x.id === id).do = [{ flag: "readPhoto", value: true }, { reply: "Nothing on the back." }];
-  r = check(w2, [SEED]);
+  r = checkEach(w2, [SEED]);
   assert.ok(r.problems.some((p) => /combo/.test(p)), r.problems.join("; "));
   // A seeded value that can be used before any text shows it: drop the photo gate on the safe.
   const w3 = structuredClone(world);
   for (const id of ["open-safe", "turn-safe", "unlock-safe-code"]) { const x = w3.rules.find((y) => y.id === id); x.require = { flags: { safeOpen: false } }; delete x.fail; }
-  r = check(w3, [SEED]);
+  r = checkEach(w3, [SEED]);
   assert.ok(r.problems.some((p) => /combo/.test(p) && /before/.test(p)), r.problems.join("; "));
 });
 
@@ -220,7 +223,10 @@ test("verify is strict about stats, over and action types", async () => {
 test("play reads piped input line by line, accepts --seed, and writes the run with --out", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "night-shift-play-"));
   const out = path.join(dir, "run.json");
-  const r = await playPiped(["--seed", "20261022", "--out", out], "look at board\nwait\nquit\n");
+  const noDisc = await playPiped(["--seed", "20261022", "--out", out], "quit\n");
+  assert.equal(noDisc.code, 2);
+  assert.match(noDisc.err, /--disclosure/);
+  const r = await playPiped(["--seed", "20261022", "--out", out, "--disclosure", "blind", "--name", "Test Player"], "look at board\nwait\nquit\n");
   assert.equal(r.code, 0, r.err);
   assert.match(r.out, /seed 20261022 command 2\/150/);
   assert.match(r.out, /> wait\nTime passes\./);
@@ -229,6 +235,9 @@ test("play reads piped input line by line, accepts --seed, and writes the run wi
   assert.deepEqual(run.actions, ["look at board", "wait"]);
   assert.equal(run.seed, 20261022);
   assert.equal(run.score, 5);
+  assert.equal(run.player.disclosure, "blind");
+  assert.equal(run.player.id, "test-player");
+  assert.equal(typeof run.date, "string");
   const bad = await playPiped(["--frobnicate"], "quit\n");
   assert.notEqual(bad.code, 0);
   assert.match(bad.err, /unknown option --frobnicate/);

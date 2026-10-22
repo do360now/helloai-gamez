@@ -68,7 +68,11 @@ export function createGame(world, opts = {}) {
     const i = Math.floor(random() * p.choices.length);
     params[name] = p.choices[Math.min(i, p.choices.length - 1)];
   }
-  const sub = (text) => String(text).replace(/\$\{(\w+)\}/g, (m, k) => (k in params ? params[k] : m));
+  const sub = (text) => String(text).replace(/\$\{(\w+)(\.name)?\}/g, (m, k, dot) => {
+    if (!(k in params)) return m;
+    if (dot) { const o = world.objects[params[k]]; return o ? String(o.name) : params[k]; }
+    return params[k];
+  });
   const pid = (v) => (v && typeof v === "object" && v.param ? params[v.param] : v);
 
   let S = {
@@ -111,7 +115,8 @@ export function createGame(world, opts = {}) {
   const isProper = (id) => !!(obj(id).person || obj(id).proper);
   const visible = (id) => S.placed[id] === S.room && !(obj(id).hidden && !S.revealed[id]);
   const held = (id) => S.inv.includes(id);
-  const present = (id) => visible(id) || held(id);
+  const everywhere = (id) => !!obj(id).everywhere;
+  const present = (id) => visible(id) || held(id) || everywhere(id);
 
   function visibleObjects() {
     const out = [];
@@ -157,6 +162,7 @@ export function createGame(world, opts = {}) {
     const list = [];
     for (const id of visibleObjects()) list.push({ id, nouns: nounsOf(id) });
     for (const id of S.inv) list.push({ id, nouns: nounsOf(id) });
+    for (const id of Object.keys(world.objects)) if (everywhere(id) && !visible(id) && !held(id)) list.push({ id, nouns: nounsOf(id) });
     const taken = new Set(list.flatMap((n) => n.nouns));
     for (const e of exits()) {
       if (!e.name) continue;
@@ -225,6 +231,7 @@ export function createGame(world, opts = {}) {
       case "ask": {
         const o = obj(p.object);
         if (!o.person) return "The " + name + " has nothing to say.";
+        if (!visible(p.object)) return name + " is not here.";
         const [tid, t] = findTopic(o, p.topic);
         if (!t) return o.topicDefault ? sub(o.topicDefault) : name + " has nothing to say about that.";
         if (t.require && !holds(t.require)) return t.fail ? sub(t.fail) : name + " says nothing.";
@@ -240,6 +247,7 @@ export function createGame(world, opts = {}) {
       case "talk": {
         const o = obj(p.object);
         if (!o.person) return "The " + name + " has nothing to say.";
+        if (!visible(p.object)) return name + " is not here.";
         const topics = Object.keys(o.topics || {});
         return topics.length ? name + " will talk about: " + listNames(topics) + "." : name + " has nothing to say.";
       }
@@ -285,6 +293,7 @@ export function createGame(world, opts = {}) {
       }
       if (e.reveal !== undefined) S.revealed[pid(e.reveal)] = true;
       if (e.exit) { const x = e.exit; (S.addedExits[x.room] = S.addedExits[x.room] || []).push({ dir: x.dir, to: pid(x.to), name: x.name }); }
+      if (e.goto !== undefined) { const from = S.room; S.room = pid(e.goto); events.push({ type: "moved", from, to: S.room }); out.reply.push(roomText()); }
       if (e.die !== undefined) out.died = sub(e.die);
       if (e.win !== undefined) out.won = sub(e.win);
     }

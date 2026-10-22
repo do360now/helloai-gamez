@@ -457,3 +457,38 @@ test("state reports whether the last command was understood", () => {
   g.command("look");
   assert.equal(g.state().understood, true);
 });
+
+test("a goto effect moves the player and replies with the new room", () => {
+  const w = world();
+  w.rules.push({ id: "trap", when: { verb: "open", object: "door" }, require: { flags: { doorOpen: true } }, do: [{ goto: "office" }] });
+  const g = createGame(w, { random: fixed([0.5]) });
+  g.command("search mat"); g.command("take key"); g.command("use key on door");
+  const r = g.command("open door");
+  assert.equal(g.state().room.id, "office");
+  assert.equal(r.reply, g.state().room.text);
+  assert.deepEqual(r.events, [{ type: "moved", from: "hall", to: "office" }]);
+});
+
+test("an everywhere object can be named from any room but is listed only where it is", () => {
+  const w = world();
+  w.objects.bob.everywhere = true;
+  w.objects.ghost = { name: "Ghost", nouns: ["ghost"], text: "Not here.", person: true, everywhere: true, topics: { boo: { reply: "Boo." } } };
+  w.verbs.push({ verb: "accuse", synonyms: [], args: 1, preps: [], usage: "accuse <person>" });
+  w.rules.push({ id: "accuse-ghost", when: { verb: "accuse", object: "ghost" }, do: [{ reply: "The ghost did it." }] });
+  const g = createGame(w, { random: fixed([0.5]) });
+  assert.doesNotMatch(g.state().room.text, /Ghost/);
+  assert.equal(g.command("accuse ghost").reply, "The ghost did it.");
+  assert.equal(g.command("ask ghost about boo").reply, "Ghost is not here.");
+  assert.equal(g.command("look at ghost").reply, "Not here.");
+  g.command("east");
+  assert.equal(g.command("ask bob about weather").reply, "Bob is not here.");
+  assert.equal(g.command("talk to bob").reply, "Bob is not here.");
+});
+
+test("${param.name} substitutes the name of the object a parameter picks", () => {
+  const w = world();
+  w.rooms.closet.text = "A closet. The key is in the ${keyLocker.name}.";
+  const g = createGame(w, { random: fixed([0.5, 0.5]) });
+  g.command("east");
+  assert.match(g.state().room.text, /The key is in the second locker\./);
+});

@@ -3,12 +3,13 @@
   "title": "Night Shift",
   "start": "floor",
   "deathPenalty": 5,
-  "maxScore": 45,
+  "maxScore": 100,
   "benchmarks": {
     "case-150": {
       "label": "Case 150",
       "budget": 150,
-      "tiebreak": "commands"
+      "tiebreak": "commands",
+      "disclosure": true
     }
   },
   "params": {
@@ -31,6 +32,13 @@
         "Dale the delivery driver",
         "Rudy the repair tech",
         "Priya, the regular who never loses"
+      ]
+    },
+    "drawer": {
+      "choices": [
+        "drawer1",
+        "drawer2",
+        "drawer3"
       ]
     }
   },
@@ -315,7 +323,8 @@
     {
       "verb": "press",
       "synonyms": [
-        "hit"
+        "hit",
+        "push button"
       ],
       "args": 1,
       "preps": [],
@@ -403,6 +412,26 @@
       "usage": "pay <person>"
     },
     {
+      "verb": "accuse",
+      "synonyms": [
+        "blame",
+        "confront"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "accuse <person>"
+    },
+    {
+      "verb": "touch",
+      "synonyms": [
+        "feel",
+        "poke"
+      ],
+      "args": 1,
+      "preps": [],
+      "usage": "touch <object>"
+    },
+    {
       "verb": "wait",
       "synonyms": [
         "z"
@@ -431,7 +460,7 @@
   "rooms": {
     "floor": {
       "name": "Arcade floor",
-      "text": "Two in the morning at the Starlight Arcade. The cabinets are still on, each one running its attract screen for nobody, and their glow puts long colored shadows across the carpet you were hired to vacuum. A Block Drop cabinet stands by the front window. Beside it is a square of carpet that is cleaner than the rest, where a cabinet used to be. Your mop and bucket wait by the door to the prize counter.",
+      "text": "Two in the morning at the Starlight Arcade. The cabinets are still on, each one running its attract screen for nobody, and their glow puts long colored shadows across the carpet you were hired to vacuum. A Block Drop cabinet stands by the front window. Beside it is a square of carpet that is cleaner than the rest, where a cabinet used to be. Your mop and bucket wait by the door to the prize counter, and a doorway at the back of the floor leads west into the staff hallway.",
       "extra": [
         {
           "require": {
@@ -466,6 +495,11 @@
           "dir": "east",
           "to": "counter",
           "name": "the prize counter"
+        },
+        {
+          "dir": "west",
+          "to": "hallway",
+          "name": "the back hallway"
         }
       ],
       "objects": [
@@ -969,13 +1003,24 @@
     },
     "counter": {
       "name": "Prize counter",
-      "text": "The prize counter. A steel grille is rolled down over the shelves of plush bears and plastic sunglasses, and a slush machine churns a blue drink that nobody has bought since summer. Behind the counter, three staff lockers lean against the wall, and a pickup ledger lies open beside the register.",
+      "text": "The prize counter. A steel grille is rolled down over the shelves of plush bears and plastic sunglasses, with the stockroom door somewhere behind it, and a slush machine churns a blue drink that nobody has bought since summer. Behind the counter, three staff lockers lean against the wall, and a pickup ledger lies open beside the register.",
       "extra": [],
       "exits": [
         {
           "dir": "west",
           "to": "floor",
           "name": "the arcade floor"
+        },
+        {
+          "dir": "in",
+          "to": "stockroom",
+          "name": "the stockroom behind the grille",
+          "require": {
+            "flags": {
+              "grilleOpen": true
+            }
+          },
+          "fail": "The steel grille is padlocked at the floor. The stockroom is behind it."
         }
       ],
       "objects": [
@@ -1572,6 +1617,15 @@
             }
           },
           "text": "The safe hangs open."
+        },
+        {
+          "require": {
+            "flags": {
+              "safeOpen": true,
+              "accused": false
+            }
+          },
+          "text": "Marge has stopped doing the books."
         }
       ],
       "exits": [
@@ -1586,7 +1640,8 @@
         "safe",
         "photo",
         "panel",
-        "marge"
+        "marge",
+        "ring"
       ],
       "draw": [
         [
@@ -1908,6 +1963,178 @@
           14
         ]
       ]
+    },
+    "hallway": {
+      "name": "Back hallway",
+      "text": "A narrow staff hallway behind the arcade floor, lit by one fluorescent tube that cannot decide whether to stay on. A fuse box hangs open on the wall beside a faded Galaxy Patrol poster. A steel door at the north end leads to the loading dock, and a stairwell goes down to the basement workshop. The arcade floor is back east.",
+      "extra": [],
+      "exits": [
+        {
+          "dir": "east",
+          "to": "floor",
+          "name": "the arcade floor"
+        },
+        {
+          "dir": "north",
+          "to": "dock",
+          "name": "the loading dock"
+        },
+        {
+          "dir": "down",
+          "to": "workshop",
+          "name": "the basement workshop"
+        }
+      ],
+      "objects": [
+        "fusebox",
+        "poster",
+        "tube"
+      ],
+      "draw": []
+    },
+    "dock": {
+      "name": "Loading dock",
+      "text": "The loading dock: a concrete platform under one caged bulb, with the roll-up door standing open on the alley and the night air coming in. A hand dolly leans against the wall. A clipboard hangs from a nail by the door, and a lift lever juts from a box on the wall above a painted warning. Fresh tyre tracks curve away from the platform into the dark.",
+      "extra": [],
+      "exits": [
+        {
+          "dir": "south",
+          "to": "hallway",
+          "name": "the back hallway"
+        },
+        {
+          "dir": "out",
+          "to": "alley",
+          "name": "the alley"
+        }
+      ],
+      "objects": [
+        "dolly",
+        "clipboard",
+        "fob",
+        "lever",
+        "tracks",
+        "rollup"
+      ],
+      "draw": []
+    },
+    "alley": {
+      "name": "Alley",
+      "text": "The alley behind the Starlight, wet asphalt shining under a sodium lamp. A delivery van with the distributor's name on the side is parked nose-out, its back doors shut. A payphone hangs on the arcade's wall beside a dumpster, and an oil stain spreads where something heavy sat for a while. The diner's back door is west, under a buzzing sign; the dock is back in through the roll-up door.",
+      "extra": [
+        {
+          "require": {
+            "flags": {
+              "vanOpen": true
+            }
+          },
+          "text": "The van's back doors stand open."
+        }
+      ],
+      "exits": [
+        {
+          "dir": "in",
+          "to": "dock",
+          "name": "the loading dock"
+        },
+        {
+          "dir": "west",
+          "to": "diner",
+          "name": "the diner's back door"
+        }
+      ],
+      "objects": [
+        "van",
+        "payphone",
+        "dumpster",
+        "stain",
+        "lamp"
+      ],
+      "draw": []
+    },
+    "van": {
+      "name": "Inside the van",
+      "text": "The cargo bay of the delivery van. It smells of rubber and cold coffee. Something tall and square stands strapped against the bulkhead under a pile of moving blankets, and a shipping label is taped to the strap.",
+      "extra": [],
+      "exits": [
+        {
+          "dir": "out",
+          "to": "alley",
+          "name": "the alley"
+        }
+      ],
+      "objects": [
+        "bundle",
+        "label",
+        "blankets",
+        "straps"
+      ],
+      "draw": []
+    },
+    "diner": {
+      "name": "Starlight Diner, back counter",
+      "text": "The back counter of the Starlight Diner, open all night and nearly empty. Coffee pots sit on their burners under a pie case with two slices left. Lou, the night cook, leans on the counter with a crossword. On the last stool, a man in a distributor's jacket is asleep with his head on his arms. The arcade's alley is out the back door east.",
+      "extra": [],
+      "exits": [
+        {
+          "dir": "east",
+          "to": "alley",
+          "name": "the alley"
+        }
+      ],
+      "objects": [
+        "lou",
+        "dale",
+        "stool",
+        "quarter",
+        "coffee",
+        "piecase",
+        "crossword"
+      ],
+      "draw": []
+    },
+    "workshop": {
+      "name": "Basement workshop",
+      "text": "Rudy's workshop, in the basement under the floor: a long bench under a hanging lamp, a parts cabinet with three drawers, a toolbox, and a monitor chassis lying open on the bench with its back off and a yellow warning sticker on the frame. A soldering iron rests in its stand, still warm. The smell of flux is everywhere. The stairs go back up to the hallway.",
+      "extra": [],
+      "exits": [
+        {
+          "dir": "up",
+          "to": "hallway",
+          "name": "the back hallway"
+        }
+      ],
+      "objects": [
+        "bench",
+        "drawers",
+        "drawer1",
+        "drawer2",
+        "drawer3",
+        "panelkey",
+        "monitor",
+        "iron",
+        "toolbox"
+      ],
+      "draw": []
+    },
+    "stockroom": {
+      "name": "Stockroom",
+      "text": "The stockroom behind the prize counter: steel shelves of plush animals in plastic bags, boxes of tokens, a stack of flattened cartons. Leaning against the back wall is a sheet of painted plywood with a jigsaw's ragged edge: the back panel of an arcade cabinet, sawn off. Sawdust is everywhere. The way out is through the grille.",
+      "extra": [],
+      "exits": [
+        {
+          "dir": "out",
+          "to": "counter",
+          "name": "the prize counter"
+        }
+      ],
+      "objects": [
+        "backpanel",
+        "shelves",
+        "cartons",
+        "sawdust"
+      ],
+      "draw": []
     }
   },
   "objects": {
@@ -2320,7 +2547,7 @@
             "tech",
             "repairman"
           ],
-          "reply": "\"Rudy fixes the cabinets. He was in and out all evening with his toolbox, and he knows every one of those machines better than I do.\""
+          "reply": "\"Rudy fixes the cabinets. He was in and out all evening with his toolbox, and he knows every one of those machines better than I do. He borrowed the Block Drop panel key last week to reset the board after a glitch. I'm sure he gave it back.\""
         },
         "dale": {
           "synonyms": [
@@ -2328,7 +2555,7 @@
             "driver",
             "delivery"
           ],
-          "reply": "\"Dale drives for the distributor. He brings the new cabinets in and takes the dead ones out, and he was here after closing with the van.\""
+          "reply": "\"Dale drives for the distributor. He brings the new cabinets in and takes the dead ones out. He was here after closing with the van, and the last I saw him he was heading for Lou's pie.\""
         },
         "priya": {
           "synonyms": [
@@ -2402,9 +2629,625 @@
             "money"
           ],
           "reply": "\"The register is mine. You were told.\""
+        },
+        "lou": {
+          "synonyms": [
+            "cook",
+            "diner",
+            "night cook"
+          ],
+          "reply": "\"Lou feeds the night shift. If anybody walked through that alley tonight, Lou saw them, and she will tell you if you ask nicely.\""
+        },
+        "ring": {
+          "synonyms": [
+            "panel keys",
+            "keys",
+            "padlock",
+            "padlock key"
+          ],
+          "reply": "\"That ring never leaves my belt, except at night, when it lives in the safe. Every panel key on it, and the padlock key for the grille.\" She does not look at the safe."
+        },
+        "accuse": {
+          "synonyms": [
+            "accusation",
+            "who did it",
+            "culprit",
+            "thief",
+            "suspect",
+            "suspects"
+          ],
+          "reply": "\"When you can put the key in my hand and tell me who had it, say the name. Not before. I don't accuse people on a hunch, and neither do you, not in my arcade.\""
         }
       },
-      "topicDefault": "Marge looks at you over her glasses. \"Is this about my cabinet? Then ask about that. Otherwise the floor needs you more than I do.\""
+      "topicDefault": "Marge looks at you over her glasses. \"Is this about my cabinet? Then ask about that. Otherwise the floor needs you more than I do.\"",
+      "everywhere": true
+    },
+    "ring": {
+      "name": "ring of panel keys",
+      "nouns": [
+        "ring of panel keys",
+        "ring",
+        "key ring",
+        "panel keys",
+        "keys"
+      ],
+      "text": "A steel ring of small keys, one per cabinet, each tagged with a game. The Block Drop tag is there; the key that belongs on it is not. A heavier brass padlock key hangs on the ring too.",
+      "hotspot": null,
+      "takeable": true,
+      "hidden": true
+    },
+    "fusebox": {
+      "name": "fuse box",
+      "nouns": [
+        "fuse box",
+        "fusebox",
+        "fuses",
+        "breaker"
+      ],
+      "text": "A fuse box with its door hanging open. Every breaker is on. Someone has written the cabinets' names on tape beside each one, and the Galaxy Patrol breaker has been switched off and taped over.",
+      "hotspot": null
+    },
+    "poster": {
+      "name": "Galaxy Patrol poster",
+      "nouns": [
+        "galaxy patrol poster",
+        "poster",
+        "galaxy patrol"
+      ],
+      "text": "A faded poster for Galaxy Patrol, the arcade's first cabinet, from the year the place opened. Collectors pay real money for a working one now; there is a magazine clipping pinned to the corner that says so.",
+      "hotspot": null
+    },
+    "tube": {
+      "name": "fluorescent tube",
+      "nouns": [
+        "fluorescent tube",
+        "tube",
+        "light",
+        "lamp"
+      ],
+      "text": "The tube flickers, steadies, and flickers again. It has done this since before you were hired.",
+      "hotspot": null
+    },
+    "dolly": {
+      "name": "hand dolly",
+      "nouns": [
+        "hand dolly",
+        "dolly",
+        "hand truck",
+        "cart"
+      ],
+      "text": "A two-wheeled hand dolly, the kind for moving cabinets. The rubber on one wheel is fresh with sawdust.",
+      "hotspot": null
+    },
+    "clipboard": {
+      "name": "clipboard",
+      "nouns": [
+        "clipboard",
+        "slips",
+        "pickup slips",
+        "forms",
+        "pouch"
+      ],
+      "text": "A clipboard hanging from a nail: the distributor's pickup slips, with a pouch on the back for whatever a driver does not want to carry.",
+      "hotspot": null
+    },
+    "fob": {
+      "name": "van key fob",
+      "nouns": [
+        "van key fob",
+        "fob",
+        "van key",
+        "key fob",
+        "van keys"
+      ],
+      "text": "A black key fob with the distributor's logo, the kind that unlocks a van from across a lot.",
+      "hotspot": null,
+      "takeable": true,
+      "hidden": true
+    },
+    "lever": {
+      "name": "lift lever",
+      "nouns": [
+        "lift lever",
+        "lever",
+        "lift",
+        "dock lift"
+      ],
+      "text": "A steel lever in a box on the wall, for the dock's lift plate. The painted warning under it says STAND CLEAR, and the plate is the whole platform you are standing on.",
+      "hotspot": null
+    },
+    "tracks": {
+      "name": "tyre tracks",
+      "nouns": [
+        "tyre tracks",
+        "tire tracks",
+        "tracks",
+        "tyres"
+      ],
+      "text": "Fresh tyre tracks from the dock into the alley, with a pair of narrow wheel lines between them: a dolly, pushed, then loaded.",
+      "hotspot": null
+    },
+    "rollup": {
+      "name": "roll-up door",
+      "nouns": [
+        "roll-up door",
+        "rollup door",
+        "roll up door",
+        "big door",
+        "shutter door"
+      ],
+      "text": "The roll-up door is all the way up. Nobody closed it after the pickup.",
+      "hotspot": null
+    },
+    "van": {
+      "name": "delivery van",
+      "nouns": [
+        "delivery van",
+        "van",
+        "truck",
+        "doors",
+        "back doors"
+      ],
+      "text": "A white delivery van with the distributor's name on the side, parked nose-out with its back doors shut. The driver's seat is empty. Through the back window, the shape of moving blankets.",
+      "hotspot": null
+    },
+    "payphone": {
+      "name": "payphone",
+      "nouns": [
+        "payphone",
+        "pay phone",
+        "phone",
+        "telephone",
+        "redial",
+        "redial button"
+      ],
+      "text": "A payphone on the arcade's wall, its cord chewed by weather. The last-number redial button is worn shiny. It wants a quarter.",
+      "hotspot": null
+    },
+    "dumpster": {
+      "name": "dumpster",
+      "nouns": [
+        "dumpster",
+        "bin",
+        "garbage",
+        "trash"
+      ],
+      "text": "A dumpster with its lid up, half full. A sign on the side says the truck comes at four.",
+      "hotspot": null
+    },
+    "stain": {
+      "name": "oil stain",
+      "nouns": [
+        "oil stain",
+        "stain",
+        "oil",
+        "puddle"
+      ],
+      "text": "An oil stain on the asphalt in the shape of something that stood here on four feet for an hour and then was lifted into the van.",
+      "hotspot": null
+    },
+    "lamp": {
+      "name": "sodium lamp",
+      "nouns": [
+        "sodium lamp",
+        "streetlamp",
+        "street lamp"
+      ],
+      "text": "The sodium lamp buzzes and makes everything the colour of weak tea.",
+      "hotspot": null
+    },
+    "bundle": {
+      "name": "wrapped cabinet",
+      "nouns": [
+        "wrapped cabinet",
+        "cabinet",
+        "bundle",
+        "galaxy patrol",
+        "galaxy patrol cabinet",
+        "shape"
+      ],
+      "text": "Under the blankets, the unmistakable shape of an upright cabinet, strapped tight. A corner of the marquee shows through: GALAXY PATROL.",
+      "hotspot": null
+    },
+    "label": {
+      "name": "shipping label",
+      "nouns": [
+        "shipping label",
+        "label",
+        "tag",
+        "address"
+      ],
+      "text": "A shipping label taped to the strap, written in marker: HOLD FOR R.V. - COLLECTOR PICKUP 7 AM - PAID IN FULL. The distributor's own form, with the distributor's address crossed out.",
+      "hotspot": null
+    },
+    "blankets": {
+      "name": "moving blankets",
+      "nouns": [
+        "moving blankets",
+        "blankets",
+        "blanket"
+      ],
+      "text": "Quilted moving blankets, the distributor's, thrown over something tall.",
+      "hotspot": null
+    },
+    "straps": {
+      "name": "straps",
+      "nouns": [
+        "straps",
+        "strap",
+        "ratchet straps"
+      ],
+      "text": "Ratchet straps holding the bundle to the bulkhead, pulled by someone who knew how.",
+      "hotspot": null
+    },
+    "lou": {
+      "name": "Lou",
+      "nouns": [
+        "lou",
+        "cook",
+        "night cook",
+        "woman",
+        "waitress"
+      ],
+      "text": "Lou has cooked the night shift at the Starlight Diner for longer than the arcade has had a Block Drop. She sees everything that walks past the window and remembers most of it.",
+      "hotspot": null,
+      "person": true,
+      "topicDefault": "Lou taps her pencil on the crossword. \"Ask me about the people, honey. The rest is just furniture.\"",
+      "topics": {
+        "dale": {
+          "synonyms": [
+            "driver",
+            "delivery driver",
+            "sleeping man",
+            "man",
+            "him"
+          ],
+          "reply": "\"Dale? Been on that stool since one. Parked his van out back, came in for pie, put his head down. He hasn't moved, and I'd know, because his elbow's on my counter.\"",
+          "points": 5
+        },
+        "rudy": {
+          "synonyms": [
+            "repair tech",
+            "tech",
+            "repairman",
+            "rudy the repair tech"
+          ],
+          "reply": "\"Rudy came in quarter past three. Hands black with solder, smelled like a hot iron. Didn't want pie, wanted change for the payphone. I gave him a quarter and he went straight back out to it.\"",
+          "points": 5
+        },
+        "phone": {
+          "synonyms": [
+            "payphone",
+            "pay phone",
+            "call",
+            "quarter",
+            "change"
+          ],
+          "reply": "\"The payphone out back? Takes a quarter and remembers the last number it called, which is more than some people. I'm out of change. Try the floor; Dale's pockets leak.\""
+        },
+        "van": {
+          "synonyms": [
+            "delivery van",
+            "truck"
+          ],
+          "reply": "\"Dale's van. He leaves the fob on his clipboard at your dock so Rudy can move it when there's a dead cabinet to collect. I told him that was a bad idea.\""
+        },
+        "marge": {
+          "synonyms": [
+            "owner",
+            "boss"
+          ],
+          "reply": "\"Marge sends me the broken ones to feed. She's a good egg. She'd hate what's happening to her place tonight.\""
+        },
+        "cabinet": {
+          "synonyms": [
+            "galaxy patrol",
+            "missing cabinet",
+            "arcade"
+          ],
+          "reply": "\"Saw a cabinet go into that van around three, wrapped up like a Christmas present. Thought it was a pickup. Dale didn't do it; he was drooling on my counter.\""
+        },
+        "priya": {
+          "synonyms": [
+            "regular",
+            "pri",
+            "the regular who never loses"
+          ],
+          "reply": "\"Priya came by for pie at eleven, like always, and went home. She'd never touch a machine she couldn't beat fair.\""
+        },
+        "coffee": {
+          "synonyms": [
+            "pie",
+            "food"
+          ],
+          "reply": "\"Coffee's a dollar, pie's two, and you look like you need both. On the house when you've found Marge's cabinet.\""
+        },
+        "night": {
+          "synonyms": [
+            "job",
+            "work",
+            "shift",
+            "diner",
+            "starlight"
+          ],
+          "reply": "\"Night shift. Same as yours, except mine has pie.\""
+        }
+      },
+      "everywhere": true
+    },
+    "dale": {
+      "name": "Dale",
+      "nouns": [
+        "dale",
+        "sleeping man",
+        "driver",
+        "delivery driver"
+      ],
+      "text": "Dale, the distributor's driver, asleep on the last stool with his head on his arms and his jacket collar up. He snores on the in-breath.",
+      "hotspot": null,
+      "person": true,
+      "topicDefault": "Dale mumbles something into his sleeve and does not wake.",
+      "topics": {
+        "slips": {
+          "synonyms": [
+            "pickup slips",
+            "clipboard",
+            "forms",
+            "signature",
+            "ledger"
+          ],
+          "reply": "Without lifting his head: \"Rudy keeps 'em... signed 'em blank for the dead ones... lemme sleep...\""
+        },
+        "van": {
+          "synonyms": [
+            "delivery van",
+            "fob",
+            "keys",
+            "truck"
+          ],
+          "reply": "\"Fob's on the clipboard... Rudy moves it... don't wake me...\""
+        },
+        "cabinet": {
+          "synonyms": [
+            "galaxy patrol",
+            "pickup"
+          ],
+          "reply": "\"No pickup tonight... told Marge... Tuesday...\" He is asleep again before the word ends."
+        },
+        "rudy": {
+          "synonyms": [
+            "tech",
+            "repair tech"
+          ],
+          "reply": "\"Rudy's all right... fixes the... zzz.\""
+        }
+      },
+      "everywhere": true
+    },
+    "stool": {
+      "name": "stool",
+      "nouns": [
+        "stool",
+        "stools",
+        "counter stool"
+      ],
+      "text": "A row of chrome stools. Dale has the last one. The floor under it is where things fall out of a sleeping man's pockets.",
+      "hotspot": null
+    },
+    "quarter": {
+      "name": "quarter",
+      "nouns": [
+        "quarter",
+        "coin",
+        "change",
+        "25 cents"
+      ],
+      "text": "A quarter, 1988, heads up.",
+      "hotspot": null,
+      "takeable": true,
+      "hidden": true
+    },
+    "coffee": {
+      "name": "coffee",
+      "nouns": [
+        "coffee",
+        "coffee pot",
+        "pots",
+        "cup"
+      ],
+      "text": "Two pots of coffee on their burners, one of them older than this shift.",
+      "hotspot": null
+    },
+    "piecase": {
+      "name": "pie case",
+      "nouns": [
+        "pie case",
+        "pie",
+        "pies",
+        "case"
+      ],
+      "text": "A pie case with two slices of something cherry under the glass.",
+      "hotspot": null
+    },
+    "crossword": {
+      "name": "crossword",
+      "nouns": [
+        "crossword",
+        "puzzle",
+        "newspaper",
+        "paper"
+      ],
+      "text": "Lou's crossword, mostly done in ink. Fourteen across is CULPRIT.",
+      "hotspot": null
+    },
+    "bench": {
+      "name": "workbench",
+      "nouns": [
+        "workbench",
+        "bench",
+        "table",
+        "lamp"
+      ],
+      "text": "A long workbench under a hanging lamp, scarred with solder burns. Screwdrivers, a magnifier, a coffee cup with a ring in it.",
+      "hotspot": null
+    },
+    "drawers": {
+      "name": "parts cabinet",
+      "nouns": [
+        "parts cabinet",
+        "drawers",
+        "cabinet",
+        "parts",
+        "drawer"
+      ],
+      "text": "A steel parts cabinet with three drawers: top, middle and bottom. Each has a strip of masking tape for a label: FUSES, SWITCHES, and one that just says BD. The BD tape is on the ${drawer.name}.",
+      "hotspot": null
+    },
+    "drawer1": {
+      "name": "top drawer",
+      "nouns": [
+        "top drawer",
+        "first drawer",
+        "upper drawer"
+      ],
+      "text": "The top drawer of the parts cabinet.",
+      "hotspot": null
+    },
+    "drawer2": {
+      "name": "middle drawer",
+      "nouns": [
+        "middle drawer",
+        "second drawer"
+      ],
+      "text": "The middle drawer of the parts cabinet.",
+      "hotspot": null
+    },
+    "drawer3": {
+      "name": "bottom drawer",
+      "nouns": [
+        "bottom drawer",
+        "third drawer",
+        "lower drawer"
+      ],
+      "text": "The bottom drawer of the parts cabinet.",
+      "hotspot": null
+    },
+    "panelkey": {
+      "name": "Block Drop panel key",
+      "nouns": [
+        "block drop panel key",
+        "panel key",
+        "small key",
+        "bd key",
+        "tagged key"
+      ],
+      "text": "A small brass key on a paper tag that reads BD in Marge's handwriting. It belongs on the ring in her safe.",
+      "hotspot": null,
+      "takeable": true,
+      "hidden": true
+    },
+    "monitor": {
+      "name": "monitor chassis",
+      "nouns": [
+        "monitor chassis",
+        "monitor",
+        "chassis",
+        "tube",
+        "crt",
+        "screen"
+      ],
+      "text": "An arcade monitor out of its cabinet, lying open on the bench with its back off. The yellow sticker says the tube holds a charge for days after it is unplugged, and it is not unplugged.",
+      "hotspot": null
+    },
+    "iron": {
+      "name": "soldering iron",
+      "nouns": [
+        "soldering iron",
+        "iron",
+        "solder"
+      ],
+      "text": "A soldering iron in its stand, the tip still dark and warm. Somebody was using it within the hour.",
+      "hotspot": null
+    },
+    "toolbox": {
+      "name": "toolbox",
+      "nouns": [
+        "toolbox",
+        "tool box",
+        "tools"
+      ],
+      "text": "Rudy's red toolbox, open: wire cutters, a jigsaw blade with fresh sawdust on it, and a roll of the distributor's shipping labels.",
+      "hotspot": null
+    },
+    "backpanel": {
+      "name": "back panel",
+      "nouns": [
+        "back panel",
+        "panel",
+        "plywood",
+        "sheet",
+        "sawn panel",
+        "cabinet back"
+      ],
+      "text": "The back panel of an arcade cabinet, sawn off with a jigsaw. Stencilled on the inside: GALAXY PATROL, and Marge's inventory tag, STARLIGHT 001. It never left the building whole. It left in pieces, and this piece did not fit in the van.",
+      "hotspot": null
+    },
+    "shelves": {
+      "name": "shelves",
+      "nouns": [
+        "shelves",
+        "shelf",
+        "plush",
+        "bears",
+        "animals"
+      ],
+      "text": "Steel shelves of plush animals in plastic bags, waiting for someone to win them.",
+      "hotspot": null
+    },
+    "cartons": {
+      "name": "cartons",
+      "nouns": [
+        "cartons",
+        "boxes",
+        "flattened cartons",
+        "tokens"
+      ],
+      "text": "Flattened cartons and a box of brass tokens, a dollar for four.",
+      "hotspot": null
+    },
+    "sawdust": {
+      "name": "sawdust",
+      "nouns": [
+        "sawdust",
+        "dust"
+      ],
+      "text": "Sawdust on the floor, on the shelves, in the plush. Someone used a jigsaw in here tonight.",
+      "hotspot": null
+    },
+    "rudy": {
+      "name": "Rudy",
+      "nouns": [
+        "rudy",
+        "repair tech",
+        "tech",
+        "repairman"
+      ],
+      "text": "Rudy is not here. He went home around half past three, Lou says, after his phone call.",
+      "hotspot": null,
+      "person": true,
+      "everywhere": true
+    },
+    "priya": {
+      "name": "Priya",
+      "nouns": [
+        "priya",
+        "regular",
+        "pri"
+      ],
+      "text": "Priya is not here. She went home at eleven, with pie.",
+      "hotspot": null,
+      "person": true,
+      "everywhere": true
     }
   },
   "rules": [
@@ -3052,10 +3895,14 @@
           "value": true
         },
         {
-          "score": 10
+          "score": 10,
+          "id": "open-safe"
         },
         {
-          "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)"
+          "reveal": "ring"
+        },
+        {
+          "reply": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do, and says nothing at all."
         }
       ],
       "fail": "You try a number. The dial does not care for guesses, and neither does Marge, who is watching. Find the combination first."
@@ -3085,7 +3932,10 @@
           "id": "open-safe"
         },
         {
-          "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)"
+          "reveal": "ring"
+        },
+        {
+          "reply": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do, and says nothing at all."
         }
       ],
       "fail": "You try a number. The dial does not care for guesses, and neither does Marge, who is watching. Find the combination first."
@@ -3115,7 +3965,10 @@
           "id": "open-safe"
         },
         {
-          "win": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do. (To be continued: the slice ends here.)"
+          "reveal": "ring"
+        },
+        {
+          "reply": "You spin the dial to ${combo}. The safe clunks and swings open. Inside: the cash box, a stack of deeds, and the ring of little panel keys that never leaves Marge's belt. Except that it is here, and the Block Drop key is missing from it. Marge sees it at the same moment you do, and says nothing at all."
         }
       ],
       "fail": "You try a number. The dial does not care for guesses, and neither does Marge, who is watching. Find the combination first."
@@ -3170,6 +4023,933 @@
       "do": [
         {
           "reply": "The office door is already unlocked and open."
+        }
+      ]
+    },
+    {
+      "id": "take-ring-first",
+      "when": {
+        "verb": "take",
+        "object": "ring"
+      },
+      "require": {
+        "flags": {
+          "tookRing": false
+        }
+      },
+      "do": [
+        {
+          "move": "ring",
+          "to": "inventory"
+        },
+        {
+          "flag": "tookRing",
+          "value": true
+        },
+        {
+          "reply": "Marge watches you lift her ring out of her safe and lets you. \"Find the key that goes on it,\" she says. \"Then we'll talk.\""
+        }
+      ]
+    },
+    {
+      "id": "unlock-grille",
+      "when": {
+        "verb": "unlock",
+        "object": "grille",
+        "target": "ring"
+      },
+      "require": {
+        "has": [
+          "ring"
+        ],
+        "flags": {
+          "grilleOpen": false
+        }
+      },
+      "fail": "You need the padlock key for that, and it hangs on Marge's ring.",
+      "do": [
+        {
+          "flag": "grilleOpen",
+          "value": true
+        },
+        {
+          "reply": "The padlock key on Marge's ring turns the padlock. You roll the grille up far enough to duck under. The stockroom is in."
+        }
+      ]
+    },
+    {
+      "id": "open-grille-ring",
+      "when": {
+        "verb": "open",
+        "object": "grille"
+      },
+      "require": {
+        "has": [
+          "ring"
+        ],
+        "flags": {
+          "grilleOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "grilleOpen",
+          "value": true
+        },
+        {
+          "reply": "The padlock key on Marge's ring turns the padlock. You roll the grille up far enough to duck under. The stockroom is in."
+        }
+      ]
+    },
+    {
+      "id": "open-grille-open",
+      "when": {
+        "verb": "open",
+        "object": "grille"
+      },
+      "require": {
+        "flags": {
+          "grilleOpen": true
+        }
+      },
+      "do": [
+        {
+          "reply": "The grille is already up. The stockroom is in."
+        }
+      ]
+    },
+    {
+      "id": "see-backpanel",
+      "when": {
+        "verb": "look",
+        "object": "backpanel"
+      },
+      "do": [
+        {
+          "score": 5,
+          "id": "back-panel"
+        },
+        {
+          "flag": "sawPanel",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "read-clipboard",
+      "when": {
+        "verb": "read",
+        "object": "clipboard"
+      },
+      "do": [
+        {
+          "score": 5
+        },
+        {
+          "flag": "readSlips",
+          "value": true
+        },
+        {
+          "reply": "Pickup slips, a pad of them, every one already signed at the bottom with the same loop that is in the ledger, and nothing else filled in. Dale signs them blank and leaves them here, and anyone with a pen can make a pickup official. The pouch on the back has something heavy in it."
+        }
+      ]
+    },
+    {
+      "id": "read-clipboard-look",
+      "when": {
+        "verb": "look",
+        "object": "clipboard"
+      },
+      "do": [
+        {
+          "score": 5,
+          "id": "read-clipboard"
+        },
+        {
+          "flag": "readSlips",
+          "value": true
+        },
+        {
+          "reply": "Pickup slips, a pad of them, every one already signed at the bottom with the same loop that is in the ledger, and nothing else filled in. Dale signs them blank and leaves them here, and anyone with a pen can make a pickup official. The pouch on the back has something heavy in it."
+        }
+      ]
+    },
+    {
+      "id": "search-clipboard",
+      "when": {
+        "verb": "search",
+        "object": "clipboard"
+      },
+      "require": {
+        "flags": {
+          "foundFob": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "fob"
+        },
+        {
+          "flag": "foundFob",
+          "value": true
+        },
+        {
+          "reply": "In the pouch on the back of the clipboard: a black van key fob with the distributor's logo."
+        }
+      ]
+    },
+    {
+      "id": "search-clipboard-again",
+      "when": {
+        "verb": "search",
+        "object": "clipboard"
+      },
+      "require": {
+        "flags": {
+          "foundFob": true
+        }
+      },
+      "do": [
+        {
+          "reply": "The pouch is empty now."
+        }
+      ]
+    },
+    {
+      "id": "pull-lever",
+      "when": {
+        "verb": "pull",
+        "object": "lever"
+      },
+      "do": [
+        {
+          "die": "You pull the lift lever. The warning said STAND CLEAR, and the lift plate is the platform you are standing on. It drops four feet in a quarter of a second and you do not drop with it so much as after it. The caged bulb swings. Somewhere a van door is still open."
+        }
+      ]
+    },
+    {
+      "id": "push-lever",
+      "when": {
+        "verb": "push",
+        "object": "lever"
+      },
+      "do": [
+        {
+          "die": "You push the lift lever. The warning said STAND CLEAR, and the lift plate is the platform you are standing on. It drops four feet in a quarter of a second and you do not drop with it so much as after it. The caged bulb swings."
+        }
+      ]
+    },
+    {
+      "id": "close-rollup",
+      "when": {
+        "verb": "close",
+        "object": "rollup"
+      },
+      "do": [
+        {
+          "reply": "You pull the roll-up door down a foot and it jams. It was never going to be that easy."
+        }
+      ]
+    },
+    {
+      "id": "unlock-van",
+      "when": {
+        "verb": "unlock",
+        "object": "van",
+        "target": "fob"
+      },
+      "require": {
+        "has": [
+          "fob"
+        ],
+        "flags": {
+          "vanOpen": false
+        }
+      },
+      "fail": "The van is locked, and you have nothing that opens it.",
+      "do": [
+        {
+          "flag": "vanOpen",
+          "value": true
+        },
+        {
+          "reply": "You press the fob. The van chirps and its back doors unlock. You swing them open on a cargo bay that smells of rubber and cold coffee."
+        }
+      ]
+    },
+    {
+      "id": "use-fob-van",
+      "when": {
+        "verb": "use",
+        "object": "fob",
+        "target": "van"
+      },
+      "require": {
+        "has": [
+          "fob"
+        ],
+        "flags": {
+          "vanOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "vanOpen",
+          "value": true
+        },
+        {
+          "reply": "You press the fob. The van chirps and its back doors unlock. You swing them open on a cargo bay that smells of rubber and cold coffee."
+        }
+      ]
+    },
+    {
+      "id": "open-van",
+      "when": {
+        "verb": "open",
+        "object": "van"
+      },
+      "require": {
+        "has": [
+          "fob"
+        ],
+        "flags": {
+          "vanOpen": false
+        }
+      },
+      "do": [
+        {
+          "flag": "vanOpen",
+          "value": true
+        },
+        {
+          "reply": "You press the fob. The van chirps and its back doors unlock. You swing them open on a cargo bay that smells of rubber and cold coffee."
+        }
+      ]
+    },
+    {
+      "id": "open-van-locked",
+      "when": {
+        "verb": "open",
+        "object": "van"
+      },
+      "require": {
+        "flags": {
+          "vanOpen": false
+        }
+      },
+      "do": [
+        {
+          "reply": "Locked. The back doors do not budge, and the driver's door is locked too."
+        }
+      ]
+    },
+    {
+      "id": "enter-van",
+      "when": {
+        "verb": "enter",
+        "object": "van"
+      },
+      "require": {
+        "flags": {
+          "vanOpen": true
+        }
+      },
+      "fail": "The van is locked.",
+      "do": [
+        {
+          "goto": "van"
+        }
+      ]
+    },
+    {
+      "id": "climb-van",
+      "when": {
+        "verb": "climb",
+        "object": "van"
+      },
+      "require": {
+        "flags": {
+          "vanOpen": true
+        }
+      },
+      "fail": "The van is locked.",
+      "do": [
+        {
+          "goto": "van"
+        }
+      ]
+    },
+    {
+      "id": "see-label",
+      "when": {
+        "verb": "look",
+        "object": "label"
+      },
+      "do": [
+        {
+          "score": 5
+        },
+        {
+          "flag": "sawLabel",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "read-label",
+      "when": {
+        "verb": "read",
+        "object": "label"
+      },
+      "do": [
+        {
+          "score": 5,
+          "id": "see-label"
+        },
+        {
+          "flag": "sawLabel",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "climb-dumpster",
+      "when": {
+        "verb": "climb",
+        "object": "dumpster"
+      },
+      "do": [
+        {
+          "die": "You climb into the dumpster to see what somebody threw away tonight. The lid comes down. The sign said the truck comes at four, and the truck is punctual. The last thing you hear is the hydraulics."
+        }
+      ]
+    },
+    {
+      "id": "enter-dumpster",
+      "when": {
+        "verb": "enter",
+        "object": "dumpster"
+      },
+      "do": [
+        {
+          "die": "You climb into the dumpster to see what somebody threw away tonight. The lid comes down. The sign said the truck comes at four, and the truck is punctual. The last thing you hear is the hydraulics."
+        }
+      ]
+    },
+    {
+      "id": "search-dumpster",
+      "when": {
+        "verb": "search",
+        "object": "dumpster"
+      },
+      "do": [
+        {
+          "reply": "You lean over the edge: cardboard, a broken joystick, pie boxes from the diner. Nothing you would climb in for."
+        }
+      ]
+    },
+    {
+      "id": "quarter-in-phone",
+      "when": {
+        "verb": "put",
+        "object": "quarter",
+        "target": "payphone"
+      },
+      "require": {
+        "has": [
+          "quarter"
+        ]
+      },
+      "do": [
+        {
+          "move": "quarter",
+          "to": null
+        },
+        {
+          "flag": "quarterIn",
+          "value": true
+        },
+        {
+          "reply": "The quarter drops and the payphone gives you a dial tone and the smell of a hundred strangers' breath. The redial button is worn shiny. Press it."
+        }
+      ]
+    },
+    {
+      "id": "use-quarter-phone",
+      "when": {
+        "verb": "use",
+        "object": "quarter",
+        "target": "payphone"
+      },
+      "require": {
+        "has": [
+          "quarter"
+        ]
+      },
+      "do": [
+        {
+          "move": "quarter",
+          "to": null
+        },
+        {
+          "flag": "quarterIn",
+          "value": true
+        },
+        {
+          "reply": "The quarter drops and the payphone gives you a dial tone and the smell of a hundred strangers' breath. The redial button is worn shiny. Press it."
+        }
+      ]
+    },
+    {
+      "id": "redial",
+      "when": {
+        "verb": "press",
+        "object": "payphone"
+      },
+      "require": {
+        "flags": {
+          "quarterIn": true
+        }
+      },
+      "fail": "The payphone wants a quarter before it will do anything, including remember.",
+      "do": [
+        {
+          "score": 10,
+          "id": "phone"
+        },
+        {
+          "flag": "phoneHeard",
+          "value": true
+        },
+        {
+          "reply": "You press redial. Two rings, then an answering machine with a slow, pleased voice: \"You've reached Vance Amusements, buying and restoring classic cabinets. Rudy, if that's you again: the Galaxy Patrol money is in the envelope under the dock mat like we said, and I'll be by at seven with the truck. Pleasure doing business.\" You hang up very carefully."
+        }
+      ]
+    },
+    {
+      "id": "call-phone",
+      "when": {
+        "verb": "call",
+        "object": "payphone"
+      },
+      "require": {
+        "flags": {
+          "quarterIn": true
+        }
+      },
+      "fail": "The payphone wants a quarter before it will do anything, including remember.",
+      "do": [
+        {
+          "score": 10,
+          "id": "phone"
+        },
+        {
+          "flag": "phoneHeard",
+          "value": true
+        },
+        {
+          "reply": "You press redial. Two rings, then an answering machine with a slow, pleased voice: \"You've reached Vance Amusements, buying and restoring classic cabinets. Rudy, if that's you again: the Galaxy Patrol money is in the envelope under the dock mat like we said, and I'll be by at seven with the truck. Pleasure doing business.\" You hang up very carefully."
+        }
+      ]
+    },
+    {
+      "id": "use-phone",
+      "when": {
+        "verb": "use",
+        "object": "payphone"
+      },
+      "require": {
+        "flags": {
+          "quarterIn": true
+        }
+      },
+      "fail": "The payphone wants a quarter before it will do anything, including remember.",
+      "do": [
+        {
+          "score": 10,
+          "id": "phone"
+        },
+        {
+          "flag": "phoneHeard",
+          "value": true
+        },
+        {
+          "reply": "You press redial. Two rings, then an answering machine with a slow, pleased voice: \"You've reached Vance Amusements, buying and restoring classic cabinets. Rudy, if that's you again: the Galaxy Patrol money is in the envelope under the dock mat like we said, and I'll be by at seven with the truck. Pleasure doing business.\" You hang up very carefully."
+        }
+      ]
+    },
+    {
+      "id": "search-stool",
+      "when": {
+        "verb": "search",
+        "object": "stool"
+      },
+      "require": {
+        "flags": {
+          "foundQuarter": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "quarter"
+        },
+        {
+          "flag": "foundQuarter",
+          "value": true
+        },
+        {
+          "reply": "You look under Dale's stool. Pocket lint, a bottle cap, and a quarter, heads up."
+        }
+      ]
+    },
+    {
+      "id": "search-stool-again",
+      "when": {
+        "verb": "search",
+        "object": "stool"
+      },
+      "require": {
+        "flags": {
+          "foundQuarter": true
+        }
+      },
+      "do": [
+        {
+          "reply": "Lint and a bottle cap. That is all Dale had."
+        }
+      ]
+    },
+    {
+      "id": "wake-dale",
+      "when": {
+        "verb": "push",
+        "object": "dale"
+      },
+      "do": [
+        {
+          "reply": "You shake Dale's shoulder. He says \"Tuesday,\" clearly, and goes on sleeping. Lou shakes her head at you."
+        }
+      ]
+    },
+    {
+      "id": "take-coffee",
+      "when": {
+        "verb": "take",
+        "object": "coffee"
+      },
+      "do": [
+        {
+          "reply": "Lou pours you a cup without being asked. It is terrible and you are grateful."
+        }
+      ]
+    },
+    {
+      "id": "eat-pie",
+      "when": {
+        "verb": "eat",
+        "object": "piecase"
+      },
+      "do": [
+        {
+          "reply": "\"After,\" Lou says, without looking up from the crossword."
+        }
+      ]
+    },
+    {
+      "id": "look-drawers",
+      "when": {
+        "verb": "look",
+        "object": "drawers"
+      },
+      "do": [
+        {
+          "flag": "sawTags",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "open-drawer1-key",
+      "when": {
+        "verb": "open",
+        "object": "drawer1"
+      },
+      "require": {
+        "param": {
+          "drawer": "drawer1"
+        },
+        "flags": {
+          "foundPanelKey": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "panelkey"
+        },
+        {
+          "flag": "foundPanelKey",
+          "value": true
+        },
+        {
+          "reply": "The top drawer slides out. Under a nest of fuses, a small brass key on a paper tag that says BD, in Marge's handwriting."
+        }
+      ]
+    },
+    {
+      "id": "open-drawer2-key",
+      "when": {
+        "verb": "open",
+        "object": "drawer2"
+      },
+      "require": {
+        "param": {
+          "drawer": "drawer2"
+        },
+        "flags": {
+          "foundPanelKey": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "panelkey"
+        },
+        {
+          "flag": "foundPanelKey",
+          "value": true
+        },
+        {
+          "reply": "The middle drawer slides out. Under a nest of fuses, a small brass key on a paper tag that says BD, in Marge's handwriting."
+        }
+      ]
+    },
+    {
+      "id": "open-drawer3-key",
+      "when": {
+        "verb": "open",
+        "object": "drawer3"
+      },
+      "require": {
+        "param": {
+          "drawer": "drawer3"
+        },
+        "flags": {
+          "foundPanelKey": false
+        }
+      },
+      "do": [
+        {
+          "reveal": "panelkey"
+        },
+        {
+          "flag": "foundPanelKey",
+          "value": true
+        },
+        {
+          "reply": "The bottom drawer slides out. Under a nest of fuses, a small brass key on a paper tag that says BD, in Marge's handwriting."
+        }
+      ]
+    },
+    {
+      "id": "open-drawer1-empty",
+      "when": {
+        "verb": "open",
+        "object": "drawer1"
+      },
+      "do": [
+        {
+          "reply": "Fuses, hundreds of them, sorted by amperage with a care that borders on love."
+        }
+      ]
+    },
+    {
+      "id": "open-drawer2-empty",
+      "when": {
+        "verb": "open",
+        "object": "drawer2"
+      },
+      "do": [
+        {
+          "reply": "Microswitches and joystick springs, loose, rattling."
+        }
+      ]
+    },
+    {
+      "id": "open-drawer3-empty",
+      "when": {
+        "verb": "open",
+        "object": "drawer3"
+      },
+      "do": [
+        {
+          "reply": "Coin mechs, a dozen of them, and a paperback about fishing."
+        }
+      ]
+    },
+    {
+      "id": "take-panelkey",
+      "when": {
+        "verb": "take",
+        "object": "panelkey"
+      },
+      "do": [
+        {
+          "score": 10,
+          "id": "panel-key"
+        },
+        {
+          "flag": "hasPanelKey",
+          "value": true
+        }
+      ]
+    },
+    {
+      "id": "touch-monitor",
+      "when": {
+        "verb": "touch",
+        "object": "monitor"
+      },
+      "do": [
+        {
+          "die": "You reach into the open monitor chassis. The sticker said the tube holds a charge for days. It holds it for exactly as long as it takes to find your hand, and then it gives it all to you at once. The bench lamp swings. The soldering iron, patient, stays warm."
+        }
+      ]
+    },
+    {
+      "id": "take-monitor",
+      "when": {
+        "verb": "take",
+        "object": "monitor"
+      },
+      "do": [
+        {
+          "die": "You reach into the open monitor chassis. The sticker said the tube holds a charge for days. It holds it for exactly as long as it takes to find your hand, and then it gives it all to you at once. The bench lamp swings. The soldering iron, patient, stays warm."
+        }
+      ]
+    },
+    {
+      "id": "open-monitor",
+      "when": {
+        "verb": "open",
+        "object": "monitor"
+      },
+      "do": [
+        {
+          "die": "You reach into the open monitor chassis. The sticker said the tube holds a charge for days. It holds it for exactly as long as it takes to find your hand, and then it gives it all to you at once. The bench lamp swings. The soldering iron, patient, stays warm."
+        }
+      ]
+    },
+    {
+      "id": "touch-iron",
+      "when": {
+        "verb": "touch",
+        "object": "iron"
+      },
+      "do": [
+        {
+          "reply": "Warm. Used within the hour, by someone with a lot of soldering to do, or a lot of solder to get on his hands."
+        }
+      ]
+    },
+    {
+      "id": "take-iron",
+      "when": {
+        "verb": "take",
+        "object": "iron"
+      },
+      "do": [
+        {
+          "reply": "It is plugged in and it is not yours. You leave it."
+        }
+      ]
+    },
+    {
+      "id": "accuse-rudy",
+      "when": {
+        "verb": "accuse",
+        "object": "marge"
+      },
+      "do": [
+        {
+          "reply": "Marge takes her glasses off. \"Me? I own the place. Try again, and try harder.\""
+        }
+      ]
+    },
+    {
+      "id": "accuse-rudy-win",
+      "when": {
+        "verb": "accuse",
+        "object": "rudy"
+      },
+      "require": {
+        "has": [
+          "panelkey"
+        ],
+        "flags": {
+          "phoneHeard": true
+        },
+        "visible": [
+          "marge"
+        ]
+      },
+      "fail": "Marge waits. \"A hunch is not proof. Bring me the key that is missing from my ring, and something that says who had it, and then say the name.\"",
+      "do": [
+        {
+          "score": 10,
+          "id": "accuse"
+        },
+        {
+          "flag": "accused",
+          "value": true
+        },
+        {
+          "win": "\"Rudy,\" Marge says, and it is not a question. She takes the panel key from your hand, looks at the BD tag in her own writing, and puts it back on the ring where it belongs. Then she picks up the office phone and dials three digits. By the time the sun comes up over the Starlight the police have the van, the collector has a very bad morning ahead, and Rudy, who came in early to put a key back, finds Marge waiting. She does not raise her voice. She never has to. \"You,\" she says to you, when it is over, \"did good. The floor still needs vacuuming.\""
+        }
+      ]
+    },
+    {
+      "id": "accuse-dale",
+      "when": {
+        "verb": "accuse",
+        "object": "dale"
+      },
+      "require": {
+        "visible": [
+          "marge"
+        ]
+      },
+      "fail": "Dale snores. Accusing a sleeping man gets you nowhere; say it to Marge, in the office.",
+      "do": [
+        {
+          "reply": "\"Dale?\" Marge looks at you. \"Dale has been asleep on Lou's counter since one, and Lou would know. Think again.\""
+        }
+      ]
+    },
+    {
+      "id": "accuse-priya",
+      "when": {
+        "verb": "accuse",
+        "object": "priya"
+      },
+      "require": {
+        "visible": [
+          "marge"
+        ]
+      },
+      "do": [
+        {
+          "reply": "\"Priya? She holds the honest score on that machine. She'd sooner burn the place down than cheat it. No.\""
+        }
+      ]
+    },
+    {
+      "id": "accuse-lou",
+      "when": {
+        "verb": "accuse",
+        "object": "lou"
+      },
+      "do": [
+        {
+          "reply": "Lou laughs so hard she has to put the crossword down."
         }
       ]
     }

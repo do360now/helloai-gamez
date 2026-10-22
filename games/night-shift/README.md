@@ -9,8 +9,8 @@ score wins, then fewest commands: the benchmark declares `tiebreak: "commands"`,
 run's `stats`, lower is better). Humans and agents play the same turn-based game; the page is
 always in agent mode, so the Download Run button works for everyone. Agents: see `/agents.md`.
 
-**Status:** a playable three-room slice (45 of the planned 100 points). The rest of the rooms,
-puzzles and people come next.
+**Status:** the full case: ten rooms, three people, fourteen scored events worth 100 points, five
+deaths, four seeded parameters. Draw lists and hotspots for the seven newer rooms are being merged.
 
 ## Files (open track, no build step)
 
@@ -23,7 +23,7 @@ The folder is the source. Nothing is generated; what is here is what is served. 
 | `ui.js` | Human UI: repaints from `game.state()`, taps compile to commands | Claude (session 4a) |
 | `engine.js` | The game: a pure ES module (no DOM, no timers, injected randomness) that interprets `world.json` and exposes `createGame()` and `arcadeAdapter()` | Claude Fable 5.1 (session c1) |
 | `parser.js` | The command parser: verbs with synonyms, multi-word nouns, prepositions, directions | Claude Fable 5.1 (session c1) |
-| `world.json` | Rooms, objects, people, verbs, rules, seeded parameters, draw lists, hotspots | text and rules: Claude Fable 5.1 (c1); draw lists and hotspots: Claude (4a) |
+| `world.json` | Rooms, objects, people, verbs, rules, seeded parameters, draw lists, hotspots | text, puzzles and rules: Claude Fable 5.1 (c1); draw lists and hotspots: Claude (4a) |
 
 All text, art and rules are original. The classics were studied for structure only.
 
@@ -42,8 +42,12 @@ All text, art and rules are original. The classics were studied for structure on
   (world time; an unrecognised command does not advance it). `state().understood` says whether
   the last command advanced world time, so agents need not match reply strings.
 - A seeded value (the safe combination) can only be used after some text has shown it. The
-  solver plays blind the same way, so par is the shortest path from the text alone, and `check`
-  fails if an omniscient player could do better.
+  solver plays blind the same way, and `check` fails if an omniscient player could do better.
+- **Par** is the length of the solver's plan: from each state, the nearest new progress (a
+  scored event, an item some rule needs, a revealed object, a flag some rule reads), committed
+  to greedily. Points are never lost and nothing is consumed except on the thing it is for, so
+  the plan always completes; it is a good path, not a proven optimum. Beating par is possible
+  and is the result to aim for.
 - Seeded parameters are picked from `world.json`'s `params` in file order; adding or reordering
   a parameter changes which case every seed gets, so the benchmark seed's case is pinned by the
   recorded runs.
@@ -59,18 +63,19 @@ npm test                              # parser, engine, adapter, world and tool 
 node night-shift.mjs check            # validate world.json and prove the seed invariants (CI)
 node night-shift.mjs solve [seed]     # the optimal command list and par
 node night-shift.mjs verify <run.json ...>   # replay recorded runs through the engine
-node night-shift.mjs play [seed] [--seed N] [--out run.json]   # play in the terminal; stdin may be piped
+node night-shift.mjs play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]
+                                      # play in the terminal; stdin may be piped; --out needs --disclosure
 node verify.mjs data/runs/night-shift/case-150/<run>.json   # the official browser replay
 ```
 
-`check` asserts, for every combination of the seeded parameters (27 today) and the benchmark
-seed, that the full score is reachable blind, that the max score, the set of scorable events and
-par are identical, that no omniscient path is shorter, that every hidden object is revealed by
+`check` asserts, for every combination of the seeded parameters (81 today; the tests vary one
+parameter at a time) and the benchmark seed, that the full score is reachable blind, that the
+max score, the set of scorable events and par are identical, that no omniscient path is shorter, that every hidden object is revealed by
 some rule, that every scoring topic is named in text the player can read, that a score id is
 worth the same points everywhere, that no rule uses an unknown key, and that every room's draw
 list passes `render.js` `validate()`.
 
-Current benchmark: `case-150`, max score 45 (slice), par 13 commands.
+Current benchmark: `case-150`, max score 100, par 48 commands.
 
 ## Fair play
 
