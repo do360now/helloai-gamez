@@ -293,6 +293,15 @@
           var run = record();
           run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: "played by hand, turn-based", notes: "" };
           run.date = new Date().toISOString().slice(0, 10);
+          // A benchmark that declares disclosure: true needs the player to say how the run was played.
+          var rules = benchInfo();
+          if (rules && rules.disclosure) {
+            var blind = false;
+            try {
+              blind = window.confirm("Was this run blind: text only, no source, no world data and no walkthrough?\n\nOK = blind. Cancel = open book.");
+            } catch (e) { /* a blocked dialog counts as open book */ }
+            run.player.disclosure = blind ? "blind" : "open-book";
+          }
           var url = URL.createObjectURL(new Blob([JSON.stringify(run) + "\n"], { type: "application/json" }));
           var file = document.createElement("a");
           file.href = url;
