@@ -1,4 +1,4 @@
-// Night Shift tools: the world checker (structural proofs plus a planner-based consistency check),
+// Night Shift tools: the world checker (structural checks that are necessary, not sufficient, plus a planner-based consistency check),
 // the planner that produces the reference route, a Node replay verifier for recorded runs, and a
 // REPL to play from the terminal.
 //   node night-shift.mjs check            validate world.json: exact structural checks, the reference route on every
@@ -123,7 +123,7 @@ function progressOf(snap, flags, items) {
 }
 
 // Plans a command list to the full score and the win: the reference route. Points are never lost
-// and nothing is consumed except on the thing it is for (check proves that structurally), so the
+// and nothing is consumed except on the thing it is for (check tests both structurally), so the
 // plan is greedy: from the current state, a breadth-first search finds the nearest state with new
 // progress (a scored event, an item some rule needs, a revealed object, or a flag some rule reads),
 // commits to it, and repeats. Commands that kill are pruned. The result is a good path, not a
@@ -478,7 +478,7 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
       }
       results.push({ label, ...s });
     }
-    // Smoke test of the seeded-value rule (the proof is the structural check above): an omniscient
+    // Smoke test of the seeded-value rule (the structural gating check above is the real one): an omniscient
     // plan must not be shorter than the blind one.
     if (results.length) {
       const open = solve(world, combos.length ? combos[0].random : mulberry32(seeds[0] || 0), bench, { blind: false });
