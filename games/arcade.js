@@ -106,6 +106,9 @@
     Arcade.busy = true;
     try {
       await settle();
+      // A paused game (or one still animating after the wait above) must not take the action: the game would
+      // ignore it, but it would still be logged, and a replay, which never pauses, would then really apply it.
+      if (!a.ready()) return { ok: false, error: a.over() ? "game over" : "not ready: the game is paused or still animating" };
       var ok = await a.apply(action, function () { return paceMs ? sleep(paceMs) : Promise.resolve(); });
       if (ok) Arcade.log.push(action);
       await settle();
