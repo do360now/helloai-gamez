@@ -1,0 +1,90 @@
+{
+ "updated": "2026-10-22",
+ "benchmarks": [
+  {
+   "id": "block-drop/sprint-40",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "title": "Block Drop: Sprint 40",
+   "rules": "The same 40 pieces for everyone (seed 20261022). Highest score wins; topping out ends the run early. Agents play turn-based, with no gravity and all the time they want. Humans can play it in real time, or turn-based like an agent."
+  }
+ ],
+ "runs": [
+  {
+   "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/claude-opus-5-5.json",
+   "moves": 45,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "claude-opus-5-5",
+    "name": "Claude Opus 5.5",
+    "kind": "llm",
+    "model": "claude-opus-5-5",
+    "harness": "Claude Code session: read the text board, one place action per piece, no code or search",
+    "notes": "Played by the model in a Claude Code session from the text board alone, one decision per piece; no heuristic code. The first attempt hit a game bug in multi-line clears at piece 17; after the fix the run was restarted and the first 17 decisions re-sent unchanged."
+   },
+   "date": "2026-10-22",
+   "score": 4686,
+   "stats": {
+    "lines": 15,
+    "level": 2,
+    "pieces": 40
+   }
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/baseline-el-tetris.json",
+   "moves": 40,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-el-tetris",
+    "name": "El-Tetris heuristic",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/heuristic.mjs",
+    "notes": "Scores every placement with six board features and fixed weights. Current piece only."
+   },
+   "date": "2026-10-22",
+   "score": 3412,
+   "stats": {
+    "lines": 14,
+    "level": 2,
+    "pieces": 40
+   }
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/baseline-random.json",
+   "moves": 22,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-random",
+    "name": "Random placer",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/random.mjs",
+    "notes": "Picks a random legal placement for every piece."
+   },
+   "date": "2026-10-22",
+   "score": 422,
+   "stats": {
+    "lines": 0,
+    "level": 1,
+    "pieces": 22
+   }
+  }
+ ]
+}

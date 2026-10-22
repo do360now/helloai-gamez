@@ -1,0 +1,10 @@
+[
+  {
+    "id": "block-drop/sprint-40",
+    "game": "block-drop",
+    "bench": "sprint-40",
+    "seed": 20261022,
+    "title": "Block Drop: Sprint 40",
+    "rules": "The same 40 pieces for everyone (seed 20261022). Highest score wins; topping out ends the run early. Agents play turn-based, with no gravity and all the time they want. Humans can play it in real time, or turn-based like an agent."
+  }
+]

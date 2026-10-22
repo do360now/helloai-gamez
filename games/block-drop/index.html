@@ -3,12 +3,17 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Cyber Tetris Deluxe</title>
+  <title>Block Drop</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="../arcade.js"></script>
   <style>
+    .arcade-embed header, .arcade-embed footer, .arcade-embed section, .arcade-embed #startOverlay { display: none !important; }
+    .arcade-embed body { justify-content: center; padding: 0; min-height: 100vh; overflow: hidden; }
+    .arcade-embed main > div:not(.relative), .arcade-embed #restartBtn { display: none !important; }
+    .arcade-agent #startOverlay { display: none !important; }
     body {
       font-family: 'Inter', sans-serif;
       background: radial-gradient(circle at 50% 20%, #171b30 0%, #0b0d17 75%, #05060a 100%);
@@ -54,7 +59,7 @@
     <div class="flex items-center space-x-3">
       <div class="w-3 h-8 bg-gradient-to-b from-cyan-400 to-indigo-600 rounded-sm shadow-[0_0_12px_#38bdf8]"></div>
       <h1 class="font-arcade text-2xl sm:text-3xl font-extrabold tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-sky-300 to-fuchsia-400">
-        TETRIS<span class="text-xs ml-1.5 px-1.5 py-0.5 rounded bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 tracking-normal font-sans">DELUXE</span>
+        BLOCK DROP<span class="text-xs ml-1.5 px-1.5 py-0.5 rounded bg-indigo-950/80 border border-indigo-500/40 text-indigo-300 tracking-normal font-sans">DELUXE</span>
       </h1>
     </div>
     <div class="flex items-center space-x-2">
@@ -110,7 +115,7 @@
       <div class="relative p-1.5 sm:p-2.5 rounded-2xl bg-gradient-to-b from-indigo-900/40 via-slate-900/60 to-slate-950/90 border border-slate-700/50 shadow-[0_0_35px_-5px_rgba(30,58,138,0.35)]">
         
         <!-- Canvas -->
-        <canvas id="tetrisCanvas" width="300" height="600" class="rounded-xl block bg-slate-950"></canvas>
+        <canvas id="boardCanvas" width="300" height="600" class="rounded-xl block bg-slate-950"></canvas>
 
         <!-- Start Overlay -->
         <div id="startOverlay" class="absolute inset-0 m-1.5 sm:m-2.5 bg-slate-950/85 backdrop-blur-md rounded-xl flex flex-col items-center justify-center p-6 text-center z-20">
@@ -298,7 +303,7 @@
             osc.stop(t + 0.35);
             break;
 
-          case 'tetris':
+          case 'quad':
             // Epic arpeggio
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(440, t);
@@ -329,6 +334,7 @@
     }
 
     const sound = new SoundEngine();
+    if (Arcade.embed) sound.muted = true;   // the home page player stays silent
 
     /* ==========================================================================
        2. TETROMINO DEFINITIONS & THEMES
@@ -431,9 +437,9 @@
     /* ==========================================================================
        3. GAME ENGINE CLASS
        ========================================================================== */
-    class TetrisEngine {
+    class BlockDropEngine {
       constructor() {
-        this.canvas = document.getElementById('tetrisCanvas');
+        this.canvas = document.getElementById('boardCanvas');
         this.ctx = this.canvas.getContext('2d');
         this.nextCanvas = document.getElementById('nextCanvas');
         this.nextCtx = this.nextCanvas.getContext('2d');
@@ -450,7 +456,7 @@
         this.score = 0;
         this.level = 1;
         this.lines = 0;
-        this.highScore = parseInt(localStorage.getItem('tetris_high_score') || '0', 10);
+        this.highScore = parseInt(localStorage.getItem('block_drop_high_score') || localStorage.getItem('tetris_high_score') || '0', 10);
 
         this.isGameOver = false;
         this.isPaused = false;
@@ -495,7 +501,7 @@
           this.bag = [...PIECE_KEYS];
           // Fisher-Yates shuffle
           for (let i = this.bag.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
+            const j = Math.floor(Arcade.random() * (i + 1));
             [this.bag[i], this.bag[j]] = [this.bag[j], this.bag[i]];
           }
         }
@@ -513,10 +519,14 @@
       }
 
       start() {
+        Arcade.reset();
+        this.bag = [];
         this.grid = this.createMatrix(ROWS, COLS);
         this.score = 0;
         this.level = 1;
         this.lines = 0;
+        this.pieces = 0;
+        this.benchComplete = false;
         this.isGameOver = false;
         this.isPaused = false;
         this.isPlaying = true;
@@ -542,6 +552,13 @@
       }
 
       spawnPiece() {
+        // Benchmarks with a piece budget end once the last piece has settled.
+        const bench = Arcade.adapter && Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+        if (bench && bench.pieces && this.pieces >= bench.pieces) {
+          this.benchComplete = true;
+          this.triggerGameOver();
+          return;
+        }
         this.currentPiece = this.nextPiece;
         this.nextPiece = this.getBagPiece();
         this.renderPreview(this.nextCtx, this.nextPiece);
@@ -647,6 +664,7 @@
         }
         this.currentPiece.y--;
         this.score += Math.max(0, dropCount * 2);
+        this.updateUI();
         this.createDropImpactParticles(this.currentPiece);
         sound.play('drop');
         this.lockPiece();
@@ -708,6 +726,7 @@
           }
         }
 
+        this.pieces++;
         sound.play('lock');
         this.checkLineClears();
       }
@@ -726,7 +745,7 @@
 
           // Sound effect & particle sparks
           if (fullRows.length >= 4) {
-            sound.play('tetris');
+            sound.play('quad');
           } else {
             sound.play('clear');
           }
@@ -744,13 +763,10 @@
 
       collapseRows(rows) {
         const count = rows.length;
-        // Sort descending so splicing rows is accurate
-        rows.sort((a, b) => b - a);
-
-        for (const row of rows) {
-          this.grid.splice(row, 1);
-          this.grid.unshift(new Array(COLS).fill(0));
-        }
+        // Keep every other row in order, then refill from the top. (Splicing one row at a time
+        // while unshifting new ones moved the remaining indices and removed the wrong rows.)
+        this.grid = this.grid.filter((_, y) => !rows.includes(y));
+        while (this.grid.length < ROWS) this.grid.unshift(new Array(COLS).fill(0));
 
         this.lines += count;
         // Standard original scoring: 100/300/500/800 scaled by level
@@ -766,7 +782,7 @@
 
         if (this.score > this.highScore) {
           this.highScore = this.score;
-          localStorage.setItem('tetris_high_score', this.highScore);
+          localStorage.setItem('block_drop_high_score', this.highScore);
         }
 
         this.flashingRows = [];
@@ -859,6 +875,8 @@
         this.isGameOver = true;
         this.isPlaying = false;
         sound.play('gameover');
+        this.gameOverOverlay.querySelector('h2').textContent = this.benchComplete ? 'SPRINT COMPLETE' : 'GAME OVER';
+        Arcade.onGameOver();
         this.gameOverStats.innerHTML = `SCORE: <span class="text-cyan-300 font-bold">${this.score.toLocaleString()}</span> &bull; LEVEL: <span class="text-amber-300">${this.level}</span>`;
         this.gameOverOverlay.classList.remove('hidden');
       }
@@ -1039,7 +1057,7 @@
         const deltaTime = (time - this.lastTime) / 1000;
         this.lastTime = time;
 
-        if (this.flashingRows.length === 0) {
+        if (this.flashingRows.length === 0 && !Arcade.agent) {
           this.dropCounter += (deltaTime * 1000);
           if (this.dropCounter > this.dropInterval) {
             this.currentPiece.y++;
@@ -1061,7 +1079,7 @@
     /* ==========================================================================
        5. INITIALIZATION & INPUT LISTENERS
        ========================================================================== */
-    const game = new TetrisEngine();
+    const game = new BlockDropEngine();
 
     // Start / Restart UI triggers
     document.getElementById('startBtn').addEventListener('click', () => {
@@ -1093,7 +1111,18 @@
     });
 
     // Keyboard bindings
+    const AGENT_KEYS = {
+      ArrowLeft: 'left', a: 'left', A: 'left', ArrowRight: 'right', d: 'right', D: 'right',
+      ArrowDown: 'down', s: 'down', S: 'down', ArrowUp: 'rotate', w: 'rotate', W: 'rotate', x: 'rotate', X: 'rotate',
+      z: 'rotate_ccw', Z: 'rotate_ccw', q: 'rotate_ccw', Q: 'rotate_ccw', c: 'hold', C: 'hold', Shift: 'hold', ' ': 'drop'
+    };
     window.addEventListener('keydown', (e) => {
+      if (Arcade.agent) {
+        if (e.key === 'Enter' && game.isGameOver && !Arcade.replaying) { game.start(); return; }
+        const action = AGENT_KEYS[e.key];
+        if (action) { e.preventDefault(); Arcade.onKeyAction(action); }
+        return;
+      }
       // Always allow restart on Enter if game over
       if (e.key === 'Enter') {
         if (game.isGameOver || !game.isPlaying) {
@@ -1184,16 +1213,151 @@
       btn.addEventListener('pointerdown', (e) => {
         e.preventDefault();
         sound.init();
-        action();
+        if (Arcade.agent) Arcade.onKeyAction(action);
+        else agentActions[action]();
       });
     };
+    const agentActions = {
+      left: () => game.move(-1), right: () => game.move(1), down: () => game.softDrop(),
+      rotate: () => game.rotate(1), rotate_ccw: () => game.rotate(-1), hold: () => game.hold(), drop: () => game.hardDrop()
+    };
 
-    bindTouch('btnLeft', () => game.move(-1));
-    bindTouch('btnRight', () => game.move(1));
-    bindTouch('btnDown', () => game.softDrop());
-    bindTouch('btnRotate', () => game.rotate(1));
-    bindTouch('btnHold', () => game.hold());
-    bindTouch('btnHardDrop', () => game.hardDrop());
+    bindTouch('btnLeft', 'left');
+    bindTouch('btnRight', 'right');
+    bindTouch('btnDown', 'down');
+    bindTouch('btnRotate', 'rotate');
+    bindTouch('btnHold', 'hold');
+    bindTouch('btnHardDrop', 'drop');
+
+    /* ==========================================================================
+       6. AGENT ADAPTER (protocol in /agents.md)
+       ========================================================================== */
+    const cellsOf = (matrix) => {
+      const cells = [];
+      matrix.forEach((row, y) => row.forEach((v, x) => { if (v) cells.push([x, y]); }));
+      return cells;
+    };
+    const rotationsOf = (type) => {
+      const out = [SHAPES[type].matrix.map(r => [...r])];
+      for (let i = 1; i < 4; i++) out.push(game.rotateMatrix(out[i - 1], 1));
+      return out;
+    };
+    const minCol = (matrix) => Math.min(...cellsOf(matrix).map(c => c[0]));
+    const maxCol = (matrix) => Math.max(...cellsOf(matrix).map(c => c[0]));
+    const sameMatrix = (a, b) => a.length === b.length && a.every((row, y) => row.every((v, x) => !!v === !!b[y][x]));
+    const rotationIndex = (piece) => {
+      const rots = rotationsOf(piece.type);
+      const i = rots.findIndex(m => sameMatrix(m, piece.matrix));
+      return i < 0 ? 0 : i;
+    };
+    const legalPlacements = () => {
+      const p = game.currentPiece;
+      if (!p) return [];
+      const seen = new Set(), out = [];
+      rotationsOf(p.type).forEach((m, r) => {
+        const key = JSON.stringify(cellsOf(m).map(([x, y]) => [x - minCol(m), y]));
+        if (seen.has(key)) return;
+        seen.add(key);
+        for (let c = 0; c + (maxCol(m) - minCol(m)) < COLS; c++) out.push(`place ${r} ${c}`);
+      });
+      return out;
+    };
+    const boardRows = () => {
+      const rows = game.grid.map(row => row.map(v => (v ? '#' : '.')));
+      const p = game.currentPiece;
+      if (p && !game.isGameOver) {
+        const ghost = game.getGhostPiece();
+        cellsOf(ghost.matrix).forEach(([x, y]) => { const gy = ghost.y + y; if (gy >= 0 && rows[gy][ghost.x + x] === '.') rows[gy][ghost.x + x] = '+'; });
+        cellsOf(p.matrix).forEach(([x, y]) => { const py = p.y + y; if (py >= 0) rows[py][p.x + x] = '@'; });
+      }
+      return rows.map(r => r.join(''));
+    };
+    const shapeText = (m) => {
+      const cells = cellsOf(m), xs = cells.map(c => c[0]), ys = cells.map(c => c[1]);
+      const lines = [];
+      for (let y = Math.min(...ys); y <= Math.max(...ys); y++) {
+        let line = '';
+        for (let x = Math.min(...xs); x <= Math.max(...xs); x++) line += m[y][x] ? '@' : '.';
+        lines.push(line);
+      }
+      return lines.join('/');
+    };
+
+    Arcade.register({
+      id: 'block-drop',
+      benchmarks: {
+        'sprint-40': { label: 'Sprint 40', pieces: 40, rules: '40 pieces, highest score wins. Topping out ends the run early.' }
+      },
+      actions: {
+        left: 'move the piece one column left', right: 'move one column right',
+        rotate: 'rotate clockwise (with wall kicks)', rotate_ccw: 'rotate counter-clockwise',
+        down: 'move down one row (+1 point); locks the piece if it cannot move', drop: 'hard drop and lock (+2 points per row)',
+        hold: 'swap with the held piece (once per piece)',
+        'place R C': 'macro: rotate clockwise R times (0-3), move so the leftmost cell is in column C (0-9), hard drop'
+      },
+      start: () => { game.start(); },
+      ready: () => game.isPlaying && !game.isGameOver && !game.isPaused && game.flashingRows.length === 0 && !!game.currentPiece,
+      over: () => game.isGameOver,
+      score: () => game.score,
+      stats: () => ({ lines: game.lines, level: game.level, pieces: game.pieces }),
+      observe: () => {
+        const p = game.currentPiece;
+        const bench = Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+        return {
+          board: boardRows(),
+          piece: p ? { type: p.type, rotation: rotationIndex(p), x: p.x, y: p.y, column: p.x + minCol(p.matrix) } : null,
+          next: game.nextPiece ? game.nextPiece.type : null,
+          hold: game.holdPiece ? game.holdPiece.type : null,
+          canHold: game.canHold,
+          lines: game.lines, level: game.level, pieces: game.pieces,
+          piecesLeft: bench && bench.pieces ? Math.max(0, bench.pieces - game.pieces) : null,
+          // Cells [x, y] of each rotation, shifted so the leftmost cell is x 0 and the top cell is y 0.
+          rotations: p ? rotationsOf(p.type).map(m => {
+            const cells = cellsOf(m), x0 = minCol(m), y0 = Math.min(...cells.map(c => c[1]));
+            return cells.map(([x, y]) => [x - x0, y - y0]);
+          }) : [],
+          placements: legalPlacements()
+        };
+      },
+      text: () => {
+        const p = game.currentPiece;
+        const bench = Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+        const out = [];
+        out.push(`block-drop${Arcade.bench ? ' ' + Arcade.bench : ''} seed ${Arcade.seed}` +
+          (bench && bench.pieces ? ` piece ${Math.min(game.pieces + 1, bench.pieces)}/${bench.pieces}` : ` piece ${game.pieces + 1}`));
+        out.push(`score ${game.score} lines ${game.lines} level ${game.level}${game.isGameOver ? (game.benchComplete ? ' SPRINT COMPLETE' : ' GAME OVER') : ''}`);
+        if (p) {
+          out.push(`current ${p.type} next ${game.nextPiece ? game.nextPiece.type : '-'} hold ${game.holdPiece ? game.holdPiece.type : '-'}${game.canHold ? '' : ' (hold used)'}`);
+          out.push('rotations ' + rotationsOf(p.type).map((m, r) => `${r}:${shapeText(m)}`).join('  '));
+        }
+        out.push('legend: # filled, @ current piece, + where it lands, . empty');
+        out.push('   0123456789');
+        boardRows().forEach((r, i) => out.push(String(i).padStart(2, ' ') + ' ' + r));
+        return out.join('\n');
+      },
+      apply: async (action, pace) => {
+        const simple = { left: () => game.move(-1), right: () => game.move(1), down: () => game.softDrop(),
+          rotate: () => game.rotate(1), rotate_ccw: () => game.rotate(-1), drop: () => game.hardDrop() };
+        if (simple[action]) { simple[action](); return true; }
+        if (action === 'hold') { if (!game.canHold) return false; game.hold(); return true; }
+        const m = /^place ([0-3]) (\d)$/.exec(action);
+        if (!m || !game.currentPiece) return false;
+        const r = Number(m[1]), c = Number(m[2]);
+        const target = rotationsOf(game.currentPiece.type)[r];
+        if (c + (maxCol(target) - minCol(target)) >= COLS) return false;
+        for (let i = rotationIndex(game.currentPiece); i !== r; i = (i + 1) % 4) { game.rotate(1); await pace(); }
+        for (let guard = 0; guard < COLS; guard++) {
+          const col = game.currentPiece.x + minCol(game.currentPiece.matrix);
+          if (col === c) break;
+          const before = game.currentPiece.x;
+          game.move(col < c ? 1 : -1);
+          if (game.currentPiece.x === before) break;
+          await pace();
+        }
+        game.hardDrop();
+        return true;
+      }
+    });
 
     // Initial render
     window.onload = () => {

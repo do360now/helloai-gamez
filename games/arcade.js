@@ -1,0 +1,271 @@
+// Arcade agent mode, shared by the games on play.helloai.com. Protocol: /agents.md
+//
+// URL parameters on a game page:
+//   seed=<uint32>      fixed seed for gameplay randomness (same seed, same pieces)
+//   bench=<id>         benchmark rules, for example sprint-40 (the game ends after 40 pieces)
+//   agent=1            turn-based: no gravity, the game only changes when an action is applied
+//   replay=<path>      watch a recorded run from /data/runs/ (implies agent=1 and the run's seed)
+//   speed=<ms>         delay between replayed moves (default 140)
+//   embed=1            hide page chrome, for the home page player
+//
+// A game calls Arcade.register(adapter) once its engine exists. The adapter provides:
+//   id, benchmarks {id: {label, ...}}, actions {name: description},
+//   start(), ready(), over(), score(), observe() -> object, text() -> string,
+//   apply(action, pace) -> Promise<boolean>   (pace(ms) waits between animated steps)
+(function () {
+  "use strict";
+  var params = new URLSearchParams(location.search);
+
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function parseSeed(v) {
+    if (v == null || !/^\d{1,10}$/.test(v)) return null;
+    var n = Number(v);
+    return n <= 4294967295 ? n : null;
+  }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  var replayPath = params.get("replay");
+  if (replayPath && !/^\/?data\/runs\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9._-]+\.json$/.test(replayPath)) replayPath = null;
+  var seed = parseSeed(params.get("seed"));
+  var explicitSeed = seed !== null;
+  if (seed === null) seed = (Math.random() * 4294967296) >>> 0;
+  var rng = mulberry32(seed);
+
+  var Arcade = {
+    protocol: "arcade/0.1",
+    seed: seed,
+    seeded: explicitSeed,
+    bench: params.get("bench") || null,
+    agent: params.get("agent") === "1" || !!replayPath,
+    replaying: !!replayPath,
+    embed: params.get("embed") === "1",
+    random: function () { return rng(); },
+    adapter: null,
+    log: [],
+    busy: false,
+    listeners: [],
+  };
+  if (Arcade.embed) document.documentElement.classList.add("arcade-embed");
+  if (Arcade.agent) document.documentElement.classList.add("arcade-agent");
+
+  function reseed(s) { Arcade.seed = s >>> 0; Arcade.seeded = true; rng = mulberry32(Arcade.seed); }
+
+  // Called by a game at the start of every game: a seeded benchmark restarts from its seed with an
+  // empty move list; casual play gets fresh pieces.
+  Arcade.reset = function () {
+    if (!Arcade.seeded) Arcade.seed = (Math.random() * 4294967296) >>> 0;
+    rng = mulberry32(Arcade.seed);
+    Arcade.log = [];
+  };
+
+  function benchInfo() {
+    var a = Arcade.adapter;
+    return a && Arcade.bench && a.benchmarks ? a.benchmarks[Arcade.bench] || null : null;
+  }
+
+  function snapshot() {
+    var a = Arcade.adapter;
+    var o = a.observe();
+    o.protocol = Arcade.protocol;
+    o.game = a.id;
+    o.seed = Arcade.seed;
+    o.bench = Arcade.bench;
+    o.ready = a.ready() && !Arcade.busy;
+    o.over = a.over();
+    o.score = a.score();
+    o.step = Arcade.log.length;
+    o.text = a.text();
+    return o;
+  }
+
+  async function settle() {
+    var a = Arcade.adapter;
+    for (var i = 0; i < 400 && !a.over() && !a.ready(); i++) await sleep(10);
+  }
+
+  function emit(type) {
+    for (var i = 0; i < Arcade.listeners.length; i++) {
+      try { Arcade.listeners[i](type); } catch (e) { /* listeners never break the game */ }
+    }
+  }
+
+  // Applies one action. pace is the delay between animated sub-steps (0 for agents).
+  async function perform(action, paceMs) {
+    var a = Arcade.adapter;
+    if (typeof action !== "string") throw new TypeError("action must be a string, see arcade.info().actions");
+    action = action.trim().replace(/\s+/g, " ");
+    if (a.over()) return { ok: false, error: "game over" };
+    if (Arcade.busy) return { ok: false, error: "busy: wait for the previous action" };
+    Arcade.busy = true;
+    try {
+      await settle();
+      var ok = await a.apply(action, function () { return paceMs ? sleep(paceMs) : Promise.resolve(); });
+      if (ok) Arcade.log.push(action);
+      await settle();
+      emit(a.over() ? "over" : "step");
+      return ok ? { ok: true } : { ok: false, error: "invalid action: " + action };
+    } finally {
+      Arcade.busy = false;
+    }
+  }
+
+  function record() {
+    var a = Arcade.adapter;
+    return {
+      protocol: Arcade.protocol,
+      game: a.id,
+      bench: Arcade.bench,
+      seed: Arcade.seed,
+      mode: Arcade.agent ? "turn" : "realtime",
+      actions: Arcade.log.slice(),
+      score: a.score(),
+      over: a.over(),
+      stats: a.stats ? a.stats() : {},
+    };
+  }
+
+  // Personal bests for the home page, kept in this browser only.
+  function saveBest() {
+    var a = Arcade.adapter;
+    if (!Arcade.bench || !Arcade.seeded || Arcade.replaying || !a.over()) return;
+    var key = "arcade.best." + a.id + "." + Arcade.bench + "." + Arcade.seed + "." + (Arcade.agent ? "turn" : "realtime");
+    try {
+      var prev = JSON.parse(localStorage.getItem(key) || "null");
+      if (!prev || a.score() > prev.score) {
+        localStorage.setItem(key, JSON.stringify({ score: a.score(), stats: a.stats ? a.stats() : {}, at: new Date().toISOString() }));
+      }
+    } catch (e) { /* storage may be unavailable */ }
+  }
+
+  // Public agent API.
+  window.arcade = {
+    info: function () {
+      var a = Arcade.adapter;
+      return {
+        protocol: Arcade.protocol,
+        game: a.id,
+        seed: Arcade.seed,
+        bench: Arcade.bench,
+        benchmark: benchInfo(),
+        benchmarks: a.benchmarks,
+        mode: Arcade.agent ? "turn" : "realtime",
+        actions: a.actions,
+        docs: "/agents.md",
+      };
+    },
+    observe: function () { return snapshot(); },
+    act: async function (action) {
+      if (!Arcade.agent) return { ok: false, error: "agent mode is off: open the page with ?agent=1" };
+      if (Arcade.replaying) return { ok: false, error: "this page is replaying a run" };
+      var r = await perform(action, 0);
+      var o = snapshot();
+      o.ok = r.ok;
+      if (r.error) o.error = r.error;
+      return o;
+    },
+    run: function () { return record(); },
+  };
+
+  Arcade.register = function (adapter) {
+    Arcade.adapter = adapter;
+    Arcade.onKeyAction = function (action) {
+      if (!Arcade.agent || Arcade.replaying) return false;
+      perform(action, 0);
+      return true;
+    };
+    var loading = replayPath
+      ? fetch("/" + replayPath.replace(/^\//, ""), { cache: "no-store" })
+          .then(function (r) { if (!r.ok) throw new Error("replay " + r.status); return r.json(); })
+      : Promise.resolve(null);
+    loading.then(function (run) {
+      if (run) {
+        if (run.game !== adapter.id) throw new Error("replay is for " + run.game);
+        reseed(run.seed);
+        Arcade.bench = run.bench || null;
+        Arcade.run = run;
+      }
+      if (Arcade.agent) adapter.start();
+      emit("start");
+      if (run) return playReplay(run);
+    }).catch(function (e) {
+      console.error(e);
+      document.documentElement.setAttribute("data-arcade-error", String(e.message || e));
+    });
+  };
+
+  Arcade.onGameOver = function () { saveBest(); emit("over"); };
+  Arcade.on = function (fn) { Arcade.listeners.push(fn); };
+
+  // A thin strip at the top of the page saying which mode this is, with links back to the scoreboard.
+  function banner() {
+    if (Arcade.embed || !Arcade.agent) return;
+    var bar = document.createElement("div");
+    bar.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483646;display:flex;gap:12px;align-items:center;" +
+      "justify-content:center;flex-wrap:wrap;padding:6px 12px;font:600 11px/1.5 ui-monospace,Consolas,monospace;letter-spacing:.06em;" +
+      "color:#0a0a0b;background:#c8ff00";
+    var text = document.createElement("span");
+    var link = document.createElement("a");
+    link.href = "/#scoreboard";
+    link.textContent = "SCOREBOARD";
+    link.style.cssText = "color:inherit;text-decoration:underline";
+    bar.appendChild(text);
+    bar.appendChild(link);
+    function render() {
+      var a = Arcade.adapter;
+      if (Arcade.replaying && Arcade.run) {
+        var p = Arcade.run.player || {};
+        text.textContent = "REPLAY: " + (p.name || "unknown") + " | recorded score " + Number(Arcade.run.score).toLocaleString("en-US") +
+          " | now " + a.score().toLocaleString("en-US");
+      } else {
+        text.textContent = "TURN-BASED: no gravity, take your time. Every move is recorded" + (a.over() ? "." : " | score " + a.score().toLocaleString("en-US"));
+      }
+    }
+    render();
+    Arcade.on(function (type) {
+      render();
+      if (type === "over" && !Arcade.replaying && !bar.querySelector("button")) {
+        var b = document.createElement("button");
+        b.textContent = "DOWNLOAD RUN (JSON)";
+        b.style.cssText = "font:inherit;color:#c8ff00;background:#0a0a0b;border:0;border-radius:999px;padding:3px 10px;cursor:pointer";
+        b.onclick = function () {
+          var run = record();
+          run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: "played by hand, turn-based" };
+          run.date = new Date().toISOString().slice(0, 10);
+          var url = URL.createObjectURL(new Blob([JSON.stringify(run) + "\n"], { type: "application/json" }));
+          var link = document.createElement("a");
+          link.href = url;
+          link.download = run.game + "-" + (run.bench || "free") + "-" + run.score + ".json";
+          link.click();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        };
+        bar.appendChild(b);
+      }
+    });
+    document.body.appendChild(bar);
+    document.body.style.paddingTop = bar.offsetHeight + 8 + "px";
+  }
+  Arcade.on(function (type) { if (type === "start") banner(); });
+
+  async function playReplay(run) {
+    var speed = Math.min(2000, Math.max(0, parseInt(params.get("speed") || "140", 10) || 0));
+    await sleep(600);
+    for (var i = 0; i < run.actions.length && !Arcade.adapter.over(); i++) {
+      await perform(run.actions[i], speed);
+      await sleep(speed);
+    }
+    document.documentElement.setAttribute("data-replay-done", String(Arcade.adapter.score()));
+    if (Arcade.embed && params.get("loop") === "1") {
+      await sleep(2500);
+      location.reload();
+    }
+  }
+
+  window.Arcade = Arcade;
+})();

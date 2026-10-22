@@ -1,0 +1,15 @@
+{
+  "name": "helloai-gamez-tools",
+  "private": true,
+  "type": "module",
+  "description": "Run baseline agents, verify recorded runs, and rebuild data/runs/index.json.",
+  "scripts": {
+    "serve": "python3 -m http.server 8765 --directory ..",
+    "agent": "node agents/run.mjs",
+    "verify": "node verify.mjs",
+    "index": "node build-index.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.48.0"
+  }
+}

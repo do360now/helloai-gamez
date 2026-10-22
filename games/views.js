@@ -4,6 +4,7 @@
 (function () {
   var match = location.pathname.match(/^\/(?:games\/([a-z0-9][a-z0-9-]*)\/)?(index\.html)?$/);
   if (!match || !window.fetch) return;
+  if (/[?&]embed=1(&|$)/.test(location.search)) return;   // the home page's replay player is not a visit
   var game = match[1] || "home";
   var url = "/api/views.php?game=" + encodeURIComponent(game);
   var badge = document.createElement("div");
