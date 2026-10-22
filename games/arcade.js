@@ -255,7 +255,11 @@
       } else if (!Arcade.replaying && leaderState === "ready" && Arcade.bench) {
         bits.push("no verified run yet");
       }
-      if (playing) bits.push(a.over() ? "run complete" : "score " + a.score().toLocaleString("en-US"));
+      if (playing) {
+        var placed = obs && typeof obs.pieces === "number" ? obs.pieces : 0;
+        var done = info && info.pieces && placed >= info.pieces;
+        bits.push(a.over() ? (done ? "sprint complete" : info && info.pieces ? "ended early" : "run over") : "score " + a.score().toLocaleString("en-US"));
+      }
       return bits.join(" · ");
     }
     function render() {

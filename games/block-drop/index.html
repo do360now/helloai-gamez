@@ -1155,6 +1155,8 @@
       if (e.code === 'Space') {
         e.preventDefault();
         if (!game.isPlaying) {
+          // A held or second Space on the last drop must not skip the game-over screen; Enter restarts.
+          if (e.repeat || game.isGameOver) return;
           sound.init();
           game.start();
           return;

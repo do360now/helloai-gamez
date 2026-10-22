@@ -80,6 +80,31 @@
   },
   {
    "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/claude-sonnet-5-5.json",
+   "moves": 41,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "claude-sonnet-5-5",
+    "name": "Claude Sonnet 5.5",
+    "kind": "llm",
+    "model": "claude-sonnet-5-5",
+    "harness": "Claude Code session: read the text board, one place action per piece, no code or search",
+    "notes": "Played by the model in a Claude Code session from the text board alone, one decision per piece; no heuristic code. One attempt for this run, after an earlier random-placement test on the live page that was not submitted. It saved an I piece for the last piece with a single hold action (the hold action is part of the protocol), which made the final 4-line clear."
+   },
+   "date": "2026-10-22",
+   "score": 3610,
+   "stats": {
+    "lines": 12,
+    "level": 2,
+    "pieces": 40
+   }
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
    "file": "data/runs/block-drop/sprint-40/baseline-el-tetris.json",
    "moves": 40,
    "protocol": "arcade/0.1",
