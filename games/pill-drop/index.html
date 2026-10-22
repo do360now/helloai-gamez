@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PILL DROP</title>
+<style>
+  :root{
+    --bg:#0A0A0B;
+    --panel:#15151A;
+    --panel-2:#1E1E24;
+    --border:#2A2A2E;
+    --text:#F5F5F0;
+    --muted:#8A8A8E;
+    --accent:#FF4D6A;
+    --blue:#4F46E5;
+    --yellow:#FFB800;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-monospace, SFMono-Regular, Menlo, monospace;overscroll-behavior:none;touch-action:manipulation;}
+  body{display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+  #header{width:100%;max-width:980px;padding:18px 20px 8px;display:flex;justify-content:space-between;align-items:center;}
+  #logo{font-size:22px;letter-spacing:0.12em;font-weight:800;}
+  #logo span{color:var(--accent);}
+  #header-right{font-size:11px;color:var(--muted);letter-spacing:0.08em;text-align:right;line-height:1.4}
+  #wrapper{width:100%;max-width:980px;display:flex;flex-direction:column;align-items:center;padding:0 12px 20px;gap:14px;}
+  #main-area{display:flex;gap:16px;justify-content:center;align-items:flex-start;width:100%;}
+  #board-shell{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px 14px 14px;box-shadow:0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);}
+  #board{image-rendering:pixelated;display:block;border-radius:12px;background:#101012;touch-action:none;}
+  /* bottle neck visual via CSS overlay */
+  #board-shell::before{content:'';position:absolute;top:-2px;left:50%;transform:translateX(-50%);width:54%;height:14px;background:var(--panel);border:1px solid var(--border);border-bottom:none;border-radius:12px 12px 0 0;z-index:2;}
+  #side{width:240px;display:flex;flex-direction:column;gap:12px;flex-shrink:0;}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 14px;}
+  .panel-title{font-size:10px;letter-spacing:0.15em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+  .stat-row{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;}
+  .stat-label{font-size:11px;color:var(--muted);}
+  .stat-val{font-size:18px;font-weight:700;letter-spacing:0.02em;}
+  .stat-val.accent{color:var(--accent);}
+  #next-canvas{background:var(--panel-2);border-radius:8px;display:block;width:100%;height:64px;}
+  #howto{font-size:11px;line-height:1.6;color:var(--muted);}
+  #howto b{color:var(--text);font-weight:700;}
+  .key{ display:inline-block; background:var(--panel-2); border:1px solid var(--border); border-bottom-width:2px; border-radius:4px; padding:1px 5px; font-size:10px; color:var(--text); margin:0 1px;}
+  #overlay-root{position:absolute;inset:14px;border-radius:12px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:5;}
+  .overlay{ background:rgba(10,10,11,0.88); backdrop-filter:blur(8px); border:1px solid var(--border); border-radius:14px; padding:22px 20px; text-align:center; min-width:220px; pointer-events:auto; box-shadow:0 16px 40px rgba(0,0,0,0.6);}
+  .overlay h2{margin:0 0 8px;font-size:20px;letter-spacing:0.12em;}
+  .overlay p{margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.5}
+  .btn{display:inline-block;background:var(--text);color:var(--bg);border:none;border-radius:8px;padding:8px 16px;font-family:inherit;font-weight:800;font-size:12px;letter-spacing:0.08em;cursor:pointer;}
+  .btn-accent{background:var(--accent);color:white;}
+  .hidden{display:none !important;}
+  #mobile-controls{width:100%;max-width:360px;display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:2px;}
+  .m-btn{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:10px;height:48px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;user-select:none;touch-action:manipulation;}
+  .m-btn:active{background:var(--panel-2);transform:translateY(1px);}
+  .m-btn.wide{grid-column:span 2;}
+  @media (max-width:760px){
+    #main-area{flex-direction:column;align-items:center;}
+    #side{width:100%;max-width:360px;flex-direction:row;flex-wrap:wrap;}
+    #side .panel{flex:1 1 140px;}
+    #side #howto-panel{flex:1 1 100%;}
+    #header-right{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="header">
+  <div id="logo">PILL<span>_</span>DROP</div>
+  <div id="header-right">8x16 BOTTLE • MATCH 4<br>CLEAR ALL GERMS</div>
+</div>
+<div id="wrapper">
+  <div id="main-area">
+    <div id="board-shell">
+      <canvas id="board" width="256" height="512"></canvas>
+      <div id="overlay-root">
+        <div id="pause-overlay" class="overlay hidden">
+          <h2>PAUSED</h2>
+          <p>Press <span class="key">P</span> to resume</p>
+          <button class="btn" onclick="togglePause()">RESUME</button>
+        </div>
+        <div id="gameover-overlay" class="overlay hidden">
+          <h2 style="color:var(--accent)">BOTTLE FULL</h2>
+          <p id="gameover-stats">Score 0 • Level 1</p>
+          <button class="btn btn-accent" onclick="restartGame()">RESTART [R]</button>
+        </div>
+        <div id="levelup-overlay" class="overlay hidden">
+          <h2 style="color:var(--yellow)">LEVEL CLEAR!</h2>
+          <p id="levelup-text">All germs cleared</p>
+        </div>
+      </div>
+    </div>
+    <div id="side">
+      <div class="panel">
+        <div class="panel-title">Status</div>
+        <div class="stat-row"><span class="stat-label">SCORE</span><span id="score-val" class="stat-val">0</span></div>
+        <div class="stat-row"><span class="stat-label">LEVEL</span><span id="level-val" class="stat-val">1</span></div>
+        <div class="stat-row"><span class="stat-label">VIRUSES</span><span id="virus-val" class="stat-val accent">12</span></div>
+        <div class="stat-row"><span class="stat-label">CHAIN</span><span id="chain-val" class="stat-val">0</span></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Next Pill</div>
+        <canvas id="next-canvas" width="160" height="64"></canvas>
+      </div>
+      <div class="panel" id="howto-panel">
+        <div class="panel-title">How to Play</div>
+        <div id="howto">
+          <b>Pills</b> drop from top — 2 colored halves.<br>
+          <b>Match 4+</b> same color in a row (horizontal or vertical). Germs + pill halves mix.<br><br>
+          <span class="key">←→</span> Move &nbsp; <span class="key">↓</span> Soft drop &nbsp; <span class="key">↑/W</span> Rotate<br>
+          <span class="key">SPACE</span> Hard drop &nbsp; <span class="key">P</span> Pause &nbsp; <span class="key">R</span> Restart<br><br>
+          Clear all <span style="color:var(--accent)">germs</span> to advance. Pills stack to top = game over. Chain clears give bonus.<br>
+          Single halves fall alone. Viruses stay.
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="mobile-controls">
+    <button class="m-btn" id="btn-left">←</button>
+    <button class="m-btn" id="btn-right">→</button>
+    <button class="m-btn" id="btn-rot">↻</button>
+    <button class="m-btn" id="btn-down">↓</button>
+    <button class="m-btn" id="btn-drop">DROP</button>
+  </div>
+</div>
+<script>
+// ===== constants =====
+const COLS=8, ROWS=16;
+const CELL=32;
+const COLORS=['#FF4D6A','#4F46E5','#FFB800'];
+const COLOR_NAMES=['PINK','BLUE','YELLOW'];
+const ORIENTS=[[1,0],[0,-1],[-1,0],[0,1]]; // right, up, left, down - bottom is first when vertical up
+const KICKS=[[0,0],[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1]];
+const DROP_BASE=800;
+const CLEAR_ANIM_MS=260;
+let board=[];
+let curPill=null;
+let nextPill=null;
+let score=0, level=1, chain=0, virusesLeft=0;
+let gameState='playing'; // playing, clearing, falling, paused, gameover, levelcomplete
+let pairIdCounter=1;
+let dropInterval=DROP_BASE;
+let lastDrop=0;
+let clearingData=null; // {cells, start}
+let levelCompleteTimer=0;
+let ghostCache=null;
+let totalVirusesStart=12;
+const canvas=document.getElementById('board');
+const ctx=canvas.getContext('2d');
+const nextCanvas=document.getElementById('next-canvas');
+const nctx=nextCanvas.getContext('2d');
+function createEmpty(){return Array.from({length:ROWS},()=>Array(COLS).fill(null));}
+function randCol(){return Math.floor(Math.random()*3);}
+function genPill(){return {x:3,y:1,ori:0,colors:[randCol(),randCol()],pairId:++pairIdCounter};}
+function getPos(p){const o=ORIENTS[p.ori];return [{x:p.x,y:p.y,color:p.colors[0]},{x:p.x+o[0],y:p.y+o[1],color:p.colors[1]}];}
+function canPlace(p,b,dx=0,dy=0,ori=p.ori){
+  const o=ORIENTS[ori];
+  const positions=[{x:p.x+dx,y:p.y+dy},{x:p.x+dx+o[0],y:p.y+dy+o[1]}];
+  for(const pos of positions){
+    if(pos.x<0||pos.x>=COLS||pos.y<0||pos.y>=ROWS) return false;
+    if(b[pos.y][pos.x]!==null) return false;
+  }
+  return true;
+}
+function findPartner(b,r,c,pid){
+  if(pid==null) return null;
+  const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+  for(const [dx,dy] of dirs){
+    const nc=c+dx, nr=r+dy;
+    if(nc>=0&&nc<COLS&&nr>=0&&nr<ROWS){
+      const nb=b[nr][nc];
+      if(nb && nb.pairId===pid) return {r:nr,c:nc};
+    }
+  }
+  return null;
+}
+function hasMatch(b){
+  // quick scan
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;){
+      const cell=b[r][c];
+      if(!cell){c++;continue;}
+      const col=cell.color;
+      let sc=c;
+      while(c<COLS && b[r][c] && b[r][c].color===col) c++;
+      if(c-sc>=4) return true;
+    }
+  }
+  for(let c=0;c<COLS;c++){
+    for(let r=0;r<ROWS;){
+      const cell=b[r][c];
+      if(!cell){r++;continue;}
+      const col=cell.color;
+      let sr=r;
+      while(r<ROWS && b[r][c] && b[r][c].color===col) r++;
+      if(r-sr>=4) return true;
+    }
+  }
+  return false;
+}
+function findAllMatches(b){
+  const marked=new Map(); // key -> {r,c}
+  // horiz
+  for(let r=0;r<ROWS;r++){
+    let c=0;
+    while(c<COLS){
+      const cell=b[r][c];
+      if(!cell){c++;continue;}
+      const col=cell.color;
+      let sc=c;
+      while(c<COLS && b[r][c] && b[r][c].color===col) c++;
+      const len=c-sc;
+      if(len>=4){
+        for(let k=sc;k<c;k++) marked.set(r+','+k,{r,c:k});
+      }
+    }
+  }
+  // vert
+  for(let c=0;c<COLS;c++){
+    let r=0;
+    while(r<ROWS){
+      const cell=b[r][c];
+      if(!cell){r++;continue;}
+      const col=cell.color;
+      let sr=r;
+      while(r<ROWS && b[r][c] && b[r][c].color===col) r++;
+      const len=r-sr;
+      if(len>=4){
+        for(let k=sr;k<r;k++) marked.set(k+','+c,{r:k,c});
+      }
+    }
+  }
+  return Array.from(marked.values());
+}
+function countViruses(b){
+  let cnt=0;
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++) if(b[r][c]&&b[r][c].isVirus) cnt++;
+  return cnt;
+}
+function generateLevelBoard(lvl){
+  const num=Math.min(12+(lvl-1)*4,52);
+  totalVirusesStart=num;
+  let attempts=0;
+  while(attempts<200){
+    const b=createEmpty();
+    let placed=0;
+    let safety=0;
+    while(placed<num && safety<1000){
+      const r=ROWS-10+Math.floor(Math.random()*10);
+      const c=Math.floor(Math.random()*COLS);
+      if(!b[r][c]){
+        b[r][c]={color:randCol(),type:'virus',pairId:null,isVirus:true};
+        placed++;
+      }
+      safety++;
+    }
+    if(!hasMatch(b)){
+      return b;
+    }
+    attempts++;
+  }
+  // fallback: return board even with matches (will be cleared but ok)
+  const b=createEmpty();
+  let placed=0;
+  while(placed<num){
+    const r=ROWS-10+Math.floor(Math.random()*10);
+    const c=Math.floor(Math.random()*COLS);
+    if(!b[r][c]){b[r][c]={color:randCol(),type:'virus',pairId:null,isVirus:true};placed++;}
+  }
+  return b;
+}
+function spawnPill(){
+  curPill=nextPill||genPill();
+  nextPill=genPill();
+  const positions=getPos(curPill);
+  // check spawn blocked
+  for(const p of positions){
+    if(p.y<0||p.y>=ROWS||p.x<0||p.x>=COLS||board[p.y][p.x]!==null){
+      gameOver();
+      return false;
+    }
+  }
+  ghostCache=null;
+  return true;
+}
+function lockPill(){
+  const positions=getPos(curPill);
+  for(let i=0;i<2;i++){
+    const p=positions[i];
+    board[p.y][p.x]={color:curPill.colors[i],type:'pill',pairId:curPill.pairId,isVirus:false};
+  }
+  curPill=null;
+  // after lock, start match cascade
+  chain=0;
+  startMatchCheck();
+}
+function startMatchCheck(){
+  const matches=findAllMatches(board);
+  if(matches.length>0){
+    gameState='clearing';
+    clearingData={cells:matches,start:performance.now()};
+  }else{
+    // no match
+    if(countViruses(board)===0){
+      levelClear();
+    }else{
+      if(!spawnPill()){
+        return;
+      }
+      gameState='playing';
+      lastDrop=performance.now();
+    }
+  }
+}
+function processClear(){
+  const cells=clearingData.cells;
+  const cellSet=new Set(cells.map(p=>p.r+','+p.c));
+  let vClear=0, pClear=0;
+  for(const pos of cells){
+    const cell=board[pos.r][pos.c];
+    if(!cell) continue;
+    if(cell.isVirus) vClear++; else pClear++;
+    // break bond if partner not cleared
+    if(cell.pairId!=null){
+      const partner=findPartner(board,pos.r,pos.c,cell.pairId);
+      if(partner){
+        const key=partner.r+','+partner.c;
+        if(!cellSet.has(key)){
+          const pc=board[partner.r][partner.c];
+          if(pc) pc.pairId=null;
+        }
+      }
+    }
+    board[pos.r][pos.c]=null;
+  }
+  // scoring
+  chain++;
+  const chainMul=chain;
+  const bonus = (chain-1)*120;
+  score+= vClear*100*chainMul + pClear*10*chainMul + bonus;
+  if(vClear>0) score+= (chain>1?50*chain:0);
+  updateUI();
+  // gravity
+  // fall until stable
+  let moved=true;
+  let loops=0;
+  while(moved && loops<30){
+    moved=doGravityStep(board);
+    loops++;
+  }
+  // check again
+  const nextMatches=findAllMatches(board);
+  if(nextMatches.length>0){
+    gameState='clearing';
+    clearingData={cells:nextMatches,start:performance.now()};
+  }else{
+    if(countViruses(board)===0){
+      levelClear();
+    }else{
+      if(!spawnPill()){
+        return;
+      }
+      gameState='playing';
+      lastDrop=performance.now();
+    }
+  }
+}
+function doGravityStep(b){
+  let moved=false;
+  const movedIds=new Set();
+  // bottom up
+  for(let r=ROWS-2;r>=0;r--){
+    for(let c=0;c<COLS;c++){
+      const cell=b[r][c];
+      if(!cell) continue;
+      if(cell.isVirus) continue; // viruses don't fall
+      if(cell.pairId!=null && movedIds.has(cell.pairId)) continue;
+      const partner=findPartner(b,r,c,cell.pairId);
+      if(partner){
+        // partner exists
+        if(partner.r===r){
+          // horizontal
+          const pc=partner.c;
+          // need both below empty
+          if(r+1<ROWS && b[r+1][c]==null && b[r+1][pc]==null){
+            // move both
+            b[r+1][c]=cell;
+            b[r+1][pc]=b[partner.r][partner.c];
+            b[r][c]=null;
+            b[partner.r][pc]=null;
+            movedIds.add(cell.pairId);
+            moved=true;
+          }
+        }else{
+          // vertical
+          const bottomR=Math.max(r,partner.r);
+          const topR=Math.min(r,partner.r);
+          if(r!==bottomR) continue; // only bottom triggers
+          if(bottomR+1<ROWS && b[bottomR+1][c]==null){
+            const topCell=b[topR][c];
+            const bottomCell=b[bottomR][c];
+            b[bottomR+1][c]=bottomCell;
+            b[bottomR][c]=topCell;
+            b[topR][c]=null;
+            movedIds.add(cell.pairId);
+            moved=true;
+          }
+        }
+      }else{
+        // single
+        if(b[r+1][c]==null){
+          b[r+1][c]=cell;
+          b[r][c]=null;
+          moved=true;
+        }
+      }
+    }
+  }
+  return moved;
+}
+function levelClear(){
+  gameState='levelcomplete';
+  levelCompleteTimer=performance.now();
+  document.getElementById('levelup-overlay').classList.remove('hidden');
+  document.getElementById('levelup-text').textContent=`Level ${level} cleared • Score ${score}`;
+  setTimeout(()=>{
+    document.getElementById('levelup-overlay').classList.add('hidden');
+    level++;
+    board=generateLevelBoard(level);
+    virusesLeft=countViruses(board);
+    dropInterval=Math.max(110, DROP_BASE - (level-1)*70);
+    score+= 500 + level*100;
+    chain=0;
+    curPill=null;
+    nextPill=genPill();
+    spawnPill();
+    gameState='playing';
+    lastDrop=performance.now();
+    updateUI();
+  },1400);
+}
+function gameOver(){
+  gameState='gameover';
+  document.getElementById('gameover-stats').textContent=`Score ${score} • Level ${level} • Viruses left ${countViruses(board)}`;
+  document.getElementById('gameover-overlay').classList.remove('hidden');
+}
+function restartGame(){
+  board=generateLevelBoard(1);
+  score=0;level=1;chain=0;
+  dropInterval=DROP_BASE;
+  nextPill=genPill();
+  curPill=null;
+  document.getElementById('gameover-overlay').classList.add('hidden');
+  document.getElementById('pause-overlay').classList.add('hidden');
+  document.getElementById('levelup-overlay').classList.add('hidden');
+  spawnPill();
+  gameState='playing';
+  lastDrop=performance.now();
+  updateUI();
+}
+function togglePause(){
+  if(gameState==='paused'){
+    gameState='playing';
+    document.getElementById('pause-overlay').classList.add('hidden');
+    lastDrop=performance.now();
+  }else if(gameState==='playing'){
+    gameState='paused';
+    document.getElementById('pause-overlay').classList.remove('hidden');
+  }
+}
+function updateUI(){
+  document.getElementById('score-val').textContent=score;
+  document.getElementById('level-val').textContent=level;
+  document.getElementById('virus-val').textContent=countViruses(board);
+  document.getElementById('chain-val').textContent=chain>1?`x${chain}`:chain===1?'1':'0';
+  renderNext();
+}
+function renderNext(){
+  const c=nctx.canvas;
+  nctx.clearRect(0,0,c.width,c.height);
+  if(!nextPill) return;
+  // draw next horizontally centered
+  const cs=24; // cell size for preview
+  const offX= c.width/2 - cs;
+  const offY= c.height/2 - cs/2;
+  const colors=nextPill.colors;
+  for(let i=0;i<2;i++){
+    const px= offX + i*cs;
+    const py= offY;
+    const col=COLORS[colors[i]];
+    drawPreviewPill(nctx,px,py,cs,col,i===0?'left':'right');
+  }
+}
+function drawPreviewPill(ctx,x,y,s,color,side){
+  ctx.save();
+  ctx.fillStyle=color;
+  ctx.globalAlpha=0.95;
+  let rx=x+3, ry=y+6, rw=s-6, rh=s-12, r=rh/2;
+  ctx.beginPath();
+  if(side==='left'){
+    ctx.moveTo(rx+r,ry);
+    ctx.lineTo(rx+rw,ry);
+    ctx.lineTo(rx+rw,ry+rh);
+    ctx.lineTo(rx+r,ry+rh);
+    ctx.arc(rx+r, ry+rh/2, r, Math.PI/2, -Math.PI/2, true);
+  }else{
+    ctx.moveTo(rx,ry);
+    ctx.lineTo(rx+rw-r,ry);
+    ctx.arc(rx+rw-r, ry+rh/2, r, -Math.PI/2, Math.PI/2, false);
+    ctx.lineTo(rx,ry+rh);
+    ctx.closePath();
+  }
+  ctx.fill();
+  // highlight
+  ctx.fillStyle='rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(rx+rw*0.32, ry+rh*0.32, rw*0.18, rh*0.14, -0.2, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+}
+function getGhost(){
+  if(!curPill) return null;
+  if(ghostCache && ghostCache.pid===curPill.pairId && ghostCache.ori===curPill.ori && ghostCache.x===curPill.x && ghostCache.y===curPill.y) return ghostCache.pill;
+  let g={x:curPill.x,y:curPill.y,ori:curPill.ori,colors:curPill.colors.slice(),pairId:curPill.pairId};
+  while(canPlace(g,board,0,1)) g.y++;
+  ghostCache={pid:curPill.pairId,ori:curPill.ori,x:curPill.x,y:curPill.y,pill:g};
+  return g;
+}
+function drawGhost(ctx,ghost){
+  if(!ghost) return;
+  const pos=getPos(ghost);
+  for(let i=0;i<2;i++){
+    const p=pos[i];
+    const colIdx=ghost.colors[i];
+    drawPillOnBoard(ctx,p.x,p.y,colIdx,ghost,i,true,1);
+  }
+}
+function drawPillOnBoard(ctx,col,row,colIdx,pillRef,idx,isGhost,scale){
+  const color=COLORS[colIdx];
+  const px=col*CELL, py=row*CELL;
+  let alpha=isGhost?0.22:1;
+  // determine partner orientation
+  let orient='single';
+  if(pillRef){
+    const o=ORIENTS[pillRef.ori];
+    // positions
+    const otherIdx=idx===0?1:0;
+    // from current idx, direction to other
+    // idx0 at anchor, idx1 at anchor+o
+    // So for idx0, direction = o, for idx1 direction = -o
+    let dx,dy;
+    if(idx===0){dx=o[0];dy=o[1];}else{dx=-o[0];dy=-o[1];}
+    if(dx===1&&dy===0) orient='left';
+    else if(dx===-1&&dy===0) orient='right';
+    else if(dx===0&&dy===-1) orient='bottom'; // Wait: anchor+ up means second above, anchor bottom. For second piece idx1, direction down? Actually if o is up (0,-1), idx0 (anchor) has partner above, so anchor is bottom -> flat top? Hmm handle later mapping to shapes. Let's map directly:
+    // We'll use simple: if partner to right => left piece, partner left => right piece, partner above => bottom piece? Let's check:
+    // If o=(1,0) right: idx0 left, idx1 right
+    // If o=(0,-1) up: idx0 bottom (partner above), idx1 top
+    // If o=(-1,0) left: idx0 right, idx1 left
+    // If o=(0,1) down: idx0 top, idx1 bottom
+    // So mapping:
+    if(pillRef.ori===0){orient= idx===0?'left':'right';}
+    else if(pillRef.ori===1){orient= idx===0?'bottom':'top';}
+    else if(pillRef.ori===2){orient= idx===0?'right':'left';}
+    else if(pillRef.ori===3){orient= idx===0?'top':'bottom';}
+  }
+  // For board pills with pair, we already have orient logic, but for current pill we just computed
+  // For board pill rendering called elsewhere, orient determined by partner search. This function for cur/ghost we have orient.
+  // fallback for board pills single already
+  drawCapsule(ctx,px,py,color,orient,alpha,scale,isGhost);
+}
+function drawCapsule(ctx,px,py,color,orient,alpha,scale,isGhost){
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  // scale from center
+  if(scale!==1){
+    const cx=px+CELL/2, cy=py+CELL/2;
+    ctx.translate(cx,cy);
+    ctx.scale(scale,scale);
+    ctx.translate(-cx,-cy);
+  }
+  ctx.fillStyle=color;
+  const padX=3, padY=5;
+  let x=px+padX, y=py+padY, w=CELL-padX*2, h=CELL-padY*2-2;
+  // adjust for orient to extend to border for seamless
+  let r=h/2;
+  if(h>w) r=w/2;
+  // For horizontal pairs, height slightly smaller
+  if(orient==='left' || orient==='right'){
+    x= orient==='left'? px+3 : px+1;
+    y= py+7;
+    w= CELL-4;
+    h= CELL-14;
+    r=h/2;
+    ctx.beginPath();
+    if(orient==='left'){
+      // left rounded
+      ctx.moveTo(x+r,y);
+      ctx.lineTo(x+w,y);
+      ctx.lineTo(x+w,y+h);
+      ctx.lineTo(x+r,y+h);
+      ctx.arc(x+r, y+h/2, r, Math.PI/2, -Math.PI/2, true);
+    }else{
+      ctx.moveTo(x,y);
+      ctx.lineTo(x+w-r,y);
+      ctx.arc(x+w-r, y+h/2, r, -Math.PI/2, Math.PI/2, false);
+      ctx.lineTo(x,y+h);
+      ctx.closePath();
+    }
+    ctx.fill();
+    if(!isGhost){
+      // highlight
+      ctx.fillStyle='rgba(255,255,255,0.33)';
+      ctx.beginPath();
+      ctx.ellipse(x+w*0.35, y+h*0.32, w*0.2, h*0.22, -0.3, 0, Math.PI*2);
+      ctx.fill();
+      // small shine line
+      ctx.fillStyle='rgba(255,255,255,0.18)';
+      ctx.fillRect(x+ (orient==='left'?r:0), y+h*0.75, w*0.6, 2);
+    }
+  }else if(orient==='top' || orient==='bottom'){
+    x= px+7;
+    w= CELL-14;
+    if(orient==='top'){
+      y= py+3;
+      h= CELL-4;
+    }else{
+      y= py+1;
+      h= CELL-4;
+    }
+    r=w/2;
+    ctx.beginPath();
+    if(orient==='top'){
+      // top rounded
+      ctx.moveTo(x,y+r);
+      ctx.arc(x+w/2, y+r, r, Math.PI, 0, false);
+      ctx.lineTo(x+w, y+h);
+      ctx.lineTo(x, y+h);
+      ctx.closePath();
+    }else{
+      // bottom rounded
+      ctx.moveTo(x,y);
+      ctx.lineTo(x+w,y);
+      ctx.lineTo(x+w, y+h-r);
+      ctx.arc(x+w/2, y+h-r, r, 0, Math.PI, false);
+      ctx.closePath();
+    }
+    ctx.fill();
+    if(!isGhost){
+      ctx.fillStyle='rgba(255,255,255,0.33)';
+      ctx.beginPath();
+      if(orient==='top'){
+        ctx.ellipse(x+w*0.4, y+r+3, w*0.22, r*0.35, -0.2, 0, Math.PI*2);
+      }else{
+        ctx.ellipse(x+w*0.4, y+6, w*0.22, r*0.35, -0.2, 0, Math.PI*2);
+      }
+      ctx.fill();
+    }
+  }else{
+    // single - full pill small rounded square as capsule but square
+    x=px+5; y=py+5; w=CELL-10; h=CELL-10;
+    r=6;
+    ctx.beginPath();
+    // rounded rect
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);
+    ctx.arcTo(x+w,y,x+w,y+r,r);
+    ctx.lineTo(x+w,y+h-r);
+    ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+    ctx.lineTo(x+r,y+h);
+    ctx.arcTo(x,y+h,x,y+h-r,r);
+    ctx.lineTo(x,y+r);
+    ctx.arcTo(x,y,x+r,y,r);
+    ctx.closePath();
+    ctx.fill();
+    if(!isGhost){
+      ctx.fillStyle='rgba(255,255,255,0.28)';
+      ctx.beginPath();
+      ctx.ellipse(x+w*0.35,y+h*0.35,w*0.18,h*0.18,0,0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+function drawBoardCell(ctx,r,c,cell,clearProgress,scale){
+  const px=c*CELL, py=r*CELL;
+  if(cell.isVirus){
+    drawVirus(ctx,c,r,cell.color,performance.now(),r*8+c,scale,clearProgress);
+  }else{
+    // find partner for orientation
+    let orient='single';
+    if(cell.pairId!=null){
+      const part=findPartner(board,r,c,cell.pairId);
+      if(part){
+        if(part.r===r){
+          orient= part.c>c?'left':'right';
+        }else{
+          orient= part.r>r?'top':'bottom';
+        }
+      }
+    }
+    drawCapsule(ctx,px,py,COLORS[cell.color],orient,1,scale,false);
+  }
+}
+function drawVirus(ctx,c,r,colorIdx,time,id,scale,clearFactor){
+  const px=c*CELL, py=r*CELL;
+  const color=COLORS[colorIdx];
+  const cx=px+CELL/2 + Math.sin(time*0.002+id*1.3)*1.2;
+  const cy=py+CELL/2 + Math.cos(time*0.0017+id)*0.9;
+  const baseR= CELL*0.34;
+  let s=scale;
+  if(clearFactor!==null){
+    // pop
+    s= 1 + Math.sin(clearFactor*Math.PI)*0.5;
+    if(clearFactor>0.7) s*= (1 - (clearFactor-0.7)*2);
+  }
+  ctx.save();
+  ctx.translate(cx,cy);
+  ctx.scale(s,s);
+  ctx.globalAlpha= clearFactor!==null? 1-clearFactor*0.6 : 1;
+  // body wobble
+  const wob=Math.sin(time*0.005+id)*0.06+1;
+  ctx.scale(wob,1/wob*1.05);
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.25)';
+  ctx.beginPath();
+  ctx.ellipse(1,3, baseR*0.9, baseR*0.75,0,0,Math.PI*2);
+  ctx.fill();
+  // body
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.arc(0,0,baseR,0,Math.PI*2);
+  ctx.fill();
+  // highlight
+  ctx.fillStyle='rgba(255,255,255,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(-baseR*0.25,-baseR*0.28, baseR*0.32, baseR*0.22, -0.4,0,Math.PI*2);
+  ctx.fill();
+  // eyes
+  ctx.fillStyle='#0A0A0B';
+  const eyeOffX= baseR*0.32, eyeOffY= -baseR*0.08, eyeR= baseR*0.18;
+  ctx.beginPath();
+  ctx.arc(-eyeOffX, eyeOffY, eyeR,0,Math.PI*2);
+  ctx.arc( eyeOffX, eyeOffY, eyeR,0,Math.PI*2);
+  ctx.fill();
+  // pupils white
+  ctx.fillStyle='white';
+  ctx.beginPath();
+  ctx.arc(-eyeOffX+1, eyeOffY-1, eyeR*0.45,0,Math.PI*2);
+  ctx.arc( eyeOffX+1, eyeOffY-1, eyeR*0.45,0,Math.PI*2);
+  ctx.fill();
+  // tiny smile
+  ctx.strokeStyle='rgba(10,10,11,0.7)';
+  ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.arc(0, baseR*0.18, baseR*0.22, 0.2, Math.PI-0.2);
+  ctx.stroke();
+  ctx.restore();
+}
+function render(time){
+  // bottle background
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  // fill bottle interior
+  ctx.fillStyle='#111115';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  // subtle grid
+  ctx.strokeStyle='rgba(255,255,255,0.04)';
+  ctx.lineWidth=1;
+  for(let r=0;r<=ROWS;r++){
+    ctx.beginPath();
+    ctx.moveTo(0,r*CELL);
+    ctx.lineTo(COLS*CELL,r*CELL);
+    ctx.stroke();
+  }
+  for(let c=0;c<=COLS;c++){
+    ctx.beginPath();
+    ctx.moveTo(c*CELL,0);
+    ctx.lineTo(c*CELL,ROWS*CELL);
+    ctx.stroke();
+  }
+  // bottle edge inner glow
+  ctx.strokeStyle='#2A2A2E';
+  ctx.lineWidth=2;
+  ctx.strokeRect(1,1,canvas.width-2,canvas.height-2);
+  // clearing progress
+  let clearingMap=null;
+  let clearProg=null;
+  if(gameState==='clearing' && clearingData){
+    const elapsed=time-clearingData.start;
+    clearProg=Math.min(1,elapsed/CLEAR_ANIM_MS);
+    clearingMap=new Set(clearingData.cells.map(p=>p.r+','+p.c));
+    if(elapsed>=CLEAR_ANIM_MS){
+      processClear();
+      // after process, we have new state, need to avoid drawing old clearing? continue
+      clearingMap=null;
+      clearProg=null;
+    }
+  }
+  // ghost
+  if(gameState==='playing' && curPill){
+    const g=getGhost();
+    if(g){
+      ctx.save();
+      ctx.globalAlpha=0.9;
+      drawGhost(ctx,g);
+      ctx.restore();
+    }
+  }
+  // board cells
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const cell=board[r][c];
+      if(!cell) continue;
+      let scale=1;
+      let cf=null;
+      if(clearingMap && clearingMap.has(r+','+c)){
+        cf=clearProg;
+        scale=1+Math.sin(clearProg*Math.PI)*0.4;
+        if(clearProg>0.7) scale*=1.2;
+      }
+      drawBoardCell(ctx,r,c,cell,cf,scale);
+    }
+  }
+  // current pill
+  if(gameState==='playing' && curPill){
+    const positions=getPos(curPill);
+    for(let i=0;i<2;i++){
+      const p=positions[i];
+      drawPillOnBoard(ctx,p.x,p.y,curPill.colors[i],curPill,i,false,1);
+    }
+  }
+}
+function loop(t){
+  if(gameState==='playing'){
+    if(t-lastDrop>dropInterval){
+      if(curPill && canPlace(curPill,board,0,1)){
+        curPill.y++;
+        ghostCache=null;
+      }else{
+        if(curPill) lockPill();
+      }
+      lastDrop=t;
+    }
+  }
+  render(t);
+  requestAnimationFrame(loop);
+}
+function handleMove(dx){
+  if(gameState!=='playing'||!curPill) return;
+  if(canPlace(curPill,board,dx,0)){
+    curPill.x+=dx;
+    ghostCache=null;
+  }
+}
+function handleRotate(){
+  if(gameState!=='playing'||!curPill) return;
+  const newOri=(curPill.ori+1)%4;
+  for(const k of KICKS){
+    if(canPlace(curPill,board,k[0],k[1],newOri)){
+      curPill.x+=k[0];
+      curPill.y+=k[1];
+      curPill.ori=newOri;
+      ghostCache=null;
+      break;
+    }
+  }
+}
+function handleDown(){
+  if(gameState!=='playing'||!curPill) return;
+  if(canPlace(curPill,board,0,1)){
+    curPill.y++;
+    score+=1;
+    ghostCache=null;
+    lastDrop=performance.now();
+    updateUI();
+  }else{
+    lockPill();
+  }
+}
+function handleHard(){
+  if(gameState!=='playing'||!curPill) return;
+  let dist=0;
+  while(canPlace(curPill,board,0,1)){
+    curPill.y++; dist++;
+  }
+  score+= dist*2;
+  updateUI();
+  lockPill();
+}
+// input
+document.addEventListener('keydown',e=>{
+  if(e.key==='ArrowLeft'){ e.preventDefault(); handleMove(-1); }
+  else if(e.key==='ArrowRight'){ e.preventDefault(); handleMove(1); }
+  else if(e.key==='ArrowDown'){ e.preventDefault(); handleDown(); }
+  else if(e.key==='ArrowUp' || e.key.toLowerCase()==='w'){ e.preventDefault(); handleRotate(); }
+  else if(e.code==='Space'){ e.preventDefault(); handleHard(); }
+  else if(e.key.toLowerCase()==='p'){ togglePause(); }
+  else if(e.key.toLowerCase()==='r'){ if(gameState==='gameover') restartGame(); }
+});
+document.getElementById('btn-left').addEventListener('touchstart',e=>{e.preventDefault();handleMove(-1);},{passive:false});
+document.getElementById('btn-right').addEventListener('touchstart',e=>{e.preventDefault();handleMove(1);},{passive:false});
+document.getElementById('btn-down').addEventListener('touchstart',e=>{e.preventDefault();handleDown();},{passive:false});
+document.getElementById('btn-rot').addEventListener('touchstart',e=>{e.preventDefault();handleRotate();},{passive:false});
+document.getElementById('btn-drop').addEventListener('touchstart',e=>{e.preventDefault();handleHard();},{passive:false});
+document.getElementById('btn-left').addEventListener('click',()=>handleMove(-1));
+document.getElementById('btn-right').addEventListener('click',()=>handleMove(1));
+document.getElementById('btn-down').addEventListener('click',handleDown);
+document.getElementById('btn-rot').addEventListener('click',handleRotate);
+document.getElementById('btn-drop').addEventListener('click',handleHard);
+// swipe
+let touchStart=null;
+canvas.addEventListener('touchstart',e=>{
+  if(e.touches.length!==1) return;
+  touchStart={x:e.touches[0].clientX,y:e.touches[0].clientY,t:performance.now()};
+},{passive:true});
+canvas.addEventListener('touchend',e=>{
+  if(!touchStart) return;
+  const t=e.changedTouches[0];
+  const dx=t.clientX-touchStart.x;
+  const dy=t.clientY-touchStart.y;
+  const dt=performance.now()-touchStart.t;
+  const absX=Math.abs(dx), absY=Math.abs(dy);
+  if(dt<400){
+    if(absX>30 && absX>absY){
+      if(dx>0) handleMove(1); else handleMove(-1);
+    }else if(absY>30 && absY>absX){
+      if(dy>20) handleDown();
+    }else if(absX<12 && absY<12){
+      handleRotate();
+    }
+  }
+  touchStart=null;
+},{passive:true});
+// init
+board=generateLevelBoard(1);
+nextPill=genPill();
+spawnPill();
+updateUI();
+requestAnimationFrame(loop);
+// responsive canvas scaling handled by CSS? Keep logical size fixed; scale via container width
+function resize(){
+  const shell=document.getElementById('board-shell');
+  const maxH=window.innerHeight*0.72;
+  const idealH=ROWS*CELL+28;
+  const scale=Math.min(1, maxH/idealH, (shell.parentElement.clientWidth>760?1: (window.innerWidth-48)/(COLS*CELL+28)));
+  // we keep canvas internal size fixed, scale via CSS transform? Simpler set width via CSS
+  const w=COLS*CELL, h=ROWS*CELL;
+  canvas.style.width=(w*scale)+'px';
+  canvas.style.height=(h*scale)+'px';
+}
+window.addEventListener('resize',resize);
+resize();
+</script>
+</body>
+</html>

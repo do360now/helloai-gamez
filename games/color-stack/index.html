@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<title>COLOR STACK</title>
+<style>
+:root{
+  --bg:#0A0A0B;
+  --panel:#141417;
+  --panel-2:#1C1C20;
+  --border:#25252B;
+  --text:#F5F5F0;
+  --muted:#9A9AA0;
+  --accent:#4F46E5;
+  --red:#FF4D6A;
+  --blue:#4F46E5;
+  --yellow:#FFB800;
+  --green:#C8FF00;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:ui-sans-system, -apple-system, Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;overscroll-behavior:none}
+button{font:inherit}
+.app{max-width:960px;margin:0 auto;padding:16px 12px 90px;display:flex;flex-direction:column;gap:14px}
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px}
+h1{margin:0;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;letter-spacing:-0.04em;font-weight:800;font-size:28px;line-height:1}
+h1 span{color:var(--accent)}
+.sub{font-family:ui-monospace, monospace;font-size:11px;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase}
+.main{display:flex;gap:16px;align-items:flex-start;justify-content:center}
+.board-wrap{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)}
+#board{display:block;background:#0F0F12;border-radius:10px;touch-action:none;max-width:100%;}
+.side{width:220px;min-width:200px;display:flex;flex-direction:column;gap:10px;flex:1;max-width:260px}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.panel-title{font-family:ui-monospace, monospace;font-size:10px;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.panel-val{font-family:ui-monospace, monospace;font-weight:700;font-size:22px;line-height:1;letter-spacing:-0.02em}
+.panel-val.accent{color:var(--accent);font-size:28px}
+.panel-row{display:flex;gap:10px}
+.panel.small{flex:1}
+#next{display:block;background:#0F0F12;border-radius:8px;width:100%;height:auto;aspect-ratio: 72/108; border:1px solid var(--border)}
+.howto ul{margin:0;padding-left:16px;font-size:12px;line-height:1.5;color:#D2D2D6}
+.howto li{margin:3px 0}
+.howto b{color:var(--text);font-family:ui-monospace, monospace;font-size:11px;background:var(--panel-2);border:1px solid var(--border);padding:1px 5px;border-radius:4px}
+.actions{display:flex;gap:8px}
+.actions button{flex:1;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 6px;font-family:ui-monospace, monospace;font-size:11px;letter-spacing:0.08em;cursor:pointer}
+.actions button:hover{background:var(--panel-2)}
+.overlay{position:absolute;inset:10px;background:rgba(10,10,11,0.88);backdrop-filter:blur(8px);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;z-index:5;border:1px solid var(--border)}
+.overlay.hidden{display:none}
+.overlay div:first-child{font-family:ui-monospace, monospace;font-weight:800;font-size:22px;letter-spacing:-0.02em}
+.overlay small{color:var(--muted);font-family:ui-monospace, monospace;font-size:11px}
+.go-title{font-size:28px !important;letter-spacing:-0.05em !important}
+#finalScore{font-family:ui-monospace, monospace;font-size:14px;color:var(--muted)}
+#restartBtn, #pauseOverlay button{margin-top:4px;background:var(--accent);color:white;border:none;border-radius:999px;padding:10px 20px;font-family:ui-monospace, monospace;font-weight:700;letter-spacing:0.08em;cursor:pointer}
+#restartBtn:hover{filter:brightness(1.1)}
+.mobile-controls{display:none;position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top, rgba(10,10,11,0.96), rgba(10,10,11,0));backdrop-filter:blur(6px);padding:10px 10px calc(10px + env(safe-area-inset-bottom));gap:8px;flex-direction:column;z-index:10}
+.m-row{display:flex;gap:8px;justify-content:center}
+.m-row button{flex:1;max-width:110px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:12px;padding:14px 0;font-family:ui-monospace, monospace;font-weight:700;font-size:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.m-row button:active{transform:scale(0.97);background:var(--panel-2)}
+.m-row button.accent{background:var(--accent);border-color:var(--accent);color:white}
+.chain-badge{inline-size:fit-content;background:var(--accent);color:white;font-family:ui-monospace, monospace;font-size:10px;padding:3px 8px;border-radius:999px;letter-spacing:0.1em}
+#chainEl{color:var(--accent)}
+.flash{animation:chainPop 300ms ease}
+@keyframes chainPop{0%{transform:scale(1)}50%{transform:scale(1.12)}100%{transform:scale(1)}}
+@media(max-width:720px){
+  .main{flex-direction:column;align-items:center}
+  .side{width:100%;max-width:360px;flex-direction:row;flex-wrap:wrap}
+  .side .panel{flex:1 1 46%}
+  .side .howto{flex:1 1 100%;order:10}
+  .side .actions{flex:1 1 100%;order:11}
+  .board-wrap{width:100%;max-width:360px}
+  #board{width:100%;height:auto}
+  .mobile-controls{display:flex}
+  header{justify-content:center}
+  .app{padding-bottom:150px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>COLOR <span>STACK</span></h1>
+    <div class="sub">Match 4 — gravity combos — columns-like — Level every 30 blocks</div>
+  </header>
+  <div class="main">
+    <div class="board-wrap" id="boardWrap">
+      <canvas id="board" width="272" height="592"></canvas>
+      <div id="pauseOverlay" class="overlay hidden">
+        <div>PAUSED</div>
+        <small>Press P to resume</small>
+        <button id="resumeBtn">RESUME</button>
+      </div>
+      <div id="gameOverOverlay" class="overlay hidden">
+        <div class="go-title">STACKED OUT</div>
+        <div id="finalScore">Score 0</div>
+        <div class="chain-badge" id="goChain" style="display:none"></div>
+        <button id="restartBtn">RESTART — R</button>
+        <small>Board filled to the top</small>
+      </div>
+    </div>
+    <aside class="side">
+      <div class="panel">
+        <div class="panel-title">Score</div>
+        <div id="scoreEl" class="panel-val accent">0</div>
+      </div>
+      <div class="panel-row">
+        <div class="panel small">
+          <div class="panel-title">Level</div>
+          <div id="levelEl" class="panel-val">1</div>
+        </div>
+        <div class="panel small">
+          <div class="panel-title">Cleared</div>
+          <div id="linesEl" class="panel-val">0</div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Next</div>
+        <canvas id="next" width="96" height="144"></canvas>
+      </div>
+      <div class="panel" id="chainPanel" style="display:none">
+        <div class="panel-title">Chain combo</div>
+        <div id="chainEl" class="panel-val">x2</div>
+      </div>
+      <div class="panel howto">
+        <div class="panel-title">How to play</div>
+        <ul>
+          <li><b>← →</b> move column</li>
+          <li><b>↓</b> soft drop (+1)</li>
+          <li><b>↑</b> or <b>W</b> cycle — bottom → top</li>
+          <li><b>SPACE</b> hard drop (+2 per cell)</li>
+          <li><b>P</b> pause · <b>R</b> restart</li>
+          <li>Make <b>4+</b> same color in a straight line <i>vertical, horizontal or diagonal</i>. They pop, gravity drops, chains pay <b>x2</b> each level.</li>
+          <li>Level up every <b>30</b> blocks cleared — speed up.</li>
+        </ul>
+      </div>
+      <div class="actions">
+        <button id="pauseBtn">PAUSE [P]</button>
+        <button id="resetBtn">RESET</button>
+      </div>
+    </aside>
+  </div>
+  <div class="mobile-controls" id="mobileControls">
+    <div class="m-row">
+      <button data-act="left">←</button>
+      <button data-act="right">→</button>
+      <button data-act="rotate">↻ CYCLE</button>
+    </div>
+    <div class="m-row">
+      <button data-act="down">↓ DROP</button>
+      <button data-act="hard" class="accent">HARD DROP</button>
+    </div>
+  </div>
+</div>
+<script>
+/* COLOR STACK - retro columns-like */
+const COLS=6, ROWS=13;
+const COLORS=["#FF4D6A","#4F46E5","#FFB800","#C8FF00"];
+const COLOR_NAMES=["R","B","Y","G"];
+const CELL=36, GAP=4, PAD=10;
+const BOARD_W = PAD*2 + COLS*CELL + (COLS-1)*GAP;
+const BOARD_H = PAD*2 + ROWS*CELL + (ROWS-1)*GAP;
+const NEXT_CELL=24, NEXT_GAP=4, NEXT_PAD=12;
+const CLEAR_DURATION=280;
+const FALL_DURATION=160;
+const BASE_DROP=900;
+const boardCanvas=document.getElementById('board');
+const bctx=boardCanvas.getContext('2d');
+boardCanvas.width=BOARD_W;
+boardCanvas.height=BOARD_H;
+const nextCanvas=document.getElementById('next');
+const nctx=nextCanvas.getContext('2d');
+const scoreEl=document.getElementById('scoreEl');
+const levelEl=document.getElementById('levelEl');
+const linesEl=document.getElementById('linesEl');
+const chainEl=document.getElementById('chainEl');
+const chainPanel=document.getElementById('chainPanel');
+const pauseOverlay=document.getElementById('pauseOverlay');
+const gameOverOverlay=document.getElementById('gameOverOverlay');
+const finalScoreEl=document.getElementById('finalScore');
+const goChainEl=document.getElementById('goChain');
+let board;
+let cur=null;
+let next=null;
+let score=0;
+let totalCleared=0;
+let level=1;
+let comboChain=0;
+let maxChain=0;
+let dropInterval=BASE_DROP;
+let paused=false;
+let gameOver=false;
+let state='playing'; // playing, clearing, falling
+let clearing=null;
+let clearingTimer=0;
+let clearingSet=null;
+let fallingBlocks=[];
+let fallingTimer=0;
+let lastTime=0;
+let dropAcc=0;
+let isSoftDrop=false;
+function randCol(){ return Math.floor(Math.random()*4); }
+function makePiece(){
+  return {x:2, y:-1, colors:[randCol(),randCol(),randCol()]};
+}
+function cloneBoard(){
+  return board.map(row=>row.slice());
+}
+function initBoard(){
+  board=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+}
+function isValid(px,py){
+  // px = col, py = top row (can be negative)
+  for(let i=0;i<3;i++){
+    let r=py+i, c=px;
+    if(c<0||c>=COLS) return false;
+    if(r>=ROWS) return false;
+    if(r>=0 && board[r][c]!==null) return false;
+  }
+  return true;
+}
+function getGhostY(p){
+  let y=p.y;
+  while(isValid(p.x, y+1)) y++;
+  return y;
+}
+function spawnNext(){
+  if(next) cur=next;
+  else cur=makePiece();
+  next=makePiece();
+  cur.x=2;
+  cur.y=-1;
+  // if immediate collision after spawn (check at y=0 placement), game over
+  if(!isValid(cur.x, cur.y) && !isValid(cur.x, 0)){
+    // try still valid? if not, game over
+    if(board[0][cur.x]!==null || board[1][cur.x]!==null || board[2][cur.x]!==null){
+      doGameOver();
+      return;
+    }
+  }
+  // also if any block in top rows locked already high, check board top row occupied heavily? already game over logic above
+  updateNext();
+}
+function doGameOver(){
+  gameOver=true;
+  state='over';
+  finalScoreEl.textContent=`Score ${score} • Level ${level} • Cleared ${totalCleared}`;
+  if(maxChain>1){ goChainEl.textContent=`BEST CHAIN x${Math.pow(2,maxChain-1)} (${maxChain} combo)`; goChainEl.style.display='block'; }
+  else goChainEl.style.display='none';
+  gameOverOverlay.classList.remove('hidden');
+}
+function lockPiece(){
+  // place cur into board
+  for(let i=0;i<3;i++){
+    let r=cur.y+i, c=cur.x;
+    if(r>=0 && r<ROWS){
+      board[r][c]={color:cur.colors[i]};
+    } else if(r<0){
+      // if locked above top, game over
+      doGameOver();
+      return;
+    }
+  }
+  let matches=findMatches(board);
+  if(matches.length>=4){
+    startClear(matches);
+  }else{
+    comboChain=0;
+    chainPanel.style.display='none';
+    spawnNext();
+  }
+}
+function findMatches(bd){
+  const matched=new Set();
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      let cell=bd[r][c];
+      if(!cell) continue;
+      let col=cell.color;
+      for(let [dr,dc] of dirs){
+        let line=[[r,c]];
+        let nr=r+dr, nc=c+dc;
+        while(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && bd[nr][nc] && bd[nr][nc].color===col){
+          line.push([nr,nc]); nr+=dr; nc+=dc;
+        }
+        nr=r-dr; nc=c-dc;
+        while(nr>=0 && nr<ROWS && nc>=0 && nc<COLS && bd[nr][nc] && bd[nr][nc].color===col){
+          line.unshift([nr,nc]); nr-=dr; nc-=dc;
+        }
+        if(line.length>=4){
+          for(let [lr,lc] of line) matched.add(lr+','+lc);
+        }
+      }
+    }
+  }
+  return Array.from(matched).map(s=>{
+    let [r,c]=s.split(',').map(Number); return {r,c};
+  });
+}
+function startClear(matches){
+  clearing=matches;
+  clearingTimer=0;
+  state='clearing';
+  comboChain++;
+  if(comboChain>maxChain) maxChain=comboChain;
+  clearingSet=new Set(matches.map(m=>m.r+','+m.c));
+  if(comboChain>1){
+    chainPanel.style.display='block';
+    chainEl.textContent=`x${Math.pow(2,comboChain-1)}  CHAIN ${comboChain}`;
+    chainEl.classList.remove('flash'); void chainEl.offsetWidth; chainEl.classList.add('flash');
+  }
+}
+function applyGravity(){
+  const fell=[];
+  for(let c=0;c<COLS;c++){
+    let write=ROWS-1;
+    for(let r=ROWS-1;r>=0;r--){
+      if(board[r][c]!==null){
+        if(write!==r){
+          fell.push({from:r, to:write, c, col:board[r][c].color});
+          board[write][c]=board[r][c];
+          board[r][c]=null;
+        }
+        write--;
+      }
+    }
+  }
+  return fell;
+}
+function processClear(){
+  let cnt=clearing.length;
+  let mult=Math.pow(2,comboChain-1);
+  score+=cnt*10*mult;
+  totalCleared+=cnt;
+  let newLevel=Math.floor(totalCleared/30)+1;
+  if(newLevel!==level){
+    level=newLevel;
+    dropInterval=Math.max(90, BASE_DROP - (level-1)*85);
+  }
+  for(let {r,c} of clearing){
+    board[r][c]=null;
+  }
+  clearing=null;
+  clearingSet=null;
+  fallingBlocks=applyGravity();
+  updateUI();
+  if(fallingBlocks.length>0){
+    fallingTimer=0;
+    state='falling';
+  }else{
+    let nextMatches=findMatches(board);
+    if(nextMatches.length>=4){
+      startClear(nextMatches);
+    }else{
+      comboChain=0;
+      chainPanel.style.display='none';
+      spawnNext();
+      state='playing';
+    }
+  }
+}
+function updateUI(){
+  scoreEl.textContent=score;
+  levelEl.textContent=level;
+  linesEl.textContent=totalCleared;
+}
+function updateNext(){
+  // draw next piece
+  nctx.clearRect(0,0,nextCanvas.width,nextCanvas.height);
+  nctx.fillStyle='#0F0F12';
+  // rounded bg
+  roundRect(nctx,0,0,nextCanvas.width,nextCanvas.height,8); nctx.fill();
+  if(!next) return;
+  for(let i=0;i<3;i++){
+    let px=NEXT_PAD;
+    let py=NEXT_PAD + i*(NEXT_CELL+NEXT_GAP);
+    drawBlockCanvas(nctx, px, py, NEXT_CELL, COLORS[next.colors[i]], {});
+  }
+}
+function roundRect(ctx,x,y,w,h,r){
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); } else {
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+}
+function drawBlockCanvas(ctx, x,y,size, colorHex, opts={}){
+  let {alpha=1, scale=1, flash=0, ghost=false, highlight=0.22}=opts;
+  ctx.save();
+  ctx.globalAlpha=alpha;
+  let drawX=x, drawY=y, drawS=size;
+  if(scale!==1){
+    let cx=x+size/2, cy=y+size/2;
+    drawS=size*scale;
+    drawX=cx-drawS/2;
+    drawY=cy-drawS/2;
+  }
+  if(flash>0){
+    ctx.fillStyle=`rgba(255,255,255,${0.85*flash})`;
+    roundRect(ctx,drawX,drawY,drawS,drawS, Math.max(6, drawS*0.22));
+    ctx.fill();
+    if(flash<0.9){
+      ctx.globalAlpha=alpha*(1-flash*0.5);
+    }
+  }
+  if(ghost){
+    ctx.strokeStyle=colorHex;
+    ctx.lineWidth=2;
+    ctx.setLineDash([4,4]);
+    // rounded rect stroke
+    roundRect(ctx,drawX+1,drawY+1,drawS-2,drawS-2, Math.max(6, drawS*0.22));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // faint fill
+    ctx.globalAlpha=0.14;
+    ctx.fillStyle=colorHex;
+    roundRect(ctx,drawX,drawY,drawS,drawS, Math.max(6, drawS*0.22));
+    ctx.fill();
+  }else{
+    // base
+    ctx.fillStyle=colorHex;
+    roundRect(ctx,drawX,drawY,drawS,drawS, Math.max(6, drawS*0.22));
+    ctx.fill();
+    // inner highlight top left
+    ctx.fillStyle=`rgba(255,255,255,${highlight})`;
+    let hs=drawS*0.42;
+    roundRect(ctx,drawX+drawS*0.12, drawY+drawS*0.12, hs, hs*0.55, hs*0.25);
+    ctx.fill();
+    // inner darker bottom edge
+    ctx.fillStyle='rgba(0,0,0,0.18)';
+    roundRect(ctx,drawX, drawY+drawS*0.62, drawS, drawS*0.38, [0,0,Math.max(6, drawS*0.22),Math.max(6, drawS*0.22)]);
+    ctx.fill();
+    // subtle border
+    ctx.strokeStyle='rgba(0,0,0,0.25)';
+    ctx.lineWidth=1;
+    roundRect(ctx,drawX+0.5,drawY+0.5,drawS-1,drawS-1, Math.max(6, drawS*0.22));
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+function render(){
+  // board
+  bctx.clearRect(0,0,BOARD_W,BOARD_H);
+  // bg
+  bctx.fillStyle='#0F0F12';
+  roundRect(bctx,0,0,BOARD_W,BOARD_H,12);
+  bctx.fill();
+  // grid
+  bctx.strokeStyle='rgba(255,255,255,0.04)';
+  bctx.lineWidth=1;
+  for(let c=0;c<=COLS;c++){
+    let x=PAD + c*(CELL+GAP) - GAP/2;
+    if(c===0||c===COLS) continue;
+    bctx.beginPath(); bctx.moveTo(x, PAD); bctx.lineTo(x, BOARD_H-PAD); bctx.stroke();
+  }
+  for(let r=0;r<=ROWS;r++){
+    let y=PAD + r*(CELL+GAP) - GAP/2;
+    if(r===0||r===ROWS) continue;
+    bctx.beginPath(); bctx.moveTo(PAD, y); bctx.lineTo(BOARD_W-PAD, y); bctx.stroke();
+  }
+  // ghost
+  if(state==='playing' && cur && !gameOver && !paused){
+    let gy=getGhostY(cur);
+    if(gy!==cur.y){
+      for(let i=0;i<3;i++){
+        let r=gy+i;
+        if(r<0) continue;
+        let px=PAD + cur.x*(CELL+GAP);
+        let py=PAD + r*(CELL+GAP);
+        drawBlockCanvas(bctx, px, py, CELL, COLORS[cur.colors[i]], {ghost:true, alpha:0.6});
+      }
+    }
+  }
+  // board blocks
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      let cell=board[r][c];
+      if(!cell) continue;
+      // skip if clearing and we handle separately? we still draw but with flash
+      let isFalling=null;
+      if(state==='falling'){
+        isFalling=fallingBlocks.find(f=>f.to===r && f.c===c);
+      }
+      let drawR=r;
+      let alpha=1, scale=1, flash=0;
+      let colHex=COLORS[cell.color];
+      if(state==='falling' && isFalling){
+        let t=Math.min(1, fallingTimer / FALL_DURATION);
+        let ease=1-Math.pow(1-t,3);
+        drawR=isFalling.from + (isFalling.to - isFalling.from)*ease;
+      }
+      if(state==='clearing' && clearingSet && clearingSet.has(r+','+c)){
+        let p=clearingTimer / CLEAR_DURATION;
+        if(p<0.45){
+          flash=1 - p/0.45;
+          scale=1 + p*0.08;
+        }else{
+          let p2=(p-0.45)/0.55;
+          scale=1.08 + p2*0.32;
+          alpha=1-p2;
+          flash=0;
+        }
+      }
+      let px=PAD + c*(CELL+GAP);
+      let py=PAD + drawR*(CELL+GAP);
+      drawBlockCanvas(bctx, px, py, CELL, colHex, {alpha, scale, flash});
+    }
+  }
+  // current piece
+  if(state==='playing' && cur && !gameOver){
+    for(let i=0;i<3;i++){
+      let r=cur.y+i;
+      if(r<0) continue;
+      let px=PAD + cur.x*(CELL+GAP);
+      let py=PAD + r*(CELL+GAP);
+      drawBlockCanvas(bctx, px, py, CELL, COLORS[cur.colors[i]], {});
+    }
+  }
+}
+function gameLoop(t){
+  if(!lastTime) lastTime=t;
+  let dt=t-lastTime;
+  lastTime=t;
+  if(dt>100) dt=100; // clamp
+  if(paused || gameOver){
+    render();
+    requestAnimationFrame(gameLoop);
+    return;
+  }
+  if(state==='clearing'){
+    clearingTimer+=dt;
+    if(clearingTimer>=CLEAR_DURATION){
+      processClear();
+    }
+  }else if(state==='falling'){
+    fallingTimer+=dt;
+    if(fallingTimer>=FALL_DURATION){
+      // finish fall
+      fallingBlocks=[];
+      let matches=findMatches(board);
+      if(matches.length>=4){
+        startClear(matches);
+      }else{
+        comboChain=0;
+        chainPanel.style.display='none';
+        spawnNext();
+        state='playing';
+      }
+    }
+  }else if(state==='playing'){
+    dropAcc+=dt;
+    let interval=isSoftDrop? 55 : dropInterval;
+    if(dropAcc>=interval){
+      dropAcc=0;
+      if(cur && isValid(cur.x, cur.y+1)){
+        cur.y++;
+        if(isSoftDrop){ score+=1; updateUI(); }
+      }else{
+        if(cur) lockPiece();
+      }
+    }
+  }
+  render();
+  requestAnimationFrame(gameLoop);
+}
+function moveLeft(){
+  if(state!=='playing' || paused || gameOver) return;
+  if(cur && isValid(cur.x-1, cur.y)) cur.x--;
+}
+function moveRight(){
+  if(state!=='playing' || paused || gameOver) return;
+  if(cur && isValid(cur.x+1, cur.y)) cur.x++;
+}
+function rotate(){
+  if(state!=='playing' || paused || gameOver) return;
+  if(!cur) return;
+  // cycle bottom -> top: [a,b,c] -> [c,a,b]
+  let c=cur.colors;
+  cur.colors=[c[2], c[0], c[1]];
+  // no collision check needed shape same column, but keep for safety
+}
+function softDropStart(){ if(state==='playing') isSoftDrop=true; }
+function softDropEnd(){ isSoftDrop=false; }
+function hardDrop(){
+  if(state!=='playing' || paused || gameOver || !cur) return;
+  let gy=getGhostY(cur);
+  let dist=gy - cur.y;
+  if(dist>0){
+    cur.y=gy;
+    score+=dist*2;
+    updateUI();
+  }
+  lockPiece();
+  dropAcc=0;
+}
+function togglePause(){
+  if(gameOver) return;
+  paused=!paused;
+  pauseOverlay.classList.toggle('hidden', !paused);
+}
+function restart(){
+  initBoard();
+  score=0; totalCleared=0; level=1; comboChain=0; maxChain=0;
+  dropInterval=BASE_DROP;
+  paused=false; gameOver=false; state='playing';
+  clearing=null; clearingSet=null; fallingBlocks=[];
+  cur=null; next=null;
+  pauseOverlay.classList.add('hidden');
+  gameOverOverlay.classList.add('hidden');
+  chainPanel.style.display='none';
+  spawnNext(); spawnNext(); // generate cur and next properly
+  // actually need cur = first piece
+  cur=makePiece(); next=makePiece();
+  cur.x=2; cur.y=-1;
+  updateUI(); updateNext();
+  lastTime=0; dropAcc=0;
+}
+// Input keyboard
+window.addEventListener('keydown', e=>{
+  if(e.code==='ArrowLeft'){ e.preventDefault(); moveLeft(); }
+  else if(e.code==='ArrowRight'){ e.preventDefault(); moveRight(); }
+  else if(e.code==='ArrowDown'){ e.preventDefault(); if(!e.repeat) softDropStart(); }
+  else if(e.code==='ArrowUp' || e.code==='KeyW'){ e.preventDefault(); rotate(); }
+  else if(e.code==='Space'){ e.preventDefault(); hardDrop(); }
+  else if(e.code==='KeyP'){ e.preventDefault(); togglePause(); }
+  else if(e.code==='KeyR'){ e.preventDefault(); if(gameOver) restart(); }
+});
+window.addEventListener('keyup', e=>{
+  if(e.code==='ArrowDown'){ softDropEnd(); }
+});
+// buttons
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
+document.getElementById('resumeBtn').addEventListener('click', togglePause);
+document.getElementById('restartBtn').addEventListener('click', restart);
+document.getElementById('resetBtn').addEventListener('click', restart);
+// mobile controls
+document.querySelectorAll('.mobile-controls button').forEach(btn=>{
+  let act=btn.dataset.act;
+  let handle=(ev)=>{
+    ev.preventDefault();
+    if(act==='left') moveLeft();
+    else if(act==='right') moveRight();
+    else if(act==='rotate') rotate();
+    else if(act==='down'){ softDropStart(); setTimeout(softDropEnd, 120); if(cur && isValid(cur.x, cur.y+1)) cur.y++; else lockPiece(); }
+    else if(act==='hard') hardDrop();
+  };
+  btn.addEventListener('touchstart', handle, {passive:false});
+  btn.addEventListener('mousedown', handle);
+});
+document.getElementById('mobileControls').addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+// swipe on board
+let touchStartX=0, touchStartY=0, touchStartTime=0;
+boardCanvas.addEventListener('touchstart', e=>{
+  if(e.touches.length!==1) return;
+  touchStartX=e.touches[0].clientX;
+  touchStartY=e.touches[0].clientY;
+  touchStartTime=Date.now();
+}, {passive:true});
+boardCanvas.addEventListener('touchend', e=>{
+  if(!touchStartX) return;
+  let dx=e.changedTouches[0].clientX - touchStartX;
+  let dy=e.changedTouches[0].clientY - touchStartY;
+  let dt=Date.now()-touchStartTime;
+  let absX=Math.abs(dx), absY=Math.abs(dy);
+  if(dt<300 && absX<20 && absY<20){
+    rotate(); // tap to rotate
+  }else if(absX>absY){
+    if(dx>30) moveRight();
+    else if(dx<-30) moveLeft();
+  }else{
+    if(dy>30){ if(cur && isValid(cur.x, cur.y+1)) cur.y++; else lockPiece(); }
+    else if(dy<-30) rotate();
+  }
+  touchStartX=0;
+}, {passive:true});
+// Responsive canvas scale handling - keep internal res but CSS handles
+function onResize(){
+  // no-op, CSS max-width handles
+}
+window.addEventListener('resize', onResize);
+// init
+restart();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
