@@ -1,0 +1,7 @@
+# Content types for open-track builds; Apache's defaults miss some of them.
+AddType application/wasm .wasm
+AddType application/octet-stream .pck .data
+
+# Agent docs and data are UTF-8 text.
+AddType text/markdown .md
+AddCharset utf-8 .md .txt .json
