@@ -39,7 +39,7 @@ h1 span{color:var(--accent)}
   <div id="scorebar">Score: 0 of 0</div>
   <canvas id="scene" width="320" height="200" aria-label="Scene picture"></canvas>
   <div id="log" aria-live="polite"></div>
-  <div id="overbanner" hidden>The shift is over. Use Download Run on the home page, or reload to play again.</div>
+  <div id="overbanner" hidden>The shift is over. Use DOWNLOAD RUN (JSON) in the bar at the top of the page to save your run, or reload to play again.</div>
   <form id="cmdform" autocomplete="off"><input id="cmd" aria-label="Type a command" placeholder="type a command, or tap a verb" autocapitalize="off" autocorrect="off" spellcheck="false"/><button type="submit">GO</button></form>
   <div class="row" id="verbs-row"><b>Verbs</b><span class="row" id="verbs"></span></div>
   <div class="row"><b>Exits</b><span class="row" id="exits"></span></div>
@@ -61,6 +61,7 @@ Arcade.register(arcadeAdapter({
   reset: Arcade.reset,
   onStart: (game) => { ui = mount(document.getElementById("app"), game, world, (text) => Arcade.onKeyAction(text)); },
   onChange: () => ui && ui.repaint(),
+  onOver: () => Arcade.onGameOver(),
 }));
 </script>
 </body>

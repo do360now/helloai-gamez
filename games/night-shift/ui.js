@@ -90,6 +90,8 @@ export function mount(root, game, world, submit) {
   function paintLog() {
     log.textContent = "";
     var rows = s.transcript.slice(-40);
+    // Before the first command the transcript is empty: show the opening room so nobody spends a command on "look".
+    if (!rows.length) { var intro = document.createElement("p"); intro.textContent = s.room.text; log.appendChild(intro); }
     rows.forEach(function (t) {
       if (t.cmd) { var c = document.createElement("p"); c.className = "cmd"; c.textContent = "> " + t.cmd; log.appendChild(c); }
       var p = document.createElement("p"); p.textContent = t.reply; log.appendChild(p);
