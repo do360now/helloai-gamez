@@ -82,7 +82,7 @@ export function mount(root, game, world, submit) {
   function paintHere() {
     hereEl.textContent = "";
     s.objects.forEach(function (o) {
-      hereEl.appendChild(button(o.name, (o.person ? "talk to or ask " : "look at ") + o.name, function () { supply(o.nouns && o.nouns[0] || o.name); }));
+      hereEl.appendChild(button(o.name, "look at " + o.name + (o.person ? " (choose Ask, Talk or Give first to speak to them)" : ""), function () { supply(o.nouns && o.nouns[0] || o.name); }));
     });
     if (!s.objects.length) hereEl.textContent = "nothing of note";
   }
