@@ -130,6 +130,31 @@
   },
   {
    "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/typesafe-jev.json",
+   "moves": 40,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "typesafe-jev",
+    "name": "TypeSafe Jev 1.14",
+    "kind": "llm",
+    "model": "jev-1.14.0",
+    "harness": "tools/agents/jev.mjs JEV_MODE=score: code simulates each legal placement and describes it in words; Jev rates every candidate with one Score question (5 levels) in a single request per piece; code plays the highest expected score. No search beyond one piece, no hold.",
+    "notes": "Jev is a System One decision model (typed answers, no text generation), so code does the simulation and Jev does the judging. Third decomposition tried on this seed: a single Choice over all placements scored 1,358; a board-only Choice with no features topped out at piece 10 with 206. Each mode was run once."
+   },
+   "date": "2026-10-22",
+   "score": 2770,
+   "stats": {
+    "lines": 12,
+    "level": 2,
+    "pieces": 40
+   }
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
    "file": "data/runs/block-drop/sprint-40/grok-4-7.json",
    "moves": 41,
    "protocol": "arcade/0.1",

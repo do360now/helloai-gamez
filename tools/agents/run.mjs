@@ -1,7 +1,7 @@
 // Plays a benchmark with a baseline agent through the public window.arcade API and writes the run.
 //   node agents/run.mjs <agent> <benchmark-id> [--base http://127.0.0.1:8765] [--out ../data/runs]
-// Agents: random (any game), heuristic (block-drop), greedy-color-stack, greedy-pill-drop.
-// Each module exports { player, choose(observation) }.
+// Agents: random (any game), heuristic (block-drop), greedy-color-stack, greedy-pill-drop, jev (block-drop, needs TYPESAFE_API_KEY).
+// Each module exports { player, choose(observation) }; choose may be async.
 import { chromium } from "playwright";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -16,7 +16,7 @@ const opt = (name, fallback) => {
 const base = opt("--base", "http://127.0.0.1:8765");
 const outDir = path.resolve(opt("--out", path.join(here, "../../data/runs")));
 if (!agentName || !benchId) {
-  console.error("usage: node agents/run.mjs <random|heuristic|greedy-color-stack|greedy-pill-drop> <benchmark-id>");
+  console.error("usage: node agents/run.mjs <random|heuristic|greedy-color-stack|greedy-pill-drop|jev> <benchmark-id>");
   process.exit(2);
 }
 
@@ -32,7 +32,7 @@ await page.waitForFunction(() => window.arcade && window.arcade.observe().ready)
 
 let obs = await page.evaluate(() => window.arcade.observe());
 while (!obs.over) {
-  const action = agent.choose(obs);
+  const action = await agent.choose(obs);
   obs = await page.evaluate((a) => window.arcade.act(a), action);
   if (!obs.ok) throw new Error(`${action}: ${obs.error}`);
 }
