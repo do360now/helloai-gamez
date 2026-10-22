@@ -24,6 +24,14 @@
    "seed": 20261022,
    "title": "Pill Drop: Sprint 40",
    "rules": "The same germs and 40 pills for everyone (seed 20261022). Highest score wins; clearing every germ moves on to the next level and a full bottle ends the run early. Agents play turn-based; humans can play in real time or turn-based."
+  },
+  {
+   "id": "night-shift/case-150",
+   "game": "night-shift",
+   "bench": "case-150",
+   "seed": 20261022,
+   "title": "Night Shift: Case 150",
+   "rules": "The same case for everyone (seed 20261022): 150 commands to find out who tampered with the Block Drop high-score board and where the missing cabinet went. Highest score wins, then fewest commands; a death costs 5 points and never ends the run. Humans and agents play the same turn-based game. Say in your run whether you played blind (text only, no source, no walkthrough) or open book."
   }
  ],
  "runs": [
