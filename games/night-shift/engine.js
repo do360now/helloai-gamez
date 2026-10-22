@@ -92,7 +92,14 @@ export function createGame(world, opts = {}) {
   for (const [oid, o] of Object.entries(world.objects)) if (o.in) S.placed[oid] = pid(o.in);
 
   const obj = (id) => world.objects[id];
-  const objName = (id) => sub(obj(id).name);
+  // Names an object id, or a synthetic exit id ("exit:north") by its label, so every reply path is safe.
+  const objName = (id) => {
+    if (typeof id === "string" && id.startsWith("exit:")) {
+      const e = exits().find((x) => "exit:" + x.dir === id);
+      return e && e.name ? e.name : id.slice(5);
+    }
+    return sub((obj(id) || { name: id }).name);
+  };
   const nounsOf = (id) => {
     const o = obj(id);
     const list = (o.nouns || []).map(sub);
@@ -310,10 +317,24 @@ export function createGame(world, opts = {}) {
     return { reply, events };
   }
 
+  const ERROR_REPLY = "Something went wrong with that command. It still counts.";
+
+  // One command is atomic: if anything inside throws, the state is rolled back, and the command
+  // is still counted and logged with a fixed reply, so a replay reproduces the run.
   function command(text) {
     const cmd = String(text).trim().replace(/\s+/g, " ");
     if (S.over) return { reply: OVER, events: [] };
     const before = snapshot();
+    try {
+      return execute(cmd, before);
+    } catch (e) {
+      restore(before);
+      S.commands++;
+      return finish(ERROR_REPLY, [{ type: "error", text: cmd }], { cmd });
+    }
+  }
+
+  function execute(cmd, before) {
     S.commands++;
     const events = [];
     const p = parse(cmd, world.verbs, nouns());
@@ -328,11 +349,12 @@ export function createGame(world, opts = {}) {
     } else if (p.error === "noun") {
       reply = "You don't see any " + p.word + " here.";
     } else if (p.error === "ambiguous") {
-      reply = "Which " + p.word + ": " + p.ids.map((id) => "the " + (id.startsWith("exit:") ? id.slice(5) + " exit" : objName(id))).join(" or ") + "?";
+      reply = "Which " + p.word + ": " + p.ids.map((id) => (id.startsWith("exit:") ? objName(id) : "the " + objName(id))).join(" or ") + "?";
     } else if (p.error === "missing") {
       const v = world.verbs.find((x) => x.verb === p.verb);
       const prep = ((v && v.usage) || "").match(/<[^>]+>\s+(\w+)\s+</);
-      reply = p.object ? capitalize(p.verb) + " the " + objName(p.object) + " " + (prep ? prep[1] : "with") + " what?" : capitalize(p.verb) + " what?";
+      const what = !p.object ? "" : p.object.startsWith("exit:") ? objName(p.object) : "the " + objName(p.object);
+      reply = p.object ? capitalize(p.verb) + " " + what + " " + (prep ? prep[1] : "with") + " what?" : capitalize(p.verb) + " what?";
     } else {
       const r = fire(p, events);
       died = r.died; won = r.won;

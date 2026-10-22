@@ -97,3 +97,47 @@ test("named exits can be looked at and walked through, and never crash", () => {
   assert.equal(g.command("take prize counter").reply, "That is a way out, not a thing.");
   assert.deepEqual([g.state().commands, g.state().turn, g.state().transcript.length], [6, 6, 6]);
 });
+
+// Every verb against every noun in every room, including two-slot verbs with the second slot
+// empty and with every pair: nothing may throw, and every command must be logged exactly once.
+test("fuzz: no command throws and every command is logged once", () => {
+  const base = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  const verbs = world.verbs;
+  let count = 0;
+  for (const rid of Object.keys(world.rooms)) {
+    const g = createGame(world, { random: mulberry32(20261022) });
+    const s = g.snapshot();
+    s.room = rid;
+    for (const oid of Object.keys(world.objects)) if (world.objects[oid].hidden) s.revealed[oid] = true;
+    s.inv = ["mop", "token", "officekey"];
+    for (const id of s.inv) s.placed[id] = "inventory";
+    g.restore(s);
+    const st = g.state();
+    const nouns = st.objects.map((o) => o.noun).concat(st.inventory.map((o) => o.noun), st.exits.map((e) => e.name), ["banana", "locker", "key"]);
+    const cmds = [];
+    for (const v of verbs) {
+      cmds.push(v.verb);
+      for (const n of nouns) {
+        cmds.push(v.verb + " " + n);
+        if (v.args === 2) {
+          cmds.push(v.verb + " " + n + " " + (v.preps[0] || "with"));
+          for (const m of nouns) cmds.push(v.verb + " " + n + " " + (v.preps[0] || "with") + " " + m);
+        }
+      }
+    }
+    for (const cmd of cmds) {
+      g.restore(s);
+      let r;
+      try { r = g.command(cmd); } catch (e) { assert.fail(`${rid}: "${cmd}" threw ${e.message}`); }
+      assert.equal(typeof r.reply, "string", cmd);
+      assert.ok(!r.events.some((e) => e.type === "error"), `${rid}: "${cmd}" hit the engine's error path`);
+      const after = g.state();
+      assert.equal(after.commands, 1, `${rid}: "${cmd}" commands`);
+      assert.equal(after.transcript.length, 1, `${rid}: "${cmd}" transcript`);
+      assert.equal(after.transcript[0].cmd, cmd);
+      count++;
+    }
+  }
+  assert.ok(count > 3000, String(count));
+  assert.equal(base.state().commands, 0);
+});

@@ -370,3 +370,17 @@ test("budget counts commands including parser errors", () => {
   assert.equal(g.state().turn, 0);
   assert.equal(g.state().commands, 150);
 });
+
+test("a command that throws inside the engine is rolled back, logged and counted", () => {
+  const w = world();
+  w.objects.trap = { name: "trap", nouns: ["trap"], get text() { throw new Error("boom"); } };
+  w.rooms.hall.objects.push("trap");
+  const g = createGame(w, { random: fixed([0.5]), bench: "case-150" });
+  g.command("search mat");
+  const r = g.command("look at trap");
+  assert.equal(r.reply, "Something went wrong with that command. It still counts.");
+  assert.deepEqual(r.events, [{ type: "error", text: "look at trap" }]);
+  const s = g.state();
+  assert.deepEqual([s.commands, s.turn, s.transcript.length, s.score], [2, 1, 2, 5]);
+  assert.equal(g.command("take key").reply, "Taken.");
+});
