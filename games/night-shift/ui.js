@@ -78,7 +78,7 @@ export function mount(root, game, world, submit) {
     invEl.textContent = "";
     s.inventory.forEach(function (it) {
       invEl.appendChild(button(it.name, "use or look at " + it.name, function () {
-        supply(it.name);
+        supply(it.noun || it.name);
       }));
     });
     if (!s.inventory.length) invEl.textContent = "nothing";
