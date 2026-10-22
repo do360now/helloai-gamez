@@ -57,6 +57,7 @@
   .chip.human { color: var(--human); border-color: #c8ff0040; }
   .chip.agent, .chip.llm { color: var(--agent); border-color: #a493ff40; }
   .chip.baseline { color: var(--baseline); }
+  .chip.disclosure { color: var(--faint); }
   .btn { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 20px; border-radius: 999px; text-decoration: none;
     font: 500 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--line-strong); background: var(--bg-soft); color: var(--text);
     cursor: pointer; transition: border-color .2s, background .2s, transform .1s; }
@@ -418,8 +419,11 @@ legend: # filled, @ current piece, + where it lands, . empty
   var STAT = {
     "block-drop": { label: "Lines", key: "lines", unit: "lines" },
     "color-stack": { label: "Cleared", key: "cleared", unit: "cleared" },
-    "pill-drop": { label: "Germs left", key: "viruses", unit: "germs left" }
+    "pill-drop": { label: "Germs left", key: "viruses", unit: "germs left" },
+    "night-shift": { label: "Commands", key: "commands", unit: "commands" }
   };
+  // Night Shift runs say whether the player saw the source or a walkthrough.
+  var DISCLOSURE = { "blind": "blind", "open-book": "open book" };
   function statText(game, stats) {
     var st = STAT[game] || STAT["block-drop"];
     if (!stats || stats[st.key] == null) return "";
@@ -546,6 +550,7 @@ legend: # filled, @ current piece, + where it lands, . empty
           el("div", { class: "name" }, [p.name, el("small", {}, [
             el("span", { class: "chip " + kindClass(p.kind) }, [el("i"), KIND[p.kind] || p.kind]),
             (r.mode === "turn" ? "turn-based" : "real time") + " · " + r.date,
+            p.disclosure ? el("span", { class: "chip disclosure", title: "Disclosure: " + (DISCLOSURE[p.disclosure] || p.disclosure), text: DISCLOSURE[p.disclosure] || p.disclosure }) : null,
             p.harness ? el("span", { class: "harness", title: p.harness, text: p.harness }) : null
           ])]),
           bar(r.score, p.kind, p.name),
