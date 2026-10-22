@@ -41,9 +41,10 @@ export function maxScoreOf(world) {
   let total = 0;
   const seen = new Set();
   for (const r of world.rules || []) {
-    if (seen.has(r.id)) continue;
-    seen.add(r.id);
-    for (const e of r.do || []) if (typeof e.score === "number") total += e.score;
+    for (const e of r.do || []) {
+      const sid = e.id || r.id;
+      if (typeof e.score === "number" && !seen.has(sid)) { seen.add(sid); total += e.score; }
+    }
   }
   for (const [oid, o] of Object.entries(world.objects || {})) {
     for (const [tid, t] of Object.entries(o.topics || {})) {

@@ -332,3 +332,9 @@ test("death rewinds an item move and a flag made by the fatal command", () => {
   assert.equal(g.command("look at mat").reply, "A doormat.");
   assert.equal(g.state().score, 2);
 });
+
+test("maxScore counts an aliased score id once", () => {
+  const w = world();
+  w.rules.push({ id: "open-safe-alias", when: { verb: "push", object: "safe" }, do: [{ score: 10, id: "open-safe" }] });
+  assert.equal(createGame(w, { random: fixed([0.5]) }).maxScore, 33);
+});
