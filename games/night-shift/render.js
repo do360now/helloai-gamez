@@ -33,6 +33,7 @@ var NightShiftRender = (function () {
 
   function line(ctx, x1, y1, x2, y2) {
     // Bresenham, so lines stay one hard pixel wide.
+    x1 |= 0; y1 |= 0; x2 |= 0; y2 |= 0; // unvalidated input can never make the loop miss its endpoint
     var dx = Math.abs(x2 - x1), dy = -Math.abs(y2 - y1);
     var sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1;
     var err = dx + dy;
@@ -77,6 +78,8 @@ var NightShiftRender = (function () {
 
   // Draws one picture. `list` is the room's draw array.
   function drawPicture(ctx, list) {
+    var problems = validate(list);
+    if (problems.length) throw new RangeError("bad draw list: " + problems.join("; "));
     ctx.imageSmoothingEnabled = false;
     ctx.fillStyle = colour(0);
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -91,15 +94,30 @@ var NightShiftRender = (function () {
     }
   }
 
-  // Checks a list without drawing; returns an array of problems (empty when fine). The solver or CI can use it.
+  // Checks a list without drawing; returns an array of problems (empty when fine). drawPicture refuses a list
+  // with problems, and the solver can use it to reject a world before certifying it.
   function validate(list) {
     var arity = { fill: 2, rect: 6, line: 6, poly: 3, dither: 7 }, problems = [];
     if (!Array.isArray(list)) return ["draw must be an array"];
+    if (list.length > 2000) return ["draw has more than 2000 ops"];
+    var isInt = Number.isInteger;
+    function inRange(v) { return isInt(v) && v >= -1000 && v <= 1000; }
     list.forEach(function (op, i) {
-      if (!Array.isArray(op) || !(op[0] in arity)) return problems.push("op " + i + ": unknown op");
-      if (op.length !== arity[op[0]]) return problems.push("op " + i + ": " + op[0] + " takes " + (arity[op[0]] - 1) + " arguments");
-      var cols = op[0] === "fill" ? [op[1]] : op[0] === "poly" ? [op[1]] : op[0] === "dither" ? [op[5], op[6]] : [op[5]];
-      cols.forEach(function (c) { if (!Number.isInteger(c) || c < 0 || c > 15) problems.push("op " + i + ": bad colour " + c); });
+      var at = "op " + i + ": ";
+      if (!Array.isArray(op) || !Object.prototype.hasOwnProperty.call(arity, op[0])) return problems.push(at + "unknown op");
+      if (op.length !== arity[op[0]]) return problems.push(at + op[0] + " takes " + (arity[op[0]] - 1) + " arguments");
+      var cols = op[0] === "fill" || op[0] === "poly" ? [op[1]] : op[0] === "dither" ? [op[5], op[6]] : [op[5]];
+      cols.forEach(function (c) { if (!isInt(c) || c < 0 || c > 15) problems.push(at + "bad colour " + c); });
+      if (op[0] === "rect" || op[0] === "dither") {
+        if (![op[1], op[2], op[3], op[4]].every(inRange)) problems.push(at + "coordinates must be integers");
+        else if (op[3] < 0 || op[4] < 0) problems.push(at + "negative size");
+      } else if (op[0] === "line") {
+        if (![op[1], op[2], op[3], op[4]].every(inRange)) problems.push(at + "coordinates must be integers");
+      } else if (op[0] === "poly") {
+        var pts = op[2];
+        if (!Array.isArray(pts) || pts.length < 6 || pts.length % 2 || pts.length > 200) problems.push(at + "poly needs 3 to 100 x,y pairs");
+        else if (!pts.every(inRange)) problems.push(at + "coordinates must be integers");
+      }
     });
     return problems;
   }

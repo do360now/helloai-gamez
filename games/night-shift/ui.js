@@ -8,7 +8,7 @@ export function mount(root, game, world, submit) {
   var canvas = $("scene"), ctx = canvas.getContext("2d");
   var bar = $("scorebar"), log = $("log"), verbsEl = $("verbs"), exitsEl = $("exits"), form = $("cmdform"), input = $("cmd");
   var invEl = $("inventory");
-  var pending = null; // a verb chosen by tap, waiting for a noun
+  var pending = null; // {verb, usage, args}: a verb chosen by tap, waiting for the rest of its arguments
   var history = [], hpos = 0;
   var s = null;
 
@@ -29,19 +29,39 @@ export function mount(root, game, world, submit) {
   }
 
   // A verb button either sends a bare verb ("look", "inventory") or waits for a tapped object or typed noun.
+  function slots(usage) { return (usage || "").match(/<[^>]+>/g) || []; }
+
+  // The command so far: the usage template with the arguments collected up to the next empty slot.
+  function partial(p) {
+    var i = 0;
+    var text = p.usage.replace(/<[^>]+>/g, function (m) { return i < p.args.length ? p.args[i++] : "\u0000"; });
+    return text.split("\u0000")[0];
+  }
+
   function verbClick(v) {
-    var bare = !/</.test(v.usage || "");
-    if (bare) return send(v.verb);
-    pending = pending === v.verb ? null : v.verb;
-    input.value = pending ? pending + " " : "";
+    if (!slots(v.usage).length) return send(v.verb);
+    pending = pending && pending.verb === v.verb ? null : { verb: v.verb, usage: v.usage, args: [] };
+    input.value = pending ? partial(pending) : "";
     input.focus();
     paintVerbs();
+  }
+
+  // A tapped object or item fills the next slot; the command goes out only when every slot is filled.
+  function supply(noun) {
+    if (!pending) return send("look at " + noun);
+    pending.args.push(noun);
+    if (pending.args.length >= slots(pending.usage).length) {
+      var text = partial(pending).trim();
+      return send(text);
+    }
+    input.value = partial(pending);
+    input.focus();
   }
 
   function paintVerbs() {
     verbsEl.textContent = "";
     s.verbs.forEach(function (v) {
-      var b = button(v.verb, v.usage, function () { verbClick(v); }, pending === v.verb ? "on" : "");
+      var b = button(v.verb, v.usage, function () { verbClick(v); }, pending && pending.verb === v.verb ? "on" : "");
       verbsEl.appendChild(b);
     });
   }
@@ -58,7 +78,7 @@ export function mount(root, game, world, submit) {
     invEl.textContent = "";
     s.inventory.forEach(function (it) {
       invEl.appendChild(button(it.name, "use or look at " + it.name, function () {
-        if (pending) send(pending + " " + it.name); else send("look at " + it.name);
+        supply(it.name);
       }));
     });
     if (!s.inventory.length) invEl.textContent = "nothing";
@@ -94,7 +114,7 @@ export function mount(root, game, world, submit) {
       var o = s.objects[i], h = o.hotspot;
       if (h && Render.hotspotAt([{ rect: h, o: o }], p.x, p.y)) { hit = o; break; }
     }
-    if (hit) send((pending || "look at") + " " + (hit.nouns && hit.nouns[0] || hit.name));
+    if (hit) supply(hit.nouns && hit.nouns[0] || hit.name);
   });
 
   form.addEventListener("submit", function (ev) {
@@ -106,6 +126,7 @@ export function mount(root, game, world, submit) {
     if (ev.key === "ArrowUp" && history.length) { hpos = Math.max(0, hpos - 1); input.value = history[hpos]; ev.preventDefault(); }
     else if (ev.key === "ArrowDown" && history.length) { hpos = Math.min(history.length, hpos + 1); input.value = history[hpos] || ""; ev.preventDefault(); }
     else if (ev.key === "Escape") { pending = null; input.value = ""; if (s) paintVerbs(); }
+    else if (pending && ev.key === "Enter") pending = null; // typed text replaces a tapped partial
   });
 
   paint();
