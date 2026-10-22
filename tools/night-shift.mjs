@@ -21,6 +21,7 @@ const BENCH = "case-150";
 const MAX_STATES = 300000;
 const render = await import("../games/night-shift/render.js").catch((e) => { console.error("warning: render.js not imported, draw lists not checked: " + e.message); return null; });
 const DRAW_VALIDATOR = render && typeof render.validate === "function" ? render.validate : null;
+const pictures = await import("../games/night-shift/pictures.js").catch((e) => { console.error("warning: pictures.js not imported, pictures not checked: " + e.message); return null; });
 
 // The schema the checker enforces. Unknown keys are content bugs that would otherwise be silent no-ops.
 const WHEN_KEYS = new Set(["verb", "object", "target", "topic", "code", "dir", "turn"]);
@@ -275,6 +276,19 @@ export function paramCombosEach(world) {
 // combination, and a sampled (not proven) winnability check.
 // opts.combos: "all" (the Cartesian product of every parameter, the default and what CI runs) or
 // "each" (every choice of every parameter, varied one at a time; faster, used by the tests).
+// The page draws pictures.js and falls back to world.json's draw lists: every room needs a picture that
+// compiles, and every picture belongs to a room.
+export function pictureProblems(world, pics = pictures && pictures.PICTURES) {
+  if (!pics) return ["pictures.js could not be imported"];
+  const problems = [];
+  for (const rid of Object.keys(world.rooms)) {
+    if (!pics[rid]) { problems.push("room " + rid + " has no picture"); continue; }
+    if (DRAW_VALIDATOR) for (const p of DRAW_VALIDATOR(pics[rid])) problems.push("picture " + rid + ": " + p);
+  }
+  for (const rid of Object.keys(pics)) if (!world.rooms[rid]) problems.push("picture " + rid + " has no room");
+  return problems;
+}
+
 export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALIDATOR, opts = {}) {
   const problems = [];
   const objects = world.objects || {};
@@ -640,9 +654,10 @@ async function main(argv) {
   if (cmd === "check") {
     const world = await loadWorld();
     const r = check(world, [seed]);
-    for (const p of r.problems) console.log("PROBLEM " + p);
-    console.log(r.summary);
-    process.exit(r.ok ? 0 : 1);
+    const pics = pictureProblems(world);
+    for (const p of r.problems.concat(pics)) console.log("PROBLEM " + p);
+    console.log(r.summary + (pics.length ? "; " + pics.length + " picture problem(s)" : "; pictures ok"));
+    process.exit(r.ok && !pics.length ? 0 : 1);
   } else if (cmd === "solve" || cmd === "route") {
     const world = await loadWorld();
     const s = solve(world, rest[0] ? Number(rest[0]) : seed);

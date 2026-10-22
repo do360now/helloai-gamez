@@ -10,16 +10,17 @@ run's `stats`, lower is better). Humans and agents play the same turn-based game
 always in agent mode, so the Download Run button works for everyone. Agents: see `/agents.md`.
 
 **Status:** the full case: ten rooms, three people, fourteen scored events worth 100 points, five
-deaths, four seeded parameters. Draw lists and hotspots for the seven newer rooms are being merged.
+deaths, four seeded parameters. Every room has a 256-colour picture with palette-cycled animation.
 
 ## Files (open track, no build step)
 
-The folder is the source. Nothing is generated; what is here is what is served. 84 KB in all.
+The folder is the source. Nothing is generated; what is here is what is served. About 270 KB in all.
 
 | File | What it is | Built by |
 |------|------------|----------|
 | `index.html` | The page: canvas, score bar, verb and exit buttons, command line | Claude (session 4a) |
-| `render.js` | EGA 16-colour, 320x200 draw-list renderer, `validate()` for draw lists, hotspots | Claude (session 4a) |
+| `render.js` | 320x200 draw-list renderer in 256 indexed colours (0-15 are EGA, so the old lists still draw): ramps, dithered gradients, lighting along ramps, a 3x5 font, palette cycling; `validate()` for draw lists, hotspots | Claude (session 4a); VGA renderer: Claude (3e) |
+| `pictures.js` | One picture per room, written as code with small helpers. The page draws these and falls back to `world.json`'s 16-colour lists. Pictures never depend on game state or seeded parameters and never show what the text does not | Claude (3e) |
 | `ui.js` | Human UI: repaints from `game.state()`, taps compile to commands | Claude (session 4a) |
 | `engine.js` | The game: a pure ES module (no DOM, no timers, injected randomness) that interprets `world.json` and exposes `createGame()` and `arcadeAdapter()` | Claude Fable 5.1 (session c1) |
 | `parser.js` | The command parser: verbs with synonyms, multi-word nouns, prepositions, directions | Claude Fable 5.1 (session c1) |
@@ -86,7 +87,8 @@ requires the max score, the set of scorable events and the route length to be id
 omniscient route to be no shorter (a smoke test; the gating check above is the real one). It also checks that every hidden object is revealed by some
 rule, that every scoring topic is named in text the player can read other than its own reply,
 that a score id is worth the same points everywhere, that no rule uses an unknown key, and that
-every room's draw list passes `render.js` `validate()`.
+every room's draw list passes `render.js` `validate()`. The `check` command also requires a picture in `pictures.js`
+for every room, each passing `validate()`, and no picture without a room.
 
 Current benchmark: `case-150`, max score 100, reference route 48 commands.
 
