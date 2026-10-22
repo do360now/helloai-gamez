@@ -46,14 +46,22 @@ h1 span{color:var(--accent)}
   <div class="row"><b>Carrying</b><span class="row" id="inventory"></span></div>
 </div>
 <script type="module">
-import { createGame, arcadeAdapter } from "./engine.js";
+import { arcadeAdapter } from "./engine.js";
 import { mount } from "./ui.js";
 
 const world = await (await fetch("./world.json", { cache: "no-store" })).json();
-const game = createGame(world, { random: Arcade.random, bench: Arcade.bench });
 let ui = null;
-Arcade.register(arcadeAdapter(game, { onChange: () => ui && ui.repaint() }));
-ui = mount(document.getElementById("app"), game, world, (text) => Arcade.onKeyAction(text));
+// The adapter creates the game in start() (arcade.js calls it once the page is registered), so the UI mounts
+// from onStart and reads that same game.
+Arcade.register(arcadeAdapter({
+  world,
+  random: Arcade.random,
+  bench: () => Arcade.bench,
+  seed: () => Arcade.seed,
+  reset: Arcade.reset,
+  onStart: (game) => { ui = mount(document.getElementById("app"), game, world, (text) => Arcade.onKeyAction(text)); },
+  onChange: () => ui && ui.repaint(),
+}));
 </script>
 </body>
 </html>
