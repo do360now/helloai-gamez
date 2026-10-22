@@ -12,6 +12,8 @@
 //   id, benchmarks {id: {label, ...}}, actions {name: description},
 //   start(), ready(), over(), score(), observe() -> object, text() -> string,
 //   apply(action, pace) -> Promise<boolean>   (pace(ms) waits between animated steps)
+//   turnBased: true (optional) for a game that is turn-based by nature, such as a parser adventure:
+//   the page is then always in agent mode (act(), the move log, mode "turn") without ?agent=1.
 (function () {
   "use strict";
   var params = new URLSearchParams(location.search);
@@ -177,6 +179,10 @@
   };
 
   Arcade.register = function (adapter) {
+    if (adapter.turnBased && !Arcade.agent) {
+      Arcade.agent = true;
+      document.documentElement.classList.add("arcade-agent");
+    }
     Arcade.adapter = adapter;
     Arcade.onKeyAction = function (action) {
       if (!Arcade.agent || Arcade.replaying) return false;
