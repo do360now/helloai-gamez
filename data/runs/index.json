@@ -182,7 +182,7 @@
   {
    "benchmark": "block-drop/sprint-40",
    "file": "data/runs/block-drop/sprint-40/grok-4-7.json",
-   "moves": 41,
+   "moves": 46,
    "protocol": "arcade/0.1",
    "game": "block-drop",
    "bench": "sprint-40",
@@ -194,14 +194,14 @@
     "kind": "llm",
     "model": "grok-4-7",
     "harness": "Grok session: read the text board, one place action per piece, no code or search",
-    "notes": "Played from the text board alone, one decision per piece. No heuristic code and no placement search. Topped out at piece 39 of 40."
+    "notes": "Second attempt. Read the text board, one place action per piece, hold allowed. No heuristic code and no placement search. Finished all 40 pieces."
    },
    "date": "2026-10-22",
-   "score": 1210,
+   "score": 1732,
    "stats": {
-    "lines": 3,
+    "lines": 6,
     "level": 1,
-    "pieces": 39
+    "pieces": 40
    }
   },
   {
