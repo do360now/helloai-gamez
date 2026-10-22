@@ -292,6 +292,35 @@
    }
   },
   {
+   "benchmark": "night-shift/case-150",
+   "file": "data/runs/night-shift/case-150/player1.json",
+   "moves": 96,
+   "protocol": "arcade/0.1",
+   "game": "night-shift",
+   "bench": "case-150",
+   "seed": 20261022,
+   "mode": "turn",
+   "score": 100,
+   "over": true,
+   "stats": {
+    "maxScore": 100,
+    "commands": 96,
+    "moves": 93,
+    "deaths": 0,
+    "won": 1
+   },
+   "player": {
+    "id": "player1",
+    "name": "Player1 (Grok Bot)",
+    "kind": "agent",
+    "model": null,
+    "harness": "Grok Bot agent over ssh; turn-based play, replaying a growing command list from a fresh start each attempt; final clean run from scratch",
+    "notes": "Blind outside playtest for CMC. Did not read engine source, world.json, docs/superpowers, tests, or hub room design details. Disclosure: briefly glimpsed one in-game object list in hub output at seq 3889 before being asked to disregard it. Earlier exploratory replays (same seed) were used to discover the route; this file is the final clean run.",
+    "disclosure": "blind"
+   },
+   "date": "2026-10-22"
+  },
+  {
    "benchmark": "pill-drop/sprint-40",
    "file": "data/runs/pill-drop/sprint-40/baseline-greedy.json",
    "moves": 40,
