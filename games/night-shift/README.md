@@ -80,7 +80,7 @@ node night-shift.mjs play [seed] [--seed N] [--out run.json --disclosure blind|o
 node verify.mjs data/runs/night-shift/case-150/<run>.json   # the official browser replay
 ```
 
-`check` runs the structural proofs above, then for every combination of the seeded parameters
+`check` runs the structural checks above (necessary, not sufficient), then for every combination of the seeded parameters
 (81 today; the tests vary one parameter at a time) and the benchmark seed plans a blind route and
 requires the max score, the set of scorable events and the route length to be identical, and the
 omniscient route to be no shorter (a smoke test; the gating check above is the real one). It also checks that every hidden object is revealed by some

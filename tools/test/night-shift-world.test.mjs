@@ -275,3 +275,14 @@ test("look at marge away from the office says she is not here", () => {
   assert.equal(g.command("look at marge").reply, "Marge is not here.");
   assert.match(g.command("look at rudy").reply, /not here/);
 });
+
+test("a second unlock or fob press on the open van says it is already open", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  g.command("west"); g.command("north"); g.command("search clipboard"); g.command("take fob"); g.command("out");
+  g.command("unlock van with fob");
+  assert.match(g.command("unlock van with fob").reply, /already open/i);
+  assert.match(g.command("use fob on van").reply, /already open/i);
+  g.command("west");
+  assert.equal(g.command("accuse marge").reply, "Marge is not here.");
+  assert.equal(g.command("give fob to marge").reply, "Marge is not here.");
+});

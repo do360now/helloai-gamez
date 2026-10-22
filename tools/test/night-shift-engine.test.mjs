@@ -556,3 +556,16 @@ test("hint-style defaults for open, close, put, give, move, use and throw", () =
   assert.equal(g.command("use key on mat").reply, "The brass key does nothing to the mat.");
   assert.equal(g.command("throw key at cord").reply, "You would only have to pick the brass key up again.");
 });
+
+test("every verb respects presence for a person placed elsewhere", () => {
+  const w = world();
+  w.objects.bob.everywhere = true;
+  w.verbs.push({ verb: "accuse", synonyms: [], args: 1, preps: [], usage: "accuse <person>" }, { verb: "give", synonyms: [], args: 2, preps: ["to"], usage: "give" });
+  w.rules.push({ id: "accuse-bob", when: { verb: "accuse", object: "bob" }, do: [{ reply: "Bob looks hurt." }] });
+  const g = createGame(w, { random: fixed([0.5]) });
+  g.command("search mat"); g.command("take key"); g.command("east");
+  assert.equal(g.command("accuse bob").reply, "Bob is not here.");
+  assert.equal(g.command("give key to bob").reply, "Bob is not here.");
+  g.command("west");
+  assert.equal(g.command("accuse bob").reply, "Bob looks hurt.");
+});

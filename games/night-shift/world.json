@@ -7838,6 +7838,48 @@
           "reply": "You lift a corner of the blankets. GALAXY PATROL, in the chrome script from the poster, and under it the place where Marge's inventory tag was, sanded smooth."
         }
       ]
+    },
+    {
+      "id": "unlock-van-open",
+      "when": {
+        "verb": "unlock",
+        "object": "van",
+        "target": "fob"
+      },
+      "require": {
+        "has": [
+          "fob"
+        ],
+        "flags": {
+          "vanOpen": true
+        }
+      },
+      "do": [
+        {
+          "reply": "The van is already open."
+        }
+      ]
+    },
+    {
+      "id": "use-fob-van-open",
+      "when": {
+        "verb": "use",
+        "object": "fob",
+        "target": "van"
+      },
+      "require": {
+        "has": [
+          "fob"
+        ],
+        "flags": {
+          "vanOpen": true
+        }
+      },
+      "do": [
+        {
+          "reply": "The van is already open."
+        }
+      ]
     }
   ]
 }

@@ -195,6 +195,8 @@ export function createGame(world, opts = {}) {
       else if (p.verb !== "look" && p.verb !== "go") return "That is a way out, not a thing.";
     }
     if (p.target && p.target.startsWith("exit:")) return "That is a way out, not a thing.";
+    // A person placed somewhere else is not here, whatever the verb.
+    for (const id of [p.object, p.target]) if (id && !id.startsWith("exit:") && obj(id).person && S.placed[id] && !visible(id)) return objName(id) + " is not here.";
     const isExit = !!p.object && p.object.startsWith("exit:");
     const name = p.object && !isExit ? objName(p.object) : null;
     switch (p.verb) {
@@ -413,7 +415,8 @@ export function createGame(world, opts = {}) {
       const what = !p.object ? "" : p.object.startsWith("exit:") ? objName(p.object) : "the " + objName(p.object);
       reply = p.object ? capitalize(p.verb) + " " + what + " " + (prep ? prep[1] : "with") + " what?" : capitalize(p.verb) + " what?";
     } else {
-      let r = fire(p, events);
+      const away = [p.object, p.target].find((id) => id && !id.startsWith("exit:") && obj(id).person && S.placed[id] && !visible(id));
+      let r = away ? { fired: true, reply: [objName(away) + " is not here."], died: null, won: null, id: null } : fire(p, events);
       const fv = world.verbs.find((x) => x.verb === p.verb);
       if (!r.fired && fv && fv.fallback && p.object) { p = { ...p, verb: fv.fallback }; r = fire(p, events); }
       died = r.died; won = r.won; diedBy = r.id || null;

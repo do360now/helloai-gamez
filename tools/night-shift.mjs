@@ -3,7 +3,7 @@
 // REPL to play from the terminal.
 //   node night-shift.mjs check            validate world.json: exact structural checks, the reference route on every
 //                                         parameter combination, and a sampled (not proven) winnability check (CI);
-//                                         the structural checks are necessary, not a proof
+//                                         the structural checks are necessary conditions, not a proof
 //   node night-shift.mjs solve [seed]     print the planner's reference route (a good path, not a proven optimum)
 //   node night-shift.mjs route            print the reference route's length for the benchmark seed
 //   node night-shift.mjs verify <run.json ...>   replay recorded runs through the engine
@@ -612,7 +612,9 @@ async function play(seed, out, who = {}) {
     if (adapter.over()) break;
     await adapter.apply(line);
     actions.push(line);
-    console.log("\n" + adapter.text());   // text() ends with the command and its reply
+    // text() ends with "> command" and its reply; a terminal has already echoed the typed line.
+    const t = adapter.text();
+    console.log("\n" + (tty ? t.replace("\n> " + line + "\n", "\n") : t));
     if (adapter.over()) break;
     prompt();
   }
