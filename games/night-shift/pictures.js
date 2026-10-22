@@ -762,14 +762,17 @@ var diner = picture(31, function (p) {
     op("ellipse", x, 189, 9, 2, CHROME + 5);
     op("ellipse", x, 148, 9, 3, RED + 6); op("ellipse", x, 147, 8, 2, RED + 9);
   }
-  stool(42); stool(152); stool(188); stool(262);
-  op("poly", JACK + 4, [170, 116, 206, 112, 212, 150, 168, 150]);
-  op("poly", JACK + 5, [168, 100, 210, 98, 212, 116, 168, 118]);
-  op("poly", JACK + 3, [172, 96, 186, 92, 190, 102, 174, 104]);
-  op("ellipse", 188, 98, 10, 7, BLACK + 2); op("ellipse", 186, 101, 6, 3, SKIND + 4);
-  op("rect", 196, 96, 10, 6, JACK + 6); op("rect", 172, 148, 8, 6, JACK + 2); op("rect", 200, 148, 8, 6, JACK + 2);
-  op("text", 204, 82, "Z", ZZZ); op("text", 210, 74, "Z", ZZZ + 1, 1); op("text", 216, 62, "Z", ZZZ + 2, 2);
-  op("rect", 214, 94, 8, 7, CREAM + 6); op("ellipse", 218, 94, 4, 1, COFFEE + 2); op("rect", 222, 96, 2, 3, CREAM + 5);
+  stool(42); stool(116); stool(190); stool(262);
+  // Dale on the last stool, the one whose floor the stool's text points at.
+  var dx = 42 - 188;
+  function pts(a) { return a.map(function (v, i) { return i % 2 ? v : v + dx; }); }
+  op("poly", JACK + 4, pts([170, 116, 206, 112, 212, 150, 168, 150]));
+  op("poly", JACK + 5, pts([168, 100, 210, 98, 212, 116, 168, 118]));
+  op("poly", JACK + 3, pts([172, 96, 186, 92, 190, 102, 174, 104]));
+  op("ellipse", 188 + dx, 98, 10, 7, BLACK + 2); op("ellipse", 186 + dx, 101, 6, 3, SKIND + 4);
+  op("rect", 196 + dx, 96, 10, 6, JACK + 6); op("rect", 172 + dx, 148, 8, 6, JACK + 2); op("rect", 200 + dx, 148, 8, 6, JACK + 2);
+  op("text", 54, 80, "Z", ZZZ); op("text", 58, 72, "Z", ZZZ + 1, 1); op("text", 62, 60, "Z", ZZZ + 2, 2);
+  op("rect", 8, 94, 8, 7, CREAM + 6); op("ellipse", 12, 94, 4, 1, COFFEE + 2); op("rect", 16, 96, 2, 3, CREAM + 5);
 
   op("light", 80, 40, 90, 80, 4); op("light", 210, 40, 90, 80, 4);
   op("light", 80, 110, 80, 30, 3); op("light", 210, 110, 80, 30, 3);
@@ -821,11 +824,18 @@ var workshop = picture(37, function (p) {
   for (k = 0; k < 7; k++) op("ellipse", 70 + p.rnd(140), 107 + p.rnd(2), 1 + p.rnd(2), 0, BENCH + 3);
 
   // The monitor: open, back off, yellow warning sticker on the frame.
-  op("rect", 86, 66, 48, 40, PIPE + 2); op("rect", 88, 68, 44, 36, PIPE + 1);
-  op("rect", 90, 70, 32, 26, CRT + 1); op("rect", 92, 72, 28, 22, CRT + 3); op("line", 94, 74, 104, 74, CRT + 7); op("line", 94, 75, 98, 75, CRT + 6);
+  // An open frame seen from behind: the tube's funnel and neck, the anode cap, the board along the bottom.
+  op("rect", 86, 66, 48, 2, PIPE + 6); op("rect", 86, 66, 2, 40, PIPE + 5); op("rect", 132, 66, 2, 40, PIPE + 4);
+  op("rect", 88, 68, 6, 30, CRT + 5); op("rect", 88, 68, 1, 30, CRT + 7);
+  op("poly", CRT + 2, [94, 68, 112, 76, 112, 90, 94, 98]);
+  op("line", 94, 68, 112, 76, CRT + 6); op("line", 100, 72, 100, 94, CRT + 1);
+  op("rect", 112, 79, 12, 8, CRT + 3); op("rect", 112, 79, 12, 1, CRT + 6); op("rect", 124, 80, 4, 6, PIPE + 6);
+  for (k = 0; k < 3; k++) op("rect", 126, 81 + k * 2, 3, 1, STICK + 6);
+  op("ellipse", 104, 75, 3, 2, TOOL + 1); op("line", 104, 73, 116, 68, TOOL + 2);
   op("rect", 88, 98, 44, 8, PCB + 3);
   for (k = 0; k < 8; k++) op("rect", 90 + k * 5, 99 + (k % 2), 3, 2, [PCB + 7, STICK + 5, TOOL + 4, PIPE + 7][k % 4]);
-  op("rect", 122, 72, 10, 12, STICK + 7); op("poly", 0, [128, 73, 124, 79, 127, 79, 125, 83, 130, 77, 127, 77]);
+  op("line", 128, 86, 118, 98, TOOL + 4); op("line", 126, 86, 108, 98, PIPE + 7);
+  op("rect", 122, 68, 10, 11, STICK + 7); op("poly", 0, [128, 69, 124, 74, 127, 74, 125, 78, 130, 72, 127, 72]);
   op("line", 132, 80, 140, 100, 0); op("line", 132, 81, 141, 101, TOOL + 2);
 
   // Soldering iron in its stand, tip still hot.
