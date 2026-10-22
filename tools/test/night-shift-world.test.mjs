@@ -190,3 +190,88 @@ test("the token is hinted in the text before it is found", () => {
   const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
   assert.match(g.command("look at cabinet").reply, /under/i);
 });
+
+// Post-playtest batch (Player1's full blind run).
+const PAIRS = [["are shut", "stand open"], ["rolled down", "rolled up"], ["is locked", "stands open"], ["catches the light", "nothing under"]];
+const DRAWER = { drawer1: "top drawer", drawer2: "middle drawer", drawer3: "bottom drawer" };
+function noContradiction(text, where) {
+  for (const [a, b] of PAIRS) assert.ok(!(text.includes(a) && text.includes(b)), `${where}: both "${a}" and "${b}"`);
+}
+
+test("room and object texts never contradict themselves along the route", async () => {
+  const { solve } = await import("../night-shift.mjs");
+  const route = solve(world, 20261022).actions;
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  for (const cmd of route) {
+    g.command(cmd);
+    const s = g.state();
+    noContradiction(s.room.text, `${cmd} / room ${s.room.id}`);
+    for (const o of s.objects) noContradiction(g.command("look at " + o.noun).reply, `${cmd} / ${o.id}`);
+  }
+});
+
+test("stale text: the van, the grille, the cabinet and the safe describe their current state", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  assert.match(g.command("look at cabinet").reply, /catches the light/);
+  g.command("search cabinet"); g.command("take token");
+  assert.doesNotMatch(g.command("look at cabinet").reply, /catches the light/);
+  g.command("east"); g.command("open first locker"); g.command("take key"); g.command("west");
+  g.command("unlock door with key"); g.command("north"); g.command("turn photo");
+  assert.match(g.command("look in safe").reply, /shut/);
+  g.command("open safe with " + g.params.combo); g.command("take ring");
+  assert.match(g.command("look in safe").reply, /open|empty hook/i);
+  g.command("south"); g.command("east"); g.command("open grille");
+  assert.doesNotMatch(g.state().room.text, /rolled down/);
+  assert.match(g.state().room.text, /rolled up/);
+  g.command("west"); g.command("west"); g.command("north"); g.command("search clipboard"); g.command("take fob"); g.command("out");
+  assert.match(g.state().room.text, /are shut/);
+  g.command("unlock van with fob");
+  assert.doesNotMatch(g.state().room.text, /are shut/);
+  assert.match(g.command("open van").reply, /already open/i);
+});
+
+test("Player1's nouns and replies: man, read label, already open, hints, dead leads paid off", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  g.command("west"); g.command("north"); g.command("search clipboard"); g.command("take fob"); g.command("out");
+  g.command("unlock van with fob"); g.command("enter van");
+  assert.match(g.command("read label").reply, /HOLD FOR/);
+  assert.equal(g.state().score, 5);
+  assert.match(g.command("search bundle").reply, /GALAXY PATROL/);
+  assert.match(g.command("pull blankets").reply, /GALAXY PATROL/);
+  g.command("out"); g.command("west");
+  assert.match(g.command("look at man").reply, /Dale/);
+  assert.match(g.command("look at sleeper").reply, /Dale/);
+  assert.match(g.command("give fob to lou").reply, /doesn't want/);
+  g.command("east"); g.command("in");
+  assert.match(g.command("search mat").reply, /envelope/i);
+  assert.match(g.command("take envelope").reply, /Taken|counted|cash/i);
+  assert.equal(g.state().maxScore, 100);
+  g.command("south"); g.command("down");
+  assert.match(g.command("open toolbox").reply, /already open/i);
+  assert.match(g.command("move toolbox").reply, /budge|heavy|stays/i);
+  assert.match(g.command("look at cabinet").reply, /drawers/i);
+  assert.match(g.command("take small brass key").reply, /You don't see|Which|Taken/);
+  g.command("open " + DRAWER[g.params.drawer]);
+  assert.equal(g.command("take small brass key").reply, "Taken.");
+  assert.equal(g.state().score, 15);
+});
+
+test("the accuse prompt names exactly what is missing", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  g.command("east"); g.command("open " + LOCKER[g.params.keyLocker]); g.command("take key"); g.command("west");
+  g.command("unlock door with key"); g.command("north");
+  assert.match(g.command("accuse rudy").reply, /key/i);
+  assert.doesNotMatch(g.command("accuse rudy").reply, /who had it/i);
+  g.command("south"); g.command("west"); g.command("down"); g.command("open " + DRAWER[g.params.drawer]); g.command("take panel key");
+  g.command("up"); g.command("east"); g.command("north");
+  const r = g.command("accuse rudy").reply;
+  assert.match(r, /who had it|says who/i);
+  assert.doesNotMatch(r, /bring me the key/i);
+  assert.equal(g.state().over, false);
+});
+
+test("look at marge away from the office says she is not here", () => {
+  const g = createGame(world, { random: mulberry32(20261022), bench: "case-150" });
+  assert.equal(g.command("look at marge").reply, "Marge is not here.");
+  assert.match(g.command("look at rudy").reply, /not here/);
+});

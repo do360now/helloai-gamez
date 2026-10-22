@@ -194,14 +194,22 @@ export function createGame(world, opts = {}) {
       if (p.verb === "enter") p = { ...p, verb: "go" };
       else if (p.verb !== "look" && p.verb !== "go") return "That is a way out, not a thing.";
     }
+    if (p.target && p.target.startsWith("exit:")) return "That is a way out, not a thing.";
     const isExit = !!p.object && p.object.startsWith("exit:");
     const name = p.object && !isExit ? objName(p.object) : null;
     switch (p.verb) {
-      case "look":
+      case "look": {
         if (p.dir) { const e = exits().find((x) => x.dir === p.dir); return e ? "That way lies " + (e.name || e.dir) + "." : "There is nothing that way."; }
         if (!p.object) return roomText();
         if (isExit) return "That way lies " + exits().find((e) => "exit:" + e.dir === p.object).name + ".";
-        return sub(obj(p.object).text || "You see nothing special about the " + name + ".");
+        const o = obj(p.object);
+        // Someone or something placed elsewhere is not here; an everywhere object with no place
+        // (an absent suspect) has its own description.
+        if (!visible(p.object) && !held(p.object) && S.placed[p.object]) return name + " is not here.";
+        let t = sub(o.text || "You see nothing special about the " + name + ".");
+        for (const x of o.extra || []) if (holds(x.require)) t += " " + sub(x.text);
+        return t;
+      }
       case "inventory":
         return S.inv.length ? "You are carrying: " + listNames(S.inv.map((id) => withArticle(objName(id), isProper(id)))) + "." : "You are carrying nothing.";
       case "go": {
@@ -257,6 +265,23 @@ export function createGame(world, opts = {}) {
         return "Score: " + S.score + " of " + maxScore + ", move " + S.turn + ", command " + S.commands + (budget ? " of " + budget : "") + ".";
       case "wait":
         return "Time passes.";
+      case "open":
+        return "The " + name + " doesn't open.";
+      case "close":
+        return "The " + name + " doesn't close.";
+      case "move": case "push": case "pull":
+        return "The " + name + " doesn't budge.";
+      case "put": case "insert":
+        return "The " + name + " doesn't go there.";
+      case "give": {
+        if (!p.target) return "Nothing happens.";
+        const t = obj(p.target);
+        return t.person ? objName(p.target) + " doesn't want the " + name + "." : "The " + objName(p.target) + " can't take it.";
+      }
+      case "use":
+        return p.target ? "The " + name + " does nothing to the " + objName(p.target) + "." : "Nothing happens.";
+      case "throw":
+        return "You would only have to pick the " + name + " up again.";
       default:
         return "Nothing happens.";
     }
@@ -359,6 +384,15 @@ export function createGame(world, opts = {}) {
     S.commands++;
     const events = [];
     let p = parse(cmd, world.verbs, nouns());
+    // "take" means something in the room: resolve against the room first, and only fall back to the
+    // pocket to say "You already have that."
+    if (p.verb === "take" && !p.error) {
+      const roomOnly = parse(cmd, world.verbs, nouns().filter((n) => !held(n.id)));
+      if (!roomOnly.error || roomOnly.error === "ambiguous") p = roomOnly;
+    } else if (p.verb === "take" && p.error === "ambiguous") {
+      const roomOnly = parse(cmd, world.verbs, nouns().filter((n) => !held(n.id)));
+      if (!roomOnly.error) p = roomOnly;
+    }
     let reply;
     let died = null;
     let won = null;
@@ -384,7 +418,11 @@ export function createGame(world, opts = {}) {
       if (!r.fired && fv && fv.fallback && p.object) { p = { ...p, verb: fv.fallback }; r = fire(p, events); }
       died = r.died; won = r.won; diedBy = r.id || null;
       const text = r.reply.join("\n");
-      reply = !r.fired || (!text && !died && !won) ? [text, defaults(p, events)].filter(Boolean).join("\n") : text;
+      if (!r.fired || (!text && !died && !won)) {
+        // A fired rule that said nothing still needs a reply: the verb's fallback (read -> look) or the default.
+        const dp = r.fired && fv && fv.fallback && p.object && p.verb === fv.verb ? { ...p, verb: fv.fallback } : p;
+        reply = [text, defaults(dp, events)].filter(Boolean).join("\n");
+      } else reply = text;
     }
     if (understood && !died && !won) {
       const t = turnRules(events);

@@ -313,3 +313,25 @@ test("a return exit gated on a flag nothing sets is a trap", () => {
   const r2 = check(w2, [SEED], "case-150", null, { combos: "each", walks: 1, length: 1 });
   assert.ok(!r2.problems.some((p) => /way back/.test(p)), r2.problems.join("; "));
 });
+
+test("check requires every person to have a descriptive noun besides their name", () => {
+  const w = structuredClone(world);
+  w.objects.lou.nouns = ["lou"];
+  const r = checkEach(w, [SEED]);
+  assert.ok(r.problems.some((p) => /lou/.test(p) && /noun/.test(p)), r.problems.join("; "));
+});
+
+test("play --out refuses placeholder names and takes --kind and --model; play echoes a command once", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "night-shift-play2-"));
+  const out = path.join(dir, "run.json");
+  const bad = await playPiped(["--out", out, "--disclosure", "blind"], "quit\n");
+  assert.equal(bad.code, 2);
+  assert.match(bad.err, /--name/);
+  const r = await playPiped(["--out", out, "--disclosure", "blind", "--name", "Player1", "--kind", "agent", "--model", "test-model"], "look at board\nquit\n");
+  assert.equal(r.code, 0, r.err);
+  assert.equal((r.out.match(/> look at board/g) || []).length, 1, r.out);
+  const run = JSON.parse(await readFile(out, "utf8"));
+  assert.equal(run.player.kind, "agent");
+  assert.equal(run.player.model, "test-model");
+  assert.equal(run.player.id, "player1");
+});

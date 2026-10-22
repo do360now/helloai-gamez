@@ -7,7 +7,7 @@
 //   node night-shift.mjs solve [seed]     print the planner's reference route (a good path, not a proven optimum)
 //   node night-shift.mjs route            print the reference route's length for the benchmark seed
 //   node night-shift.mjs verify <run.json ...>   replay recorded runs through the engine
-//   node night-shift.mjs play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]
+//   node night-shift.mjs play [seed] [--seed N] [--out run.json --disclosure blind|open-book --name NAME] [--kind human|agent|llm] [--model M] [--harness TEXT]
 //                                         play in the terminal; stdin may be piped
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -87,12 +87,14 @@ function keyOf(snap) {
   return JSON.stringify([snap.room, flags, snap.inv.slice().sort(), snap.placed, Object.keys(snap.revealed).sort(), Object.keys(snap.scored).sort(), snap.addedExits]);
 }
 
-// Flags that some require reads. Only these, plus scored events, items and revealed objects, count
-// as progress; a flag nothing reads cannot change what the player can do next.
+// Flags that some consequential require reads. Only these, plus scored events, items some rule
+// needs and revealed objects, count as progress; a flag read only by a rule that merely replies
+// (a "nothing else under there" line) cannot change what the player can do next.
+const consequential = (r) => (r.do || []).some((e) => e.reply === undefined || Object.keys(e).some((k) => k !== "reply"));
 function requiredFlags(world) {
   const out = new Set();
-  const add = (req) => { for (const k of Object.keys((req && req.flags) || {})) out.add(k); };
-  for (const r of world.rules || []) add(r.require);
+  const add = (req) => { for (const [k, v] of Object.entries((req && req.flags) || {})) if (v) out.add(k); };   // needed true
+  for (const r of world.rules || []) if (consequential(r)) add(r.require);
   for (const room of Object.values(world.rooms || {})) {
     for (const e of room.exits || []) add(e.require);
     for (const x of room.extra || []) add(x.require);
@@ -115,7 +117,7 @@ function progressOf(snap, flags, items) {
   const out = new Set();
   for (const id of Object.keys(snap.scored)) out.add("s:" + id);
   for (const id of snap.inv) if (items.has(id)) out.add("i:" + id);
-  for (const id of Object.keys(snap.revealed)) out.add("r:" + id);
+  for (const id of Object.keys(snap.revealed)) if (items.has(id)) out.add("r:" + id);
   for (const [k, v] of Object.entries(snap.flags)) if (v && flags.has(k)) out.add("f:" + k);
   return out;
 }
@@ -295,6 +297,10 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
     for (const x of room.extra || []) unknownKeys(x.require, REQUIRE_KEYS, "room " + rid + " extra require");
   }
   for (const [oid, o] of Object.entries(objects)) {
+    if (o.person) {
+      const name = normalize(String(o.name));
+      if (!(o.nouns || []).some((n) => !normalize(n).split(" ").includes(name))) problems.push("person " + oid + " has no descriptive noun besides the name (a blind player does not know the name yet)");
+    }
     for (const [tid, t] of Object.entries(o.topics || {})) {
       if (typeof t.reply !== "string") problems.push("object " + oid + " topic " + tid + " has no reply");
       unknownKeys(t, TOPIC_KEYS, "object " + oid + " topic " + tid);
@@ -563,7 +569,7 @@ export async function verify(runPath, opts = {}) {
 }
 
 function parsePlayArgs(rest, needDisclosure) {
-  const opts = { seed: null, out: null, disclosure: null, name: null, harness: null };
+  const opts = { seed: null, out: null, disclosure: null, name: null, harness: null, kind: null, model: null };
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === "--seed") opts.seed = rest[++i];
@@ -571,11 +577,15 @@ function parsePlayArgs(rest, needDisclosure) {
     else if (a === "--disclosure") opts.disclosure = rest[++i];
     else if (a === "--name") opts.name = rest[++i];
     else if (a === "--harness") opts.harness = rest[++i];
+    else if (a === "--kind") opts.kind = rest[++i];
+    else if (a === "--model") opts.model = rest[++i];
     else if (a.startsWith("--")) throw new Error("unknown option " + a);
     else opts.seed = a;
   }
   if (opts.disclosure !== null && !["blind", "open-book"].includes(opts.disclosure)) throw new Error("--disclosure must be blind or open-book");
   if (opts.out && needDisclosure && !opts.disclosure) throw new Error("this benchmark requires --disclosure blind|open-book with --out, so the run can be verified");
+  if (opts.out && !opts.name) throw new Error("--out needs --name (and --kind human|agent|llm, --model if it applies), so the run is not written with placeholders");
+  if (opts.kind !== null && !["human", "agent", "llm"].includes(opts.kind)) throw new Error("--kind must be human, agent or llm");
   if (opts.seed !== null) {
     if (!/^\d{1,10}$/.test(String(opts.seed))) throw new Error("seed must be a whole number, got " + opts.seed);
     opts.seed = Number(opts.seed);
@@ -602,7 +612,7 @@ async function play(seed, out, who = {}) {
     if (adapter.over()) break;
     await adapter.apply(line);
     actions.push(line);
-    console.log((tty ? "" : "> " + line + "\n") + "\n" + adapter.text());
+    console.log("\n" + adapter.text());   // text() ends with the command and its reply
     if (adapter.over()) break;
     prompt();
   }
@@ -610,7 +620,7 @@ async function play(seed, out, who = {}) {
   const run = { protocol: "arcade/0.1", game: world.id, bench: BENCH, seed, mode: "turn", actions, score: adapter.score(), over: adapter.over(), stats: adapter.stats() };
   if (out) {
     const id = (who.name || "your-handle").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "your-handle";
-    run.player = { id, name: who.name || "Your name", kind: "human", model: null, harness: who.harness || "terminal play, turn-based", notes: "" };
+    run.player = { id, name: who.name || "Your name", kind: who.kind || "human", model: who.model || null, harness: who.harness || "terminal play, turn-based", notes: "" };
     if (who.disclosure) run.player.disclosure = who.disclosure;
     run.date = new Date().toISOString().slice(0, 10);
     await writeFile(out, JSON.stringify(run) + "\n");
@@ -647,7 +657,7 @@ async function main(argv) {
     process.exit(failed ? 1 : 0);
   } else if (cmd === "play") {
     let opts;
-    try { opts = parsePlayArgs(rest, !!(bench && bench.disclosure)); } catch (e) { console.error(e.message + "\nusage: play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]"); process.exit(2); }
+    try { opts = parsePlayArgs(rest, !!(bench && bench.disclosure)); } catch (e) { console.error(e.message + "\nusage: play [seed] [--seed N] [--out run.json --disclosure blind|open-book --name NAME] [--kind human|agent|llm] [--model M] [--harness TEXT]"); process.exit(2); }
     await play(opts.seed === null ? seed : opts.seed, opts.out, opts);
   } else {
     console.log("usage: node night-shift.mjs check | solve [seed] | route | verify <run.json ...> | play [seed] [--seed N] [--out run.json --disclosure blind|open-book]");

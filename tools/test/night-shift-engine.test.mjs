@@ -404,7 +404,7 @@ test("a verb with fallback look examines the object when no rule matches", () =>
   w.verbs.push({ verb: "read", synonyms: [], args: 1, preps: [], usage: "read <object>", fallback: "look" });
   const g = createGame(w, { random: fixed([0.5]) });
   assert.equal(g.command("read mat").reply, "A doormat.");
-  assert.equal(g.command("pull mat").reply, "Nothing happens.");
+  assert.equal(g.command("pull mat").reply, "The mat doesn't budge.");
 });
 
 test("rule precedence counts individual conditions, not require keys", () => {
@@ -491,4 +491,68 @@ test("${param.name} substitutes the name of the object a parameter picks", () =>
   const g = createGame(w, { random: fixed([0.5, 0.5]) });
   g.command("east");
   assert.match(g.state().room.text, /The key is in the second locker\./);
+});
+
+// Post-playtest batch.
+test("a fired rule with no reply on a fallback verb still describes the object", () => {
+  const w = world();
+  w.verbs.push({ verb: "read", synonyms: [], args: 1, preps: [], usage: "read <object>", fallback: "look" });
+  w.rules.push({ id: "read-mat", when: { verb: "read", object: "mat" }, do: [{ score: 3 }] });
+  const g = createGame(w, { random: fixed([0.5]) });
+  assert.equal(g.command("read mat").reply, "A doormat.");
+  assert.equal(g.state().score, 3);
+});
+
+test("objects can have conditional extra text", () => {
+  const w = world();
+  w.objects.mat.extra = [{ require: { flags: { foundKey: false } }, text: "A corner is lifted." }, { require: { flags: { foundKey: true } }, text: "Flat now." }];
+  const g = createGame(w, { random: fixed([0.5]) });
+  assert.equal(g.command("look at mat").reply, "A doormat. A corner is lifted.");
+  g.command("search mat");
+  assert.equal(g.command("look at mat").reply, "A doormat. Flat now.");
+});
+
+test("take prefers what is in the room over what is in the pocket", () => {
+  const w = world();
+  w.objects.key2 = { name: "small brass key", nouns: ["small brass key", "brass key", "small key"], text: "Tiny.", takeable: true };
+  w.rooms.closet.objects.push("key2");
+  const g = createGame(w, { random: fixed([0.5]) });
+  g.command("search mat"); g.command("take key"); g.command("east");
+  assert.equal(g.command("take small brass key").reply, "Taken.");
+  assert.deepEqual(g.state().inventory.map((i) => i.id), ["key", "key2"]);
+  g.command("drop small brass key");
+  assert.equal(g.command("take brass key").reply, "Taken.");   // the one on the floor, not the one in the pocket
+  g.command("drop small brass key"); g.command("drop key");
+  assert.match(g.command("take brass key").reply, /^Which brass key: the (small )?brass key or the (small )?brass key\?$/);
+  assert.equal(g.command("take key").reply, "Taken.");   // only the plain key answers to "key"
+  g.command("drop key");
+  assert.equal(g.command("take small key").reply, "Taken.");
+  assert.equal(g.command("take brass key").reply, "Taken.");
+  g.command("drop small key"); g.command("west");
+  assert.equal(g.command("take key").reply, "You already have that.");
+});
+
+test("look respects presence for people placed elsewhere, but describes an absent everywhere object", () => {
+  const w = world();
+  w.objects.bob.everywhere = true;
+  w.objects.ghost = { name: "Ghost", nouns: ["ghost"], text: "Not here.", person: true, everywhere: true };
+  const g = createGame(w, { random: fixed([0.5]) });
+  g.command("east");
+  assert.equal(g.command("look at bob").reply, "Bob is not here.");
+  assert.equal(g.command("look at ghost").reply, "Not here.");
+});
+
+test("hint-style defaults for open, close, put, give, move, use and throw", () => {
+  const w = world();
+  for (const [verb, args, preps] of [["close", 1, []], ["put", 2, ["in", "on"]], ["give", 2, ["to"]], ["move", 1, []], ["throw", 2, ["at"]]]) w.verbs.push({ verb, synonyms: [], args, preps, usage: verb });
+  const g = createGame(w, { random: fixed([0.5]) });
+  g.command("search mat"); g.command("take key");
+  assert.equal(g.command("open cord").reply, "The cord doesn't open.");
+  assert.equal(g.command("close cord").reply, "The cord doesn't close.");
+  assert.equal(g.command("put key on mat").reply, "The brass key doesn't go there.");
+  assert.equal(g.command("give key to bob").reply, "Bob doesn't want the brass key.");
+  assert.equal(g.command("give key to mat").reply, "The mat can't take it.");
+  assert.equal(g.command("move mat").reply, "The mat doesn't budge.");
+  assert.equal(g.command("use key on mat").reply, "The brass key does nothing to the mat.");
+  assert.equal(g.command("throw key at cord").reply, "You would only have to pick the brass key up again.");
 });
