@@ -119,14 +119,16 @@ export function mount(root, game, world, submit) {
 
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var t = input.value; input.value = "";
+    var t = input.value;
+    // An unfinished tapped command ("ask marge about ") must not spend a command; text the player edited is sent as typed.
+    if (pending && t === partial(pending)) { input.focus(); return; }
+    input.value = "";
     send(t);
   });
   input.addEventListener("keydown", function (ev) {
     if (ev.key === "ArrowUp" && history.length) { hpos = Math.max(0, hpos - 1); input.value = history[hpos]; ev.preventDefault(); }
     else if (ev.key === "ArrowDown" && history.length) { hpos = Math.min(history.length, hpos + 1); input.value = history[hpos] || ""; ev.preventDefault(); }
     else if (ev.key === "Escape") { pending = null; input.value = ""; if (s) paintVerbs(); }
-    else if (pending && ev.key === "Enter") pending = null; // typed text replaces a tapped partial
   });
 
   paint();
