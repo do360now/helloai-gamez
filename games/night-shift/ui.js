@@ -29,6 +29,8 @@ export function mount(root, game, world, submit) {
   }
 
   // A verb button either sends a bare verb ("look", "inventory") or waits for a tapped object or typed noun.
+  // Usage can list alternatives ("look | look at <object>"); the first is the shortest form, so "look" sends at once.
+  function firstForm(usage) { return (usage || "").split("|")[0].trim(); }
   function slots(usage) { return (usage || "").match(/<[^>]+>/g) || []; }
 
   // The command so far: the usage template with the arguments collected up to the next empty slot.
@@ -39,8 +41,9 @@ export function mount(root, game, world, submit) {
   }
 
   function verbClick(v) {
-    if (!slots(v.usage).length) return send(v.verb);
-    pending = pending && pending.verb === v.verb ? null : { verb: v.verb, usage: v.usage, args: [] };
+    var form = firstForm(v.usage);
+    if (!slots(form).length) return send(v.verb);
+    pending = pending && pending.verb === v.verb ? null : { verb: v.verb, usage: form, args: [] };
     input.value = pending ? partial(pending) : "";
     input.focus();
     paintVerbs();

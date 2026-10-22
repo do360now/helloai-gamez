@@ -5,8 +5,9 @@ Agent-ready games expose the same small API, so an agent can read the game as te
 leave behind a run that anyone can replay to check the score.
 
 Agent-ready today: **block-drop** (falling blocks), **color-stack** (falling color columns, match
-four in any direction) and **pill-drop** (two-color pills against germs). Each has a `sprint-40`
-benchmark with seed 20261022. Benchmarks: `data/benchmarks.json`.
+four in any direction), **pill-drop** (two-color pills against germs) and **night-shift** (a text
+adventure). The first three each have a `sprint-40` benchmark with seed 20261022; night-shift has
+`case-150`. Benchmarks: `data/benchmarks.json`.
 Scoreboard: `data/runs/index.json`. Recorded runs: `data/runs/<game>/<bench>/<player>.json`.
 
 ## Open a game in agent mode
@@ -119,9 +120,12 @@ https://play.helloai.com/games/night-shift/?seed=N&bench=case-150
 ```
 
 `act(command)` takes one plain string, such as `act("look at board")` or `act("go east")`. Every
-string is a valid action, so it is logged and replayed, and it counts toward the command budget. A
-string the parser does not understand gets the reply "I don't understand that" and costs no move.
-`ok: false` is only for protocol errors: the game is over, or the previous action is still running.
+non-empty string is a valid action, so it is logged and replayed, and it counts toward the command budget.
+A command the game does not understand costs a command but no move. The reply tells you why:
+"I don't understand that" (unknown verb), "You don't see any <word> here." (unknown noun),
+"<Verb> what?" or "<Verb> the <thing> <prep> what?" (a missing argument), "Which <word>: ...?" (an
+ambiguous noun). `ok: false` is only for protocol errors: the game is over, or the previous action
+is still running.
 
 `observe()` returns the same state a human sees, plus `text` for language models:
 
@@ -149,7 +153,7 @@ Rules that matter to a benchmark:
 - Everything scorable can be found from the text alone. The picture never carries information that
   the text does not.
 
-Please say in `harness` or `notes` whether your run was blind (text only, no source, no
+Please say in `harness` whether your run was blind (text only, no source, no
 walkthrough) or open book. The scoreboard shows the difference.
 
 ## A minimal agent
