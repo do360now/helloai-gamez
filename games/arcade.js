@@ -203,13 +203,18 @@
   Arcade.onGameOver = function () { saveBest(); emit("over"); };
   Arcade.on = function (fn) { Arcade.listeners.push(fn); };
 
-  // A thin strip at the top of the page saying which mode this is, with links back to the scoreboard.
+  // A strip at the top of a benchmark or agent page: seed, piece count, and the score to beat.
+  // Hidden in the home-page embed. Casual play (no bench, no agent) gets no strip.
   function banner() {
-    if (Arcade.embed || !Arcade.agent) return;
+    if (Arcade.embed || (!Arcade.agent && !Arcade.bench)) return;
+    var playing = Arcade.agent && !Arcade.replaying;
     var bar = document.createElement("div");
+    bar.id = "arcade-banner";
     bar.style.cssText = "position:fixed;top:0;left:0;right:0;z-index:2147483646;display:flex;gap:12px;align-items:center;" +
       "justify-content:center;flex-wrap:wrap;padding:6px 12px;font:600 11px/1.5 ui-monospace,Consolas,monospace;letter-spacing:.06em;" +
-      "color:#0a0a0b;background:#c8ff00";
+      (playing
+        ? "color:#0a0a0b;background:#c8ff00;"
+        : "color:#c8ff00;background:#0a0a0b;border-bottom:1px solid #2e2e35;");
     var text = document.createElement("span");
     var link = document.createElement("a");
     link.href = "/#scoreboard";
@@ -217,37 +222,83 @@
     link.style.cssText = "color:inherit;text-decoration:underline";
     bar.appendChild(text);
     bar.appendChild(link);
-    function render() {
+    var leader = null;
+    var leaderState = Arcade.bench ? "loading" : "ready";
+    function pieceNoun() {
+      return Arcade.adapter && Arcade.adapter.id === "pill-drop" ? "pill" : "piece";
+    }
+    function contest() {
       var a = Arcade.adapter;
+      var info = benchInfo();
+      var obs = null;
+      try { obs = a.observe(); } catch (e) { obs = null; }
+      var bits = [];
       if (Arcade.replaying && Arcade.run) {
-        var p = Arcade.run.player || {};
-        text.textContent = "REPLAY: " + (p.name || "unknown") + " | recorded score " + Number(Arcade.run.score).toLocaleString("en-US") +
-          " | now " + a.score().toLocaleString("en-US");
-      } else {
-        text.textContent = "TURN-BASED: no gravity, take your time. Every move is recorded" + (a.over() ? "." : " | score " + a.score().toLocaleString("en-US"));
+        var who = (Arcade.run.player && Arcade.run.player.name) || "unknown";
+        bits.push("REPLAY " + who);
+        bits.push("recorded " + Number(Arcade.run.score).toLocaleString("en-US"));
+        bits.push("now " + a.score().toLocaleString("en-US"));
+      } else if (playing) {
+        bits.push("TURN-BASED");
       }
+      if (info && info.label) bits.push(String(info.label).toUpperCase());
+      else if (Arcade.bench) bits.push(Arcade.bench);
+      if (Arcade.seeded) bits.push("seed " + Arcade.seed);
+      if (info && info.pieces) {
+        var n = obs && typeof obs.pieces === "number" ? obs.pieces : 0;
+        var live = !!(obs && !a.over() && (obs.piece || obs.pill));
+        var shown = live ? Math.min(info.pieces, n + 1) : Math.min(info.pieces, n);
+        bits.push(pieceNoun() + " " + shown + "/" + info.pieces);
+      }
+      if (!Arcade.replaying && leader) {
+        bits.push("beat " + Number(leader.score).toLocaleString("en-US") + " (" + (leader.player && leader.player.name || "leader") + ")");
+      } else if (!Arcade.replaying && leaderState === "ready" && Arcade.bench) {
+        bits.push("no verified run yet");
+      }
+      if (playing) bits.push(a.over() ? "run complete" : "score " + a.score().toLocaleString("en-US"));
+      return bits.join(" · ");
+    }
+    function render() {
+      text.textContent = contest();
+      if (leader && leader.player && leader.player.harness) text.title = leader.player.harness;
+      if (bar.parentNode) document.body.style.paddingTop = bar.offsetHeight + 8 + "px";
     }
     render();
     Arcade.on(function (type) {
       render();
-      if (type === "over" && !Arcade.replaying && !bar.querySelector("button")) {
+      if (type === "over" && playing && !bar.querySelector("button")) {
         var b = document.createElement("button");
         b.textContent = "DOWNLOAD RUN (JSON)";
         b.style.cssText = "font:inherit;color:#c8ff00;background:#0a0a0b;border:0;border-radius:999px;padding:3px 10px;cursor:pointer";
         b.onclick = function () {
           var run = record();
-          run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: "played by hand, turn-based" };
+          run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: "played by hand, turn-based", notes: "" };
           run.date = new Date().toISOString().slice(0, 10);
           var url = URL.createObjectURL(new Blob([JSON.stringify(run) + "\n"], { type: "application/json" }));
-          var link = document.createElement("a");
-          link.href = url;
-          link.download = run.game + "-" + (run.bench || "free") + "-" + run.score + ".json";
-          link.click();
+          var file = document.createElement("a");
+          file.href = url;
+          file.download = run.game + "-" + (run.bench || "free") + "-" + run.score + ".json";
+          file.click();
           setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         };
         bar.appendChild(b);
       }
     });
+    setInterval(render, 300);
+    if (Arcade.bench && Arcade.adapter) {
+      fetch("/data/runs/index.json", { cache: "no-cache" })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+        .then(function (data) {
+          var runs = (data.runs || []).filter(function (r) {
+            return r.game === Arcade.adapter.id && r.bench === Arcade.bench && r.seed === Arcade.seed;
+          });
+          runs.sort(function (a, b) { return b.score - a.score; });
+          leader = runs[0] || null;
+          leaderState = "ready";
+          render();
+        })
+        .catch(function () { leaderState = "error"; render(); });
+    }
     document.body.appendChild(bar);
     document.body.style.paddingTop = bar.offsetHeight + 8 + "px";
   }

@@ -24,7 +24,9 @@ https://play.helloai.com/games/block-drop/?agent=1&seed=20261022&bench=sprint-40
 | `speed=MS`  | Delay between replayed moves (default 140). |
 
 Without `agent=1` the game runs in real time for humans. With `seed` and `bench` set, a human
-plays the same benchmark, with gravity.
+plays the same benchmark, with gravity. The page then shows the benchmark, the seed, the piece
+count, and the verified score to beat. `observe().text` is the board spec. The sample below
+skips empty rows; the live text returns every row.
 
 ## The API: `window.arcade`
 
@@ -98,7 +100,7 @@ legend: # filled, @ current piece, + where it lands, . empty
  0 ....@@....
  1 ....@@....
  2 ..........
-   ...
+# rows 3-17 omitted here. observe().text returns every row.
 18 ....++....
 19 ....++....
 ```
@@ -120,7 +122,18 @@ while (!obs.over) {
   const move = await decide(obs.text, obs.placements);   // your model or code, e.g. "place 1 9"
   obs = await page.evaluate((m) => arcade.act(m), move);
 }
-console.log(JSON.stringify(await page.evaluate(() => arcade.run())));
+const run = await page.evaluate(() => arcade.run());
+run.player = {
+  id: "my-agent",
+  name: "My agent",
+  kind: "llm",          // "llm", "agent", or "human"
+  model: "model-name",
+  harness: "text board, one place per piece, no search",
+  notes: "one attempt",
+};
+run.date = new Date().toISOString().slice(0, 10);
+// Save as data/runs/<game>/<bench>/<id>.json and open a pull request.
+console.log(JSON.stringify(run));
 ```
 
 No browser automation? `tools/agents/bridge.mjs` in the repository puts a game behind a local

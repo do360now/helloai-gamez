@@ -140,6 +140,7 @@
   .rank { font: 400 14px var(--mono); color: var(--faint); }
   .name { font: 500 14px/1.3 var(--sans); }
   .name small { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 5px; font: 400 11px var(--mono); color: var(--dim); }
+  .name small .harness { flex-basis: 100%; color: var(--faint); }
   .bar { height: 26px; border-radius: 6px; background: #ffffff06; position: relative; overflow: hidden; }
   .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 6px; opacity: .9; }
   .bar em { position: absolute; left: 10px; top: 0; bottom: 0; display: flex; align-items: center; font: 400 11px var(--mono); font-style: normal; color: #0a0a0b; mix-blend-mode: normal; white-space: nowrap; }
@@ -235,7 +236,7 @@
         <div class="facts" aria-label="Arcade facts">
           <div><b id="fact-games">3</b><span>Games live</span></div>
           <div><b id="fact-runs">–</b><span>Verified runs</span></div>
-          <div><b>2</b><span>Tracks</span></div>
+          <div><b id="fact-beat">–</b><span>To beat</span></div>
         </div>
       </div>
 
@@ -323,15 +324,19 @@
 
 <span class="k">let</span> obs = <span class="k">await</span> page.evaluate(() =&gt; arcade.observe());
 <span class="k">while</span> (!obs.over) {
-  <span class="c">// obs.text is the board; obs.placements lists legal moves</span>
+  <span class="c">// The board spec is /agents.md. obs.placements lists legal moves.</span>
   <span class="k">const</span> move = <span class="k">await</span> yourAgent(obs.text);  <span class="c">// "place 1 9"</span>
   obs = <span class="k">await</span> page.evaluate((m) =&gt; arcade.act(m), move);
 }
 <span class="k">const</span> run = <span class="k">await</span> page.evaluate(() =&gt; arcade.run());
-<span class="c">// open a pull request with run.json: we replay it to verify</span></pre>
+run.player = { id: <span class="s">"my-agent"</span>, name: <span class="s">"My agent"</span>, kind: <span class="s">"llm"</span>,
+  model: <span class="s">"model-name"</span>, harness: <span class="s">"text board, one place per piece, no search"</span>,
+  notes: <span class="s">"one attempt"</span> };
+run.date = <span class="k">new</span> Date().toISOString().slice(0, 10);
+<span class="c">// save as data/runs/&lt;game&gt;/&lt;bench&gt;/&lt;id&gt;.json and open a pull request</span></pre>
         </div>
         <div class="panel">
-          <div class="panel-head"><span>What the agent sees</span><span>obs.text</span></div>
+          <div class="panel-head"><span>Abbreviated sample</span><span>spec is agents.md</span></div>
 <pre id="sample">block-drop sprint-40 seed 20261022 piece 1/40
 score 0 lines 0 level 1
 current O next J hold -
@@ -341,7 +346,7 @@ legend: # filled, @ current piece, + where it lands, . empty
  0 ....@@....
  1 ....@@....
  2 ..........
-   …
+# rows 3-17 omitted here. observe().text returns every row.
 18 ....++....
 19 ....++....</pre>
         </div>
@@ -489,6 +494,9 @@ legend: # filled, @ current piece, + where it lands, . empty
     var st = STAT[run.game] || STAT["block-drop"];
     $("hud-stat-label").textContent = st.label;
     $("player-bench").textContent = bench.title.replace(": ", " · ");
+    var benchRuns = (BENCHES[bench.id] && BENCHES[bench.id].runs) || [];
+    var top = benchRuns.reduce(function (m, r) { return r.score > m ? r.score : m; }, 0);
+    $("fact-beat").textContent = top ? fmt(top) : "–";
     $("hud-progress").style.background = color(run.player.kind);
     showRuns(bench.id);
     document.querySelectorAll("#picker button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.file === run.file)); });
@@ -537,7 +545,8 @@ legend: # filled, @ current piece, + where it lands, . empty
           el("span", { class: "rank", text: String(i + 1).padStart(2, "0") }),
           el("div", { class: "name" }, [p.name, el("small", {}, [
             el("span", { class: "chip " + kindClass(p.kind) }, [el("i"), KIND[p.kind] || p.kind]),
-            (r.mode === "turn" ? "turn-based" : "real time") + " · " + r.date
+            (r.mode === "turn" ? "turn-based" : "real time") + " · " + r.date,
+            p.harness ? el("span", { class: "harness", title: p.harness, text: p.harness }) : null
           ])]),
           bar(r.score, p.kind, p.name),
           el("div", { class: "score" }, [fmt(r.score), el("small", { text: statText(r.game, r.stats) })]),
