@@ -9,14 +9,14 @@ import { createGame, mulberry32 } from "../../games/night-shift/engine.js";
 const SEED = 20261022;
 const world = await loadWorld();
 const SCORED = ["accuse", "back-panel", "find-token", "lou:dale", "lou:rudy", "notice-board", "open-safe", "panel-key", "phone", "read-clipboard", "read-ledger", "see-label", "service-mode", "unlock-office"];
-const PAR = 48;
+const ROUTE = 48;
 const EACH = { combos: "each" };
 const checkEach = (w, seeds) => check(w, seeds, "case-150", undefined, EACH);
 
-test("solve finds the full path at par, and only types a code it has seen", () => {
+test("solve finds the full reference route, and only types a code it has seen", () => {
   const s = solve(world, SEED);
   assert.ok(s, "no solution");
-  assert.equal(s.par, PAR);
+  assert.equal(s.route, ROUTE);
   assert.ok(s.actions.some((a) => /photo/.test(a)), s.actions.join(" | "));
   assert.equal(s.score, 100);
   assert.deepEqual(s.scored, SCORED);
@@ -26,13 +26,13 @@ test("solve finds the full path at par, and only types a code it has seen", () =
   assert.equal(g.state().score, 100);
 });
 
-test("check passes on world.json across five seeds and reports par", () => {
+test("check passes on world.json across five seeds and reports the reference route", () => {
   const r = checkEach(world, [SEED, 1, 2, 3, 4]);
   assert.deepEqual(r.problems, []);
   assert.equal(r.ok, true);
   assert.equal(r.maxScore, 100);
   assert.deepEqual(r.scored, SCORED);
-  assert.equal(r.par, PAR);
+  assert.equal(r.route, ROUTE);
 });
 
 test("check reports a declared maxScore that differs from the rules", () => {
@@ -53,19 +53,20 @@ test("check reports a hidden object no rule reveals and a reference to a missing
   assert.ok(r.problems.some((p) => /nothing/.test(p)), r.problems.join("; "));
 });
 
-test("check reports a seed whose par or score differs", () => {
+test("check reports a seed whose route or score differs", () => {
   const w = structuredClone(world);
   // The safe needs an extra command on some seeds only: a seeded rule that jams the safe once.
+  // (reported as a route difference)
   const seeds = [SEED, 1, 2, 3, 4];
   const combos = seeds.map((s) => createGame(world, { random: mulberry32(s) }).params.combo);
   const combo = combos.find((c) => combos.filter((x) => x === c).length < seeds.length);
   assert.ok(combo, "all five seeds share a combination; pick other seeds");
   for (const verb of ["open", "turn", "unlock"]) {
-    w.rules.push({ id: "jam-" + verb, when: { verb, object: "safe", code: { param: "combo" } }, require: { param: { combo }, flags: { safeJammed: false } }, do: [{ flag: "safeJammed", value: true }, { reply: "The handle sticks. Try again." }] });
+    w.rules.push({ id: "jam-" + verb, when: { verb, object: "safe", code: { param: "combo" } }, require: { param: { combo }, flags: { safeJammed: false, readPhoto: true } }, do: [{ flag: "safeJammed", value: true }, { reply: "The handle sticks. Try again." }] });
   }
   const r = checkEach(w, seeds);
   assert.equal(r.ok, false);
-  assert.ok(r.problems.some((p) => /par/.test(p)), r.problems.join("; "));
+  assert.ok(r.problems.some((p) => /route/.test(p)), r.problems.join("; "));
 });
 
 test("check reports a malformed draw list", () => {
@@ -241,4 +242,32 @@ test("play reads piped input line by line, accepts --seed, and writes the run wi
   const bad = await playPiped(["--frobnicate"], "quit\n");
   assert.notEqual(bad.code, 0);
   assert.match(bad.err, /unknown option --frobnicate/);
+});
+
+// Winnability: exact structural checks, and a sampled check that is labelled as such.
+test("check reports a flag set to false and an item consumed while another rule still needs it", () => {
+  const w = structuredClone(world);
+  w.rules.push({ id: "relock", when: { verb: "close", object: "door" }, do: [{ flag: "officeOpen", value: false }, { reply: "Locked again." }] });
+  w.rules.push({ id: "lose-ring", when: { verb: "throw", object: "ring", target: "slush" }, do: [{ move: "ring", to: null }, { reply: "Gone." }] });
+  const r = checkEach(w, [SEED]);
+  assert.ok(r.problems.some((p) => /relock/.test(p) && /false/.test(p)), r.problems.join("; "));
+  assert.ok(r.problems.some((p) => /lose-ring/.test(p) && /ring/.test(p)), r.problems.join("; "));
+});
+
+test("check proves a code rule is gated on a flag whose setters show the value", () => {
+  const w = structuredClone(world);
+  for (const id of ["turn-photo", "read-photo", "search-photo"]) w.rules.find((x) => x.id === id).do = [{ flag: "readPhoto", value: true }, { reply: "Nothing on the back." }];
+  const r = checkEach(w, [SEED]);
+  assert.ok(r.problems.some((p) => /combo/.test(p) && /readPhoto/.test(p)), r.problems.join("; "));
+});
+
+test("the sampled winnability check finds a trap room and says it is sampled", () => {
+  const w = structuredClone(world);
+  w.rooms.pit = { name: "Pit", text: "A pit with no way out.", exits: [], objects: [], draw: [] };
+  w.rules.push({ id: "fall", when: { verb: "search", object: "stain" }, do: [{ goto: "pit" }] });
+  const r = checkEach(w, [SEED]);
+  assert.ok(r.problems.some((p) => /pit|unwinnable|cannot reach/.test(p)), r.problems.join("; "));
+  const ok = checkEach(world, [SEED]);
+  assert.match(ok.summary, /sampled/);
+  assert.ok(ok.sampled > 0);
 });

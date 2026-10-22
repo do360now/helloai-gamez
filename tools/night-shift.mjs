@@ -1,8 +1,10 @@
-// Night Shift tools: the solver that proves the benchmark invariants, the world checker, a Node
-// replay verifier for recorded runs, and a REPL to play from the terminal.
-//   node night-shift.mjs check            validate world.json and prove the invariants over every parameter combination (CI)
-//   node night-shift.mjs solve [seed]     print the optimal command list and par
-//   node night-shift.mjs par              print par for the benchmark seed
+// Night Shift tools: the world checker (structural proofs plus a planner-based consistency check),
+// the planner that produces the reference route, a Node replay verifier for recorded runs, and a
+// REPL to play from the terminal.
+//   node night-shift.mjs check            validate world.json: exact structural checks, the reference route on every
+//                                         parameter combination, and a sampled (not proven) winnability check (CI)
+//   node night-shift.mjs solve [seed]     print the planner's reference route (a good path, not a proven optimum)
+//   node night-shift.mjs route            print the reference route's length for the benchmark seed
 //   node night-shift.mjs verify <run.json ...>   replay recorded runs through the engine
 //   node night-shift.mjs play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]
 //                                         play in the terminal; stdin may be piped
@@ -38,6 +40,8 @@ function nounOf(world, id, params) {
 
 const pidOf = (params) => (v) => (v && typeof v === "object" && v.param ? params[v.param] : v);
 const isRef = (v) => !!(v && typeof v === "object" && v.param);
+// A structural (parameter-independent) id: a param reference becomes "<param name>".
+const idOf = (v) => (isRef(v) ? "<param " + v.param + ">" : v);
 
 // The commands worth trying from a state: exits, takes, every rule phrased from its `when`, and
 // every topic of every person in the room. Everything else cannot change the state.
@@ -115,13 +119,15 @@ function progressOf(snap, flags, items) {
   return out;
 }
 
-// Plans the shortest command list to the full score and the win. Points are never lost and nothing
-// is consumed except on the thing it is for, so the plan is greedy: from the current state, a
-// breadth-first search finds the nearest state with new progress (a scored event, an item, a
-// revealed object, or a flag some rule reads), commits to it, and repeats. Commands that kill are
-// pruned. Blind (the default): a seeded value may only be typed once some text the player has read
-// showed it, so par is a path a player can take from the text alone. {blind: false} is omniscient.
-// `random` may be a seed number or a random function.
+// Plans a command list to the full score and the win: the reference route. Points are never lost
+// and nothing is consumed except on the thing it is for (check proves that structurally), so the
+// plan is greedy: from the current state, a breadth-first search finds the nearest state with new
+// progress (a scored event, an item some rule needs, a revealed object, or a flag some rule reads),
+// commits to it, and repeats. Commands that kill are pruned. The result is a good path, not a
+// proven optimum: an exact search over ten rooms grows past millions of states. Blind (the
+// default): a seeded value may only be typed once some text the player has read showed it, so the
+// route is one a player can take from the text alone. {blind: false} is omniscient. {from: snapshot}
+// plans from that state instead of the start. `random` may be a seed number or a random function.
 export function solve(world, random, bench = BENCH, opts = {}) {
   const blind = opts.blind !== false;
   const rng = typeof random === "function" ? random : mulberry32(random);
@@ -138,6 +144,7 @@ export function solve(world, random, bench = BENCH, opts = {}) {
   };
   const keyWith = (snap, learned) => keyOf(snap) + (blind ? "|" + [...learned].sort().join(",") : "");
 
+  if (opts.from) game.restore(opts.from);
   let cur = slim(game.snapshot());
   let learned = learnFrom(new Set(), game.state().room.text);
   const path = [];
@@ -160,7 +167,7 @@ export function solve(world, random, bench = BENCH, opts = {}) {
           if (after.over) {
             if (after.reason === "win" && after.score === max) {
               const actions = path.concat(p);
-              return { par: actions.length, actions, scored: Object.keys(after.scored).sort(), score: after.score, states, params: game.params };
+              return { route: actions.length, actions, scored: Object.keys(after.scored).sort(), score: after.score, states, params: game.params };
             }
             continue;
           }
@@ -187,6 +194,37 @@ export function solve(world, random, bench = BENCH, opts = {}) {
     cur = found.snap; learned = found.learned; path.push(...found.path);
   }
   return null;
+}
+
+// Random walks for the sampled winnability check: every verb against every visible or held noun,
+// plus exits, drop and wait, and typed codes. Deaths are allowed (they rewind). Returns snapshots.
+export function sampleStates(world, random, bench = BENCH, opts = {}) {
+  const walks = opts.walks || 40;
+  const length = opts.length || 30;
+  const rng = mulberry32(opts.seed || 7);
+  const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+  const out = [];
+  for (let n = 0; n < walks; n++) {
+    const game = createGame(world, { random: typeof random === "function" ? random : mulberry32(random), bench });
+    const codes = Object.values(game.params).filter((v) => /^\d+$/.test(String(v)));
+    for (let i = 0; i < length && !game.over; i++) {
+      const s = game.state();
+      const nouns = s.objects.map((o) => o.noun).concat(s.inventory.map((o) => o.noun));
+      const kind = rng();
+      let cmd;
+      if (kind < 0.25 && s.exits.length) cmd = pick(s.exits).dir;
+      else if (kind < 0.35 && s.inventory.length) cmd = "drop " + pick(s.inventory).noun;
+      else if (kind < 0.4) cmd = "wait";
+      else if (kind < 0.5 && codes.length && nouns.length) cmd = pick(["open", "turn", "unlock"]) + " " + pick(nouns) + " with " + pick(codes);
+      else if (nouns.length) {
+        const v = pick(world.verbs);
+        cmd = v.args === 2 ? v.verb + " " + pick(nouns) + " " + (v.preps[0] || "with") + " " + pick(nouns) : v.args === 1 ? v.verb + " " + pick(nouns) : v.verb;
+      } else cmd = "wait";
+      game.command(cmd);
+    }
+    if (!game.over) out.push(game.snapshot());
+  }
+  return out;
 }
 
 function words(text) {
@@ -219,7 +257,8 @@ export function paramCombosEach(world) {
   return paramCombos(world).filter((x) => picks.some((p) => names.every((n) => p[n] === x.pick[n])));
 }
 
-// Validates world.json and proves the benchmark invariants over every parameter combination.
+// Validates world.json: exact structural checks, the reference route on every parameter
+// combination, and a sampled (not proven) winnability check.
 // opts.combos: "all" (the Cartesian product of every parameter, the default and what CI runs) or
 // "each" (every choice of every parameter, varied one at a time; faster, used by the tests).
 export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALIDATOR, opts = {}) {
@@ -229,6 +268,7 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
   const params = world.params || {};
   const verbs = new Set((world.verbs || []).map((v) => v.verb));
   const combos = opts.combos === "each" ? paramCombosEach(world) : paramCombos(world);
+  const consumedBy = new Map();   // item id -> rule ids that move it to null
   const isRef = (v) => v && typeof v === "object" && v.param;
   const refOk = (v, where) => { if (isRef(v) && !params[v.param]) problems.push(where + ": unknown param " + v.param); };
   const unknownKeys = (obj, allowed, where) => { for (const k of Object.keys(obj || {})) if (!allowed.has(k)) problems.push(where + ": unknown key " + k); };
@@ -266,12 +306,58 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
       unknownKeys(e, EFFECT_KEYS, where + " do");
       for (const k of ["reveal", "move", "to", "goto"]) refOk(e[k], where);
       if (e.exit) { if (!rooms[e.exit.room]) problems.push(where + ": unknown room " + e.exit.room); refOk(e.exit.to, where); }
+      if (e.flag !== undefined && e.value === false) problems.push(where + ": sets flag " + e.flag + " to false; flags must only ever go true, or a player could lock themselves out");
+      if (e.move !== undefined && (e.to === undefined || e.to === null)) { const id = idOf(e.move); if (!consumedBy.has(id)) consumedBy.set(id, []); consumedBy.get(id).push(r.id); }
       if (typeof e.score === "number") {
         const sid = e.id || r.id;
         if (pointsById.has(sid) && pointsById.get(sid) !== e.score) problems.push(where + ": score id " + sid + " is worth " + pointsById.get(sid) + " elsewhere but " + e.score + " here");
         pointsById.set(sid, e.score);
       }
     }
+  }
+  // An item may only be consumed by a rule after which nothing else can need it: every other rule
+  // that requires it must have fired already (its flag is set by the consuming rule) or score the
+  // same event. Simplest sound rule: a consumed item is required only by its consuming rules.
+  const requiresItem = (id) => (world.rules || []).filter((r) => ((r.require && r.require.has) || []).map(idOf).includes(id)).map((r) => r.id);
+  for (const [id, rules] of consumedBy) {
+    const others = requiresItem(id).filter((rid) => !rules.includes(rid));
+    if (others.length) problems.push("rule " + rules[0] + ": consumes " + id + " but " + others.join(", ") + " still require it; a player could lose the item before using it");
+  }
+  // Every room must have a way back to the start: no one-way trips (exits and goto effects both count).
+  {
+    const edges = {};
+    const link = (a, b) => { (edges[a] = edges[a] || new Set()).add(b); };
+    for (const [rid, room] of Object.entries(rooms)) for (const e of room.exits || []) if (rooms[idOf(e.to)]) link(rid, idOf(e.to));
+    // A goto fires where its object is: the rooms that hold it, or anywhere if it can be carried or
+    // is an everywhere object.
+    const sourcesOf = (r) => {
+      const oid = r.when && idOf(r.when.object);
+      const o = oid && objects[oid];
+      if (!o || o.takeable || o.everywhere) return Object.keys(rooms);
+      return Object.entries(rooms).filter(([, room]) => (room.objects || []).map(idOf).includes(oid)).map(([rid]) => rid);
+    };
+    for (const r of world.rules || []) {
+      for (const e of r.do || []) {
+        if (e.goto !== undefined && rooms[idOf(e.goto)]) for (const rid of sourcesOf(r)) link(rid, idOf(e.goto));
+        if (e.exit && rooms[e.exit.room] && rooms[idOf(e.exit.to)]) link(e.exit.room, idOf(e.exit.to));
+      }
+    }
+    const reach = (from) => { const seen = new Set([from]); const q = [from]; while (q.length) { const x = q.shift(); for (const y of edges[x] || []) if (!seen.has(y)) { seen.add(y); q.push(y); } } return seen; };
+    const fromStart = reach(world.start);
+    for (const rid of fromStart) if (!reach(rid).has(world.start)) problems.push("room " + rid + " has no way back to " + world.start + "; a player who goes there is stuck");
+  }
+  // A rule that needs a typed seeded value must be gated on a flag that is only set by rules whose
+  // text shows that value, so the value is always learned in-world before it can be used.
+  for (const r of world.rules || []) {
+    if (!r.when || !isRef(r.when.code)) continue;
+    const name = r.when.code.param;
+    const gates = Object.entries((r.require && r.require.flags) || {}).filter(([, v]) => v).map(([k]) => k);
+    const shows = (rule) => (rule.do || []).some((e) => typeof e.reply === "string" && e.reply.includes("${" + name + "}"));
+    const proven = gates.some((flag) => {
+      const setters = (world.rules || []).filter((x) => (x.do || []).some((e) => e.flag === flag && e.value !== false));
+      return setters.length && setters.every(shows);
+    });
+    if (!proven) problems.push("rule " + r.id + " needs ${" + name + "} but is not gated on a flag (" + (gates.join(", ") || "none") + ") that only rules showing ${" + name + "} set; a player could use the value before the text shows it");
   }
   if (typeof world.maxScore === "number" && world.maxScore !== maxScoreOf(world)) {
     problems.push("maxScore is declared as " + world.maxScore + " but the rules sum to " + maxScoreOf(world));
@@ -343,9 +429,10 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
     }
   }
 
-  let par = null;
+  let route = null;
   const maxScore = maxScoreOf(world);
   let scored = null;
+  let sampled = 0;
   if (!problems.length) {
     const results = [];
     const runs = combos.map((c) => ({ label: "params " + JSON.stringify(c.pick), random: c.random })).concat(seeds.map((s) => ({ label: "seed " + s, random: mulberry32(s) })));
@@ -358,26 +445,38 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
       }
       results.push({ label, ...s });
     }
-    // Any seeded value must be learned in-world before the action that uses it can succeed: an
-    // omniscient player must not beat the blind par.
+    // Smoke test of the seeded-value rule (the proof is the structural check above): an omniscient
+    // plan must not be shorter than the blind one.
     if (results.length) {
       const open = solve(world, combos.length ? combos[0].random : mulberry32(seeds[0] || 0), bench, { blind: false });
-      if (open && open.par < results[0].par) {
-        const codes = [...new Set((world.rules || []).filter((r) => r.when && isRef(r.when.code)).map((r) => r.when.code.param))];
-        problems.push("a seeded value (" + (codes.join(", ") || "parameter") + ") can be used before any text shows it: omniscient par " + open.par + " beats blind par " + results[0].par);
+      if (open && open.route < results[0].route) {
+        problems.push("an omniscient plan (" + open.route + ") beats the blind one (" + results[0].route + "): a seeded value is usable before the text shows it");
+      }
+    }
+    // Sampled winnability: from states reached by random walks, the planner must still reach the
+    // full score and the ending. Sampled, not proven; the structural checks above are the proof.
+    if (!problems.length) {
+      const rnd = combos.length ? combos[0].random : mulberry32(seeds[0] || 0);
+      const states = sampleStates(world, rnd, bench, { walks: opts.walks || 30, length: opts.length || 30 });
+      sampled = states.length;
+      for (const snap of states) {
+        const s = solve(world, rnd, bench, { blind: false, from: snap });
+        if (!s) { problems.push("sampled state in " + snap.room + " after " + snap.commands + " commands cannot reach the full score and the ending (unwinnable)"); break; }
       }
     }
     if (results.length) {
       const first = results[0];
-      par = first.par; scored = first.scored;
+      route = first.route; scored = first.scored;
       for (const r of results.slice(1)) {
-        if (r.par !== first.par) problems.push(r.label + ": par " + r.par + " differs from " + first.label + " (" + first.par + ")");
+        if (r.route !== first.route) problems.push(r.label + ": route " + r.route + " differs from " + first.label + " (" + first.route + ")");
         if (r.score !== first.score) problems.push(r.label + ": score " + r.score + " differs from " + first.label + " (" + first.score + ")");
         if (JSON.stringify(r.scored) !== JSON.stringify(first.scored)) problems.push(r.label + ": scorable events differ from " + first.label);
       }
     }
   }
-  return { ok: !problems.length, problems, par, maxScore, scored, combos: combos.length };
+  const summary = (problems.length ? "FAIL" : "ok") + ": " + world.id + " maxScore " + maxScore + (route ? ", reference route " + route + " commands" : "") +
+    " over " + combos.length + " parameter combinations; winnability sampled from " + sampled + " random states, not proven" + (scored ? "; scorable " + scored.join(",") : "");
+  return { ok: !problems.length, problems, route, maxScore, scored, combos: combos.length, sampled, summary };
 }
 
 // Replays a run's actions through the engine. Stops applying once the game is over.
@@ -488,14 +587,14 @@ async function main(argv) {
     const world = await loadWorld();
     const r = check(world, [seed]);
     for (const p of r.problems) console.log("PROBLEM " + p);
-    console.log((r.ok ? "ok" : "FAIL") + ": " + world.id + " maxScore " + r.maxScore + (r.par ? " par " + r.par : "") + " over " + r.combos + " parameter combinations" + (r.scored ? "; scorable " + r.scored.join(",") : ""));
+    console.log(r.summary);
     process.exit(r.ok ? 0 : 1);
-  } else if (cmd === "solve" || cmd === "par") {
+  } else if (cmd === "solve" || cmd === "route" || cmd === "par") {
     const world = await loadWorld();
     const s = solve(world, rest[0] ? Number(rest[0]) : seed);
-    if (!s) { console.log("no solution"); process.exit(1); }
-    if (cmd === "par") console.log(s.par);
-    else { console.log(s.actions.join("\n")); console.log("par " + s.par + ", score " + s.score + ", " + s.states + " states"); }
+    if (!s) { console.log("no route found"); process.exit(1); }
+    if (cmd !== "solve") console.log(s.route);
+    else { console.log(s.actions.join("\n")); console.log("reference route " + s.route + " commands (a good path, not a proven optimum), score " + s.score + ", " + s.states + " states"); }
   } else if (cmd === "verify") {
     let failed = 0;
     for (const f of rest) {
@@ -509,7 +608,7 @@ async function main(argv) {
     try { opts = parsePlayArgs(rest, !!(bench && bench.disclosure)); } catch (e) { console.error(e.message + "\nusage: play [seed] [--seed N] [--out run.json --disclosure blind|open-book] [--name NAME] [--harness TEXT]"); process.exit(2); }
     await play(opts.seed === null ? seed : opts.seed, opts.out, opts);
   } else {
-    console.log("usage: node night-shift.mjs check | solve [seed] | par | verify <run.json ...> | play [seed] [--seed N] [--out run.json --disclosure blind|open-book]");
+    console.log("usage: node night-shift.mjs check | solve [seed] | route | verify <run.json ...> | play [seed] [--seed N] [--out run.json --disclosure blind|open-book]");
     process.exit(2);
   }
 }
