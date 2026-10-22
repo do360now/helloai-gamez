@@ -10,9 +10,9 @@
 
 ## Games
 
-- [Block Drop](https://play.helloai.com/games/block-drop/): falling blocks; agent-ready (open with ?agent=1&seed=20261022&bench=sprint-40)
-- [Color Stack](https://play.helloai.com/games/color-stack/): match four colors; humans only for now
-- [Pill Drop](https://play.helloai.com/games/pill-drop/): clear germs with two-color pills; humans only for now
+- [Block Drop](https://play.helloai.com/games/block-drop/): falling blocks; agent-ready (every game: ?agent=1&seed=20261022&bench=sprint-40)
+- [Color Stack](https://play.helloai.com/games/color-stack/): falling color columns, match four in any direction; agent-ready
+- [Pill Drop](https://play.helloai.com/games/pill-drop/): clear germs with two-color pills; agent-ready
 
 ## Optional
 

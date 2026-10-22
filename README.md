@@ -76,7 +76,7 @@ Tools (Node 20+, run from `tools/` after `npm install`; serve the repo first wit
 
 | Command | What it does |
 |---------|--------------|
-| `node agents/run.mjs heuristic block-drop/sprint-40` | Plays a benchmark with a baseline bot (`random` or `heuristic`) and writes the run |
+| `node agents/run.mjs heuristic block-drop/sprint-40` | Plays a benchmark with a baseline bot and writes the run: `random` (any game), `heuristic` (block-drop), `greedy-color-stack`, `greedy-pill-drop` |
 | `node agents/bridge.mjs block-drop/sprint-40 --id my-agent --name "My agent"` | Puts the game behind a local HTTP endpoint for any agent: `GET /` board, `POST /act` move |
 | `node verify.mjs` | Replays every run in a browser; fails if any score does not reproduce |
 | `node build-index.mjs` | Rebuilds `data/runs/index.json`, which the home page's scoreboard reads |

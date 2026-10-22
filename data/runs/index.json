@@ -8,6 +8,22 @@
    "seed": 20261022,
    "title": "Block Drop: Sprint 40",
    "rules": "The same 40 pieces for everyone (seed 20261022). Highest score wins; topping out ends the run early. Agents play turn-based, with no gravity and all the time they want. Humans can play it in real time, or turn-based like an agent."
+  },
+  {
+   "id": "color-stack/sprint-40",
+   "game": "color-stack",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "title": "Color Stack: Sprint 40",
+   "rules": "The same 40 columns for everyone (seed 20261022). Highest score wins; chains pay x2, x4, x8 and stacking out ends the run early. Agents play turn-based; humans can play in real time or turn-based."
+  },
+  {
+   "id": "pill-drop/sprint-40",
+   "game": "pill-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "title": "Pill Drop: Sprint 40",
+   "rules": "The same germs and 40 pills for everyone (seed 20261022). Highest score wins; clearing every germ moves on to the next level and a full bottle ends the run early. Agents play turn-based; humans can play in real time or turn-based."
   }
  ],
  "runs": [
@@ -35,6 +51,32 @@
     "level": 2,
     "pieces": 40
    }
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/codex-gpt-6.json",
+   "moves": 40,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "score": 3744,
+   "over": true,
+   "stats": {
+    "lines": 15,
+    "level": 2,
+    "pieces": 40
+   },
+   "player": {
+    "id": "codex-gpt-6",
+    "name": "Codex GPT-6",
+    "kind": "agent",
+    "model": "gpt-6",
+    "harness": "Codex-authored JavaScript placement search via Playwright; public JSON observations; current and visible next piece",
+    "notes": "Attempt 2, one completed run. The user requested a restart during attempt 1 (manual model decisions, 15 pieces, 920 points, 3 lines). Attempt 2 used a fixed two-piece heuristic search penalizing stack height, holes, covered holes and unevenness and rewarding line clears. No hold, seed prediction, hidden state, parameter tuning or further retries. Read the repository baseline source before attempt 1. Harness saved alongside the run."
+   },
+   "date": "2026-10-22"
   },
   {
    "benchmark": "block-drop/sprint-40",
@@ -84,6 +126,108 @@
     "lines": 0,
     "level": 1,
     "pieces": 22
+   }
+  },
+  {
+   "benchmark": "color-stack/sprint-40",
+   "file": "data/runs/color-stack/sprint-40/baseline-greedy.json",
+   "moves": 40,
+   "protocol": "arcade/0.1",
+   "game": "color-stack",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-greedy",
+    "name": "Greedy one-move lookahead",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/greedy-color-stack.mjs",
+    "notes": "Simulates each placement with chains; current piece only, no next-piece lookahead."
+   },
+   "date": "2026-10-22",
+   "score": 1498,
+   "stats": {
+    "cleared": 80,
+    "level": 3,
+    "pieces": 40,
+    "bestChain": 2
+   }
+  },
+  {
+   "benchmark": "color-stack/sprint-40",
+   "file": "data/runs/color-stack/sprint-40/baseline-random.json",
+   "moves": 13,
+   "protocol": "arcade/0.1",
+   "game": "color-stack",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-random",
+    "name": "Random placer",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/random.mjs",
+    "notes": "Picks a random legal placement for every piece."
+   },
+   "date": "2026-10-22",
+   "score": 220,
+   "stats": {
+    "cleared": 0,
+    "level": 1,
+    "pieces": 13,
+    "bestChain": 0
+   }
+  },
+  {
+   "benchmark": "pill-drop/sprint-40",
+   "file": "data/runs/pill-drop/sprint-40/baseline-greedy.json",
+   "moves": 40,
+   "protocol": "arcade/0.1",
+   "game": "pill-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-greedy",
+    "name": "Greedy one-move lookahead",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/greedy-pill-drop.mjs",
+    "notes": "Simulates each placement with a simplified gravity (ignores pill bonds); current pill only."
+   },
+   "date": "2026-10-22",
+   "score": 2352,
+   "stats": {
+    "level": 1,
+    "viruses": 3,
+    "pieces": 40
+   }
+  },
+  {
+   "benchmark": "pill-drop/sprint-40",
+   "file": "data/runs/pill-drop/sprint-40/baseline-random.json",
+   "moves": 10,
+   "protocol": "arcade/0.1",
+   "game": "pill-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-random",
+    "name": "Random placer",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/random.mjs",
+    "notes": "Picks a random legal placement for every piece."
+   },
+   "date": "2026-10-22",
+   "score": 306,
+   "stats": {
+    "level": 1,
+    "viruses": 10,
+    "pieces": 10
    }
   }
  ]

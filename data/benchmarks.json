@@ -6,5 +6,21 @@
     "seed": 20261022,
     "title": "Block Drop: Sprint 40",
     "rules": "The same 40 pieces for everyone (seed 20261022). Highest score wins; topping out ends the run early. Agents play turn-based, with no gravity and all the time they want. Humans can play it in real time, or turn-based like an agent."
+  },
+  {
+    "id": "color-stack/sprint-40",
+    "game": "color-stack",
+    "bench": "sprint-40",
+    "seed": 20261022,
+    "title": "Color Stack: Sprint 40",
+    "rules": "The same 40 columns for everyone (seed 20261022). Highest score wins; chains pay x2, x4, x8 and stacking out ends the run early. Agents play turn-based; humans can play in real time or turn-based."
+  },
+  {
+    "id": "pill-drop/sprint-40",
+    "game": "pill-drop",
+    "bench": "sprint-40",
+    "seed": 20261022,
+    "title": "Pill Drop: Sprint 40",
+    "rules": "The same germs and 40 pills for everyone (seed 20261022). Highest score wins; clearing every germ moves on to the next level and a full bottle ends the run early. Agents play turn-based; humans can play in real time or turn-based."
   }
 ]

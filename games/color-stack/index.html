@@ -4,7 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 <title>COLOR STACK</title>
+<script src="../arcade.js"></script>
 <style>
+.arcade-embed header, .arcade-embed .side, .arcade-embed .mobile-controls, .arcade-embed #restartBtn { display: none !important; }
+.arcade-embed .app { padding: 8px 0 0; }
+.arcade-embed #board { height: calc(100vh - 40px) !important; width: auto !important; max-width: 100%; }
+.arcade-embed body { overflow: hidden; }
 :root{
   --bg:#0A0A0B;
   --panel:#141417;
@@ -196,7 +201,9 @@ let fallingTimer=0;
 let lastTime=0;
 let dropAcc=0;
 let isSoftDrop=false;
-function randCol(){ return Math.floor(Math.random()*4); }
+let pieces=0;          // pieces locked this game, for benchmarks with a piece budget
+let benchComplete=false;
+function randCol(){ return Math.floor(Arcade.random()*4); }
 function makePiece(){
   return {x:2, y:-1, colors:[randCol(),randCol(),randCol()]};
 }
@@ -222,6 +229,8 @@ function getGhostY(p){
   return y;
 }
 function spawnNext(){
+  const bench = Arcade.adapter && Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+  if(bench && bench.pieces && pieces>=bench.pieces){ benchComplete=true; cur=null; doGameOver(); return; }
   if(next) cur=next;
   else cur=makePiece();
   next=makePiece();
@@ -241,12 +250,15 @@ function spawnNext(){
 function doGameOver(){
   gameOver=true;
   state='over';
+  document.querySelector('.go-title').textContent = benchComplete ? 'SPRINT COMPLETE' : 'STACKED OUT';
+  Arcade.onGameOver();
   finalScoreEl.textContent=`Score ${score} • Level ${level} • Cleared ${totalCleared}`;
   if(maxChain>1){ goChainEl.textContent=`BEST CHAIN x${Math.pow(2,maxChain-1)} (${maxChain} combo)`; goChainEl.style.display='block'; }
   else goChainEl.style.display='none';
   gameOverOverlay.classList.remove('hidden');
 }
 function lockPiece(){
+  pieces++;
   // place cur into board
   for(let i=0;i<3;i++){
     let r=cur.y+i, c=cur.x;
@@ -549,7 +561,7 @@ function gameLoop(t){
         state='playing';
       }
     }
-  }else if(state==='playing'){
+  }else if(state==='playing' && !Arcade.agent){
     dropAcc+=dt;
     let interval=isSoftDrop? 55 : dropInterval;
     if(dropAcc>=interval){
@@ -601,6 +613,8 @@ function togglePause(){
   pauseOverlay.classList.toggle('hidden', !paused);
 }
 function restart(){
+  Arcade.reset();
+  pieces=0; benchComplete=false;
   initBoard();
   score=0; totalCleared=0; level=1; comboChain=0; maxChain=0;
   dropInterval=BASE_DROP;
@@ -618,7 +632,14 @@ function restart(){
   lastTime=0; dropAcc=0;
 }
 // Input keyboard
+const AGENT_KEYS={ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',ArrowUp:'rotate',KeyW:'rotate',Space:'drop'};
 window.addEventListener('keydown', e=>{
+  if(Arcade.agent){
+    if(e.code==='KeyR' && gameOver && !Arcade.replaying){ restart(); return; }
+    const action=AGENT_KEYS[e.code];
+    if(action){ e.preventDefault(); Arcade.onKeyAction(action); }
+    return;
+  }
   if(e.code==='ArrowLeft'){ e.preventDefault(); moveLeft(); }
   else if(e.code==='ArrowRight'){ e.preventDefault(); moveRight(); }
   else if(e.code==='ArrowDown'){ e.preventDefault(); if(!e.repeat) softDropStart(); }
@@ -640,6 +661,7 @@ document.querySelectorAll('.mobile-controls button').forEach(btn=>{
   let act=btn.dataset.act;
   let handle=(ev)=>{
     ev.preventDefault();
+    if(Arcade.agent){ Arcade.onKeyAction(act==='hard' ? 'drop' : act); return; }
     if(act==='left') moveLeft();
     else if(act==='right') moveRight();
     else if(act==='rotate') rotate();
@@ -664,6 +686,12 @@ boardCanvas.addEventListener('touchend', e=>{
   let dy=e.changedTouches[0].clientY - touchStartY;
   let dt=Date.now()-touchStartTime;
   let absX=Math.abs(dx), absY=Math.abs(dy);
+  if(Arcade.agent){
+    const a = dt<300 && absX<20 && absY<20 ? 'rotate' : absX>absY ? (dx>30 ? 'right' : dx<-30 ? 'left' : null) : (dy>30 ? 'down' : dy<-30 ? 'rotate' : null);
+    if(a) Arcade.onKeyAction(a);
+    touchStartX=0;
+    return;
+  }
   if(dt<300 && absX<20 && absY<20){
     rotate(); // tap to rotate
   }else if(absX>absY){
@@ -680,6 +708,84 @@ function onResize(){
   // no-op, CSS max-width handles
 }
 window.addEventListener('resize', onResize);
+// Agent adapter (protocol in /agents.md)
+const letter=(c)=>COLOR_NAMES[c];
+const rotationsOf=(colors)=>{ const out=[colors.slice()]; for(let i=1;i<3;i++){ const c=out[i-1]; out.push([c[2],c[0],c[1]]); } return out; };
+const reachable=()=>{
+  if(!cur) return [];
+  let lo=cur.x, hi=cur.x;
+  while(isValid(lo-1,cur.y)) lo--;
+  while(isValid(hi+1,cur.y)) hi++;
+  const cols=[]; for(let c=lo;c<=hi;c++) cols.push(c);
+  return cols;
+};
+const boardRows=()=>{
+  const rows=board.map(row=>row.map(v=>v?letter(v.color):'.'));
+  if(cur && !gameOver){
+    const gy=getGhostY(cur);
+    for(let i=0;i<3;i++){ const r=gy+i; if(r>=0 && rows[r][cur.x]==='.') rows[r][cur.x]='+'; }
+    for(let i=0;i<3;i++){ const r=cur.y+i; if(r>=0) rows[r][cur.x]='@'; }
+  }
+  return rows.map(r=>r.join(''));
+};
+Arcade.register({
+  id:'color-stack',
+  benchmarks:{ 'sprint-40':{ label:'Sprint 40', pieces:40, rules:'40 pieces, highest score wins. Chains pay x2, x4, x8. Stacking out ends the run early.' } },
+  actions:{
+    left:'move the column one left', right:'move one right',
+    rotate:'cycle the colors: the bottom block moves to the top',
+    down:'move down one row; locks the column if it cannot move', drop:'hard drop and lock (+2 points per row)',
+    'place R C':'macro: rotate R times (0-2), move to column C (0-5), hard drop'
+  },
+  start:()=>{ restart(); },
+  ready:()=>state==='playing' && !!cur && !gameOver && !paused,
+  over:()=>gameOver,
+  score:()=>score,
+  stats:()=>({ cleared:totalCleared, level, pieces, bestChain:maxChain }),
+  observe:()=>{
+    const bench=Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+    const rots=cur ? rotationsOf(cur.colors) : [];
+    const seen=new Set(), placements=[];
+    rots.forEach((cs,r)=>{ const k=cs.join(); if(seen.has(k)) return; seen.add(k); reachable().forEach(c=>placements.push(`place ${r} ${c}`)); });
+    return {
+      board:boardRows(),
+      piece:cur ? { colors:cur.colors.map(letter), x:cur.x, y:cur.y } : null,
+      next:next ? next.colors.map(letter) : null,
+      rotations:rots.map(cs=>cs.map(letter)),
+      cleared:totalCleared, level, pieces, chain:comboChain,
+      piecesLeft:bench && bench.pieces ? Math.max(0, bench.pieces-pieces) : null,
+      placements
+    };
+  },
+  text:()=>{
+    const bench=Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+    const out=[];
+    out.push(`color-stack${Arcade.bench?' '+Arcade.bench:''} seed ${Arcade.seed}`+(bench&&bench.pieces?` piece ${Math.min(pieces+1,bench.pieces)}/${bench.pieces}`:` piece ${pieces+1}`));
+    out.push(`score ${score} cleared ${totalCleared} level ${level}${gameOver?(benchComplete?' SPRINT COMPLETE':' GAME OVER'):''}`);
+    if(cur){
+      out.push(`current ${cur.colors.map(letter).join('')} next ${next?next.colors.map(letter).join(''):'-'} (colors listed top to bottom)`);
+      out.push('rotations '+rotationsOf(cur.colors).map((cs,r)=>`${r}:${cs.map(letter).join('')}`).join('  '));
+    }
+    out.push('colors R red, B blue, Y yellow, G green. 4+ in a line (any direction) clear. @ current column, + where it lands, . empty');
+    out.push('   012345');
+    boardRows().forEach((r,i)=>out.push(String(i).padStart(2,' ')+' '+r));
+    return out.join('\n');
+  },
+  apply:async (action, pace)=>{
+    const simple={ left:moveLeft, right:moveRight, rotate,
+      down:()=>{ if(isValid(cur.x,cur.y+1)) cur.y++; else lockPiece(); }, drop:hardDrop };
+    if(simple[action]){ simple[action](); return true; }
+    const m=/^place ([0-2]) ([0-5])$/.exec(action);
+    if(!m || !cur) return false;
+    const r=Number(m[1]), c=Number(m[2]);
+    if(!reachable().includes(c)) return false;
+    for(let i=0;i<r;i++){ rotate(); await pace(); }
+    while(cur.x!==c){ if(cur.x<c) moveRight(); else moveLeft(); await pace(); }
+    hardDrop();
+    return true;
+  }
+});
+
 // init
 restart();
 requestAnimationFrame(gameLoop);

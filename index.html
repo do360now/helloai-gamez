@@ -112,6 +112,9 @@
   .progress i { display: block; height: 100%; width: 0; background: var(--agent); transition: width .3s; }
   .picker { display: flex; flex-direction: column; gap: 6px; margin-top: auto; }
   .picker p { margin: 0 0 4px; font: 500 10px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  .picker-list { display: flex; flex-direction: column; gap: 6px; }
+  .tabs { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+  .tabs button { flex: 1; justify-content: center; padding: 6px 4px; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
   .picker button { text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
     background: transparent; color: var(--dim); font: 400 12px/1.3 var(--mono); cursor: pointer; }
   .picker button:hover { color: var(--text); border-color: var(--line-strong); }
@@ -123,6 +126,10 @@
 
   /* Scoreboard */
   .bench { border: 1px solid var(--line); border-radius: 20px; background: var(--card); overflow: hidden; }
+  .bench + .bench { margin-top: 20px; }
+  .bench-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+  .bench-side div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+  @media (max-width: 760px) { .bench-side { align-items: flex-start; } .bench-side div { justify-content: flex-start; } }
   .bench-head { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; padding: 22px 24px; border-bottom: 1px solid var(--line); }
   .bench-head h3 { font-size: 24px; }
   .bench-head p { margin: 8px 0 0; font-size: 13px; color: var(--dim); max-width: 70ch; }
@@ -245,12 +252,12 @@
               <div class="who-meta" id="who-meta"></div>
             </div>
             <div class="stat"><span>Score</span><b id="hud-score">0</b></div>
-            <div class="stat"><span>Lines</span><b id="hud-lines">0</b></div>
+            <div class="stat"><span id="hud-stat-label">Lines</span><b id="hud-lines">0</b></div>
             <div>
               <div class="stat" style="border:0"><span>Piece</span><b id="hud-pieces">0 / 40</b></div>
               <div class="progress"><i id="hud-progress"></i></div>
             </div>
-            <div class="picker" id="picker"><p>Watch</p></div>
+            <div class="picker"><p>Watch</p><div class="tabs" id="tabs" role="group" aria-label="Game"></div><div class="picker-list" id="picker"></div></div>
           </div>
         </div>
       </div>
@@ -396,12 +403,23 @@ legend: # filled, @ current piece, + where it lands, . empty
   var GAMES = [
     { id: "block-drop", title: "Block Drop", genre: "Falling block", builder: "Meta AI", track: "Single-file", agent: true,
       desc: "Stack and clear with a 7-bag, hold, ghost piece and wall kicks. The arcade's first benchmark.", color: "#22d3ee" },
-    { id: "color-stack", title: "Color Stack", genre: "Tile matching", builder: "Claude", track: "Single-file", agent: false,
+    { id: "color-stack", title: "Color Stack", genre: "Tile matching", builder: "Claude", track: "Single-file", agent: true,
       desc: "Match four colors and chain gravity combos.", color: "#6366f1" },
-    { id: "pill-drop", title: "Pill Drop", genre: "Tile matching", builder: "ChatGPT", track: "Single-file", agent: false,
+    { id: "pill-drop", title: "Pill Drop", genre: "Tile matching", builder: "ChatGPT", track: "Single-file", agent: true,
       desc: "Clear every germ in the bottle with two-color pills.", color: "#ff4d6a" }
   ];
   var KIND = { llm: "LLM", agent: "Agent", baseline: "Baseline", human: "Human" };
+  // The second number worth showing for each game, next to the score.
+  var STAT = {
+    "block-drop": { label: "Lines", key: "lines", unit: "lines" },
+    "color-stack": { label: "Cleared", key: "cleared", unit: "cleared" },
+    "pill-drop": { label: "Germs left", key: "viruses", unit: "germs left" }
+  };
+  function statText(game, stats) {
+    var st = STAT[game] || STAT["block-drop"];
+    if (!stats || stats[st.key] == null) return "";
+    return stats[st.key] + " " + st.unit + (stats.pieces != null ? " · " + stats.pieces + " pcs" : "");
+  }
   var $ = function (id) { return document.getElementById(id); };
   var fmt = function (n) { return Number(n).toLocaleString("en-US"); };
   function el(tag, attrs, children) {
@@ -446,24 +464,41 @@ legend: # filled, @ current piece, + where it lands, . empty
   });
 
   // Replay player: the game itself, embedded, replaying a recorded run.
-  var current = null, pollTimer = null;
+  var current = null, pollTimer = null, BENCHES = {}, shownBench = null;
+  function showRuns(benchId) {
+    document.querySelectorAll("#tabs button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.bench === benchId)); });
+    if (shownBench === benchId) return;
+    shownBench = benchId;
+    var entry = BENCHES[benchId];
+    $("picker").textContent = "";
+    entry.runs.forEach(function (r) {
+      var b = el("button", { type: "button", "data-file": r.file, "aria-pressed": "false" }, [
+        el("span", { text: r.player.name }), el("span", { text: fmt(r.score) })
+      ]);
+      b.onclick = function () { watch(r, entry.bench); };
+      $("picker").appendChild(b);
+    });
+  }
   function watch(run, bench) {
     current = run;
     $("screen").src = "/games/" + run.game + "/?replay=" + encodeURIComponent(run.file) + "&embed=1&speed=170&loop=1";
     $("who").textContent = run.player.name;
     $("who-meta").textContent = "";
     $("who-meta").appendChild(el("span", { class: "chip " + kindClass(run.player.kind) }, [el("i"), KIND[run.player.kind] || run.player.kind]));
-    $("who-meta").appendChild(document.createTextNode("  recorded " + fmt(run.score) + " · " + run.stats.lines + " lines"));
+    $("who-meta").appendChild(document.createTextNode("  recorded " + fmt(run.score)));
+    var st = STAT[run.game] || STAT["block-drop"];
+    $("hud-stat-label").textContent = st.label;
     $("player-bench").textContent = bench.title.replace(": ", " · ");
     $("hud-progress").style.background = color(run.player.kind);
+    showRuns(bench.id);
     document.querySelectorAll("#picker button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.file === run.file)); });
     clearInterval(pollTimer);
     pollTimer = setInterval(function () {
       try {
         var o = $("screen").contentWindow.arcade.observe();
-        var limit = (bench.bench.match(/(\d+)$/) || [0, 40])[1];
+        var limit = Number((bench.bench.match(/(\d+)$/) || [0, 40])[1]);
         $("hud-score").textContent = fmt(o.score);
-        $("hud-lines").textContent = o.lines;
+        $("hud-lines").textContent = o[st.key];
         $("hud-pieces").textContent = Math.min(o.pieces, limit) + " / " + limit;
         $("hud-progress").style.width = Math.min(100, (o.pieces / limit) * 100) + "%";
         $("live-label").textContent = o.over ? "Replay finished · restarting" : "Replaying";
@@ -505,7 +540,7 @@ legend: # filled, @ current piece, + where it lands, . empty
             (r.mode === "turn" ? "turn-based" : "real time") + " · " + r.date
           ])]),
           bar(r.score, p.kind, p.name),
-          el("div", { class: "score" }, [fmt(r.score), el("small", { text: r.stats.lines + " lines · " + r.stats.pieces + " pcs" })]),
+          el("div", { class: "score" }, [fmt(r.score), el("small", { text: statText(r.game, r.stats) })]),
           el("div", { class: "act" }, [watchBtn])
         ]));
       } else {
@@ -514,7 +549,7 @@ legend: # filled, @ current piece, + where it lands, . empty
           el("span", { class: "rank", text: String(i + 1).padStart(2, "0") }),
           el("div", { class: "name" }, [m.label, el("small", {}, [el("span", { class: "chip human" }, [el("i"), "You"]), "this browser"])]),
           bar(m.score, "human", m.label),
-          el("div", { class: "score" }, [fmt(m.score), el("small", { text: (m.stats && m.stats.lines != null ? m.stats.lines + " lines" : "") })]),
+          el("div", { class: "score" }, [fmt(m.score), el("small", { text: statText(bench.game, m.stats) })]),
           el("div", { class: "act" }, [el("a", { class: "link-btn lime", href: "/games/" + bench.game + "/?" + (m.mode === "turn" ? "agent=1&" : "") + "seed=" + bench.seed + "&bench=" + bench.bench, text: "Again ↗" })])
         ]));
       }
@@ -531,7 +566,13 @@ legend: # filled, @ current piece, + where it lands, . empty
     $("benches").appendChild(el("div", { class: "bench" }, [
       el("div", { class: "bench-head" }, [
         el("div", {}, [el("h3", { text: bench.title }), el("p", { text: bench.rules })]),
-        el("span", { class: "chip", text: "seed " + bench.seed })
+        el("div", { class: "bench-side" }, [
+          el("span", { class: "chip", text: "seed " + bench.seed }),
+          el("div", {}, [
+            el("a", { class: "link-btn lime", href: "/games/" + bench.game + "/?seed=" + bench.seed + "&bench=" + bench.bench, text: "Play ↗" }),
+            el("a", { class: "link-btn", href: "/games/" + bench.game + "/?agent=1&seed=" + bench.seed + "&bench=" + bench.bench, text: "Turn-based ↗" })
+          ])
+        ])
       ]),
       rows
     ]));
@@ -544,16 +585,14 @@ legend: # filled, @ current piece, + where it lands, . empty
       data.benchmarks.forEach(function (bench) {
         var runs = data.runs.filter(function (r) { return r.benchmark === bench.id; });
         renderBench(bench, runs);
-        runs.forEach(function (r) {
-          var b = el("button", { type: "button", "data-file": r.file, "aria-pressed": "false" }, [
-            el("span", { text: r.player.name }), el("span", { text: fmt(r.score) })
-          ]);
-          b.onclick = function () { watch(r, bench); };
-          $("picker").appendChild(b);
-        });
-        var top = runs.filter(function (r) { return r.player.kind !== "human"; })[0];
-        if (top && !current) watch(top, bench);
+        if (!runs.length) return;
+        BENCHES[bench.id] = { bench: bench, runs: runs };
+        var tab = el("button", { type: "button", "data-bench": bench.id, "aria-pressed": "false", text: bench.title.split(":")[0] });
+        tab.onclick = function () { watch(runs[0], bench); };
+        $("tabs").appendChild(tab);
       });
+      var first = data.benchmarks.filter(function (b) { return BENCHES[b.id]; })[0];
+      if (first) watch(BENCHES[first.id].runs[0], first);
     })
     .catch(function () {
       $("who").textContent = "Scoreboard unavailable";

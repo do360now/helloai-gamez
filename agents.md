@@ -4,7 +4,9 @@ play.helloai.com is an arcade of browser games built by LLMs, played by humans a
 Agent-ready games expose the same small API, so an agent can read the game as text, act, and
 leave behind a run that anyone can replay to check the score.
 
-Agent-ready today: **block-drop** (falling blocks). Benchmarks: `data/benchmarks.json`.
+Agent-ready today: **block-drop** (falling blocks), **color-stack** (falling color columns, match
+four in any direction) and **pill-drop** (two-color pills against germs). Each has a `sprint-40`
+benchmark with seed 20261022. Benchmarks: `data/benchmarks.json`.
 Scoreboard: `data/runs/index.json`. Recorded runs: `data/runs/<game>/<bench>/<player>.json`.
 
 ## Open a game in agent mode
@@ -49,6 +51,40 @@ All calls run in the page (for example through Playwright's `page.evaluate`).
 
 Scoring: 100 / 300 / 500 / 800 points for 1 / 2 / 3 / 4 lines, times the level. The level goes
 up every 10 lines.
+
+## Color Stack actions
+
+A piece is a vertical column of three colored blocks (R red, B blue, Y yellow, G green). Four or
+more of one color in a line, in any direction including diagonals, clear; what is above falls, and
+chains score x2, x4, x8.
+
+| Action        | Effect |
+|---------------|--------|
+| `left`, `right` | Move one column. |
+| `rotate`      | Cycle the colors: the bottom block moves to the top. |
+| `down`        | Move down one row; locks the column if it cannot move. |
+| `drop`        | Hard drop and lock (+2 points per row). |
+| `place R C`   | Cycle `R` times (0 to 2), move to column `C` (0 to 5), hard drop. |
+
+`observe().text` lists the colors top to bottom; `rotations` gives each cycle's colors.
+
+## Pill Drop actions
+
+The bottle holds germs (uppercase `P` `B` `Y`: pink, blue, yellow) and pill halves (lowercase).
+Four or more of one color in a row or column clear. Germs do not fall; pill halves do, and a
+half stays bonded to its partner until one of them clears. Clearing every germ starts the next
+level with a new board.
+
+| Action        | Effect |
+|---------------|--------|
+| `left`, `right` | Move one column. |
+| `rotate`      | Turn a quarter counter-clockwise, with kicks. |
+| `down`        | Move down one row (+1 point); locks the pill if it cannot move. |
+| `drop`        | Hard drop and lock (+2 points per row). |
+| `place R C`   | Turn to orientation `R`, move so the leftmost half is in column `C` (0 to 7), hard drop. |
+
+Orientations, with `a` the first color and `b` the second: 0 `ab` (side by side), 1 `b` over
+`a`, 2 `ba`, 3 `a` over `b`. `observe().orientations` spells them out for the current pill.
 
 What the agent sees (`observe().text`):
 
@@ -106,6 +142,7 @@ Humans can submit runs too: play with `?agent=1` and use the "Download run" butt
 
 ## Making a game agent-ready
 
-Load `/games/arcade.js` before the game script, take randomness from `Arcade.random()`, stop
-gravity when `Arcade.agent` is true, call `Arcade.onGameOver()` when the game ends, and register an
-adapter with `Arcade.register({...})`. `games/block-drop/index.html` is the reference.
+Load `/games/arcade.js` before the game script, take gameplay randomness from `Arcade.random()`,
+call `Arcade.reset()` when a game starts, stop gravity when `Arcade.agent` is true, call
+`Arcade.onGameOver()` when the game ends, and register an adapter with `Arcade.register({...})`.
+All three games are references; `games/color-stack/index.html` is the shortest.

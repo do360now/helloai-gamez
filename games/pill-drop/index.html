@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>PILL DROP</title>
+<script src="../arcade.js"></script>
 <style>
+  .arcade-embed #header, .arcade-embed #side, .arcade-embed #mobile-controls, .arcade-embed #gameover-overlay .btn { display: none !important; }
   :root{
     --bg:#0A0A0B;
     --panel:#15151A;
@@ -141,12 +143,14 @@ let clearingData=null; // {cells, start}
 let levelCompleteTimer=0;
 let ghostCache=null;
 let totalVirusesStart=12;
+let pieces=0;          // pills locked this game, for benchmarks with a piece budget
+let benchComplete=false;
 const canvas=document.getElementById('board');
 const ctx=canvas.getContext('2d');
 const nextCanvas=document.getElementById('next-canvas');
 const nctx=nextCanvas.getContext('2d');
 function createEmpty(){return Array.from({length:ROWS},()=>Array(COLS).fill(null));}
-function randCol(){return Math.floor(Math.random()*3);}
+function randCol(){return Math.floor(Arcade.random()*3);}
 function genPill(){return {x:3,y:1,ori:0,colors:[randCol(),randCol()],pairId:++pairIdCounter};}
 function getPos(p){const o=ORIENTS[p.ori];return [{x:p.x,y:p.y,color:p.colors[0]},{x:p.x+o[0],y:p.y+o[1],color:p.colors[1]}];}
 function canPlace(p,b,dx=0,dy=0,ori=p.ori){
@@ -242,8 +246,8 @@ function generateLevelBoard(lvl){
     let placed=0;
     let safety=0;
     while(placed<num && safety<1000){
-      const r=ROWS-10+Math.floor(Math.random()*10);
-      const c=Math.floor(Math.random()*COLS);
+      const r=ROWS-10+Math.floor(Arcade.random()*10);
+      const c=Math.floor(Arcade.random()*COLS);
       if(!b[r][c]){
         b[r][c]={color:randCol(),type:'virus',pairId:null,isVirus:true};
         placed++;
@@ -259,13 +263,15 @@ function generateLevelBoard(lvl){
   const b=createEmpty();
   let placed=0;
   while(placed<num){
-    const r=ROWS-10+Math.floor(Math.random()*10);
-    const c=Math.floor(Math.random()*COLS);
+    const r=ROWS-10+Math.floor(Arcade.random()*10);
+    const c=Math.floor(Arcade.random()*COLS);
     if(!b[r][c]){b[r][c]={color:randCol(),type:'virus',pairId:null,isVirus:true};placed++;}
   }
   return b;
 }
 function spawnPill(){
+  const bench = Arcade.adapter && Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+  if(bench && bench.pieces && pieces>=bench.pieces){ benchComplete=true; curPill=null; gameOver(); return false; }
   curPill=nextPill||genPill();
   nextPill=genPill();
   const positions=getPos(curPill);
@@ -280,6 +286,7 @@ function spawnPill(){
   return true;
 }
 function lockPill(){
+  pieces++;
   const positions=getPos(curPill);
   for(let i=0;i<2;i++){
     const p=positions[i];
@@ -429,7 +436,7 @@ function levelClear(){
     chain=0;
     curPill=null;
     nextPill=genPill();
-    spawnPill();
+    if(!spawnPill()){ updateUI(); return; }
     gameState='playing';
     lastDrop=performance.now();
     updateUI();
@@ -437,10 +444,14 @@ function levelClear(){
 }
 function gameOver(){
   gameState='gameover';
+  document.querySelector('#gameover-overlay h2').textContent = benchComplete ? 'SPRINT COMPLETE' : 'BOTTLE FULL';
+  Arcade.onGameOver();
   document.getElementById('gameover-stats').textContent=`Score ${score} • Level ${level} • Viruses left ${countViruses(board)}`;
   document.getElementById('gameover-overlay').classList.remove('hidden');
 }
 function restartGame(){
+  Arcade.reset();
+  pieces=0; benchComplete=false; pairIdCounter=1;
   board=generateLevelBoard(1);
   score=0;level=1;chain=0;
   dropInterval=DROP_BASE;
@@ -827,7 +838,7 @@ function render(time){
   }
 }
 function loop(t){
-  if(gameState==='playing'){
+  if(gameState==='playing' && !Arcade.agent){
     if(t-lastDrop>dropInterval){
       if(curPill && canPlace(curPill,board,0,1)){
         curPill.y++;
@@ -884,7 +895,14 @@ function handleHard(){
   lockPill();
 }
 // input
+const AGENT_KEYS={ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',ArrowUp:'rotate',w:'rotate',W:'rotate',' ':'drop'};
 document.addEventListener('keydown',e=>{
+  if(Arcade.agent){
+    if(e.key.toLowerCase()==='r' && gameState==='gameover' && !Arcade.replaying){ restartGame(); return; }
+    const action=AGENT_KEYS[e.key];
+    if(action){ e.preventDefault(); Arcade.onKeyAction(action); }
+    return;
+  }
   if(e.key==='ArrowLeft'){ e.preventDefault(); handleMove(-1); }
   else if(e.key==='ArrowRight'){ e.preventDefault(); handleMove(1); }
   else if(e.key==='ArrowDown'){ e.preventDefault(); handleDown(); }
@@ -893,16 +911,16 @@ document.addEventListener('keydown',e=>{
   else if(e.key.toLowerCase()==='p'){ togglePause(); }
   else if(e.key.toLowerCase()==='r'){ if(gameState==='gameover') restartGame(); }
 });
-document.getElementById('btn-left').addEventListener('touchstart',e=>{e.preventDefault();handleMove(-1);},{passive:false});
-document.getElementById('btn-right').addEventListener('touchstart',e=>{e.preventDefault();handleMove(1);},{passive:false});
-document.getElementById('btn-down').addEventListener('touchstart',e=>{e.preventDefault();handleDown();},{passive:false});
-document.getElementById('btn-rot').addEventListener('touchstart',e=>{e.preventDefault();handleRotate();},{passive:false});
-document.getElementById('btn-drop').addEventListener('touchstart',e=>{e.preventDefault();handleHard();},{passive:false});
-document.getElementById('btn-left').addEventListener('click',()=>handleMove(-1));
-document.getElementById('btn-right').addEventListener('click',()=>handleMove(1));
-document.getElementById('btn-down').addEventListener('click',handleDown);
-document.getElementById('btn-rot').addEventListener('click',handleRotate);
-document.getElementById('btn-drop').addEventListener('click',handleHard);
+document.getElementById('btn-left').addEventListener('touchstart',e=>{e.preventDefault();if(Arcade.agent)Arcade.onKeyAction('left');else handleMove(-1);},{passive:false});
+document.getElementById('btn-right').addEventListener('touchstart',e=>{e.preventDefault();if(Arcade.agent)Arcade.onKeyAction('right');else handleMove(1);},{passive:false});
+document.getElementById('btn-down').addEventListener('touchstart',e=>{e.preventDefault();if(Arcade.agent)Arcade.onKeyAction('down');else handleDown();},{passive:false});
+document.getElementById('btn-rot').addEventListener('touchstart',e=>{e.preventDefault();if(Arcade.agent)Arcade.onKeyAction('rotate');else handleRotate();},{passive:false});
+document.getElementById('btn-drop').addEventListener('touchstart',e=>{e.preventDefault();if(Arcade.agent)Arcade.onKeyAction('drop');else handleHard();},{passive:false});
+document.getElementById('btn-left').addEventListener('click',()=>Arcade.agent?Arcade.onKeyAction('left'):handleMove(-1));
+document.getElementById('btn-right').addEventListener('click',()=>Arcade.agent?Arcade.onKeyAction('right'):handleMove(1));
+document.getElementById('btn-down').addEventListener('click',()=>Arcade.agent?Arcade.onKeyAction('down'):handleDown());
+document.getElementById('btn-rot').addEventListener('click',()=>Arcade.agent?Arcade.onKeyAction('rotate'):handleRotate());
+document.getElementById('btn-drop').addEventListener('click',()=>Arcade.agent?Arcade.onKeyAction('drop'):handleHard());
 // swipe
 let touchStart=null;
 canvas.addEventListener('touchstart',e=>{
@@ -916,6 +934,12 @@ canvas.addEventListener('touchend',e=>{
   const dy=t.clientY-touchStart.y;
   const dt=performance.now()-touchStart.t;
   const absX=Math.abs(dx), absY=Math.abs(dy);
+  if(Arcade.agent){
+    const a = dt>=400 ? null : absX>30 && absX>absY ? (dx>0 ? 'right' : 'left') : absY>30 && absY>absX ? (dy>20 ? 'down' : null) : absX<12 && absY<12 ? 'rotate' : null;
+    if(a) Arcade.onKeyAction(a);
+    touchStart=null;
+    return;
+  }
   if(dt<400){
     if(absX>30 && absX>absY){
       if(dx>0) handleMove(1); else handleMove(-1);
@@ -927,11 +951,97 @@ canvas.addEventListener('touchend',e=>{
   }
   touchStart=null;
 },{passive:true});
+// Agent adapter (protocol in /agents.md)
+const LETTERS=['P','B','Y'];
+const cellsOf=(x,y,ori)=>{ const o=ORIENTS[ori]; return [[x,y],[x+o[0],y+o[1]]]; };
+const leftCol=(x,ori)=>Math.min(x, x+ORIENTS[ori][0]);
+// Rows top to bottom of each orientation, first-half color as a, second as b.
+const SHAPES=['ab','b/a','ba','a/b'];
+const shapeText=(ori,colors)=>SHAPES[ori].replace(/[ab]/g,(h)=>LETTERS[colors[h==='a'?0:1]].toLowerCase());
+const placementsFor=()=>{
+  if(!curPill) return [];
+  const out=[], seen=new Set();
+  for(let ori=0;ori<4;ori++){
+    const key=shapeText(ori,curPill.colors);
+    if(seen.has(key)) continue;
+    seen.add(key);
+    const width=ORIENTS[ori][0]===0?1:2;
+    for(let c=0;c+width<=COLS;c++) out.push(`place ${ori} ${c}`);
+  }
+  return out;
+};
+const boardRows=()=>{
+  const rows=board.map(row=>row.map(v=>!v?'.':v.isVirus?LETTERS[v.color]:LETTERS[v.color].toLowerCase()));
+  if(curPill && gameState!=='gameover'){
+    let gy=0; while(canPlace(curPill,board,0,gy+1)) gy++;
+    getPos(curPill).forEach(p=>{ if(rows[p.y+gy][p.x]==='.') rows[p.y+gy][p.x]='+'; });
+    getPos(curPill).forEach(p=>{ rows[p.y][p.x]='@'; });
+  }
+  return rows.map(r=>r.join(''));
+};
+Arcade.register({
+  id:'pill-drop',
+  benchmarks:{ 'sprint-40':{ label:'Sprint 40', pieces:40, rules:'40 pills, highest score wins. Clearing every germ moves on to the next level. A full bottle ends the run early.' } },
+  actions:{
+    left:'move the pill one column left', right:'move one right',
+    rotate:'rotate a quarter turn counter-clockwise (with kicks)',
+    down:'move down one row (+1 point); locks the pill if it cannot move', drop:'hard drop and lock (+2 points per row)',
+    'place R C':'macro: turn to orientation R (0-3), move so the leftmost half is in column C (0-7), hard drop'
+  },
+  start:()=>{ restartGame(); },
+  ready:()=>gameState==='playing' && !!curPill,
+  over:()=>gameState==='gameover',
+  score:()=>score,
+  stats:()=>({ level, viruses:countViruses(board), pieces }),
+  observe:()=>{
+    const bench=Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+    return {
+      board:boardRows(),
+      pill:curPill ? { colors:curPill.colors.map(c=>LETTERS[c]), orientation:curPill.ori, column:leftCol(curPill.x,curPill.ori), x:curPill.x, y:curPill.y } : null,
+      next:nextPill ? nextPill.colors.map(c=>LETTERS[c]) : null,
+      orientations:curPill ? [0,1,2,3].map(o=>shapeText(o,curPill.colors)) : [],
+      level, viruses:countViruses(board), pieces, chain,
+      piecesLeft:bench && bench.pieces ? Math.max(0, bench.pieces-pieces) : null,
+      placements:placementsFor()
+    };
+  },
+  text:()=>{
+    const bench=Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
+    const out=[];
+    out.push(`pill-drop${Arcade.bench?' '+Arcade.bench:''} seed ${Arcade.seed}`+(bench&&bench.pieces?` pill ${Math.min(pieces+1,bench.pieces)}/${bench.pieces}`:` pill ${pieces+1}`));
+    out.push(`score ${score} level ${level} germs left ${countViruses(board)}${gameState==='gameover'?(benchComplete?' SPRINT COMPLETE':' GAME OVER'):''}`);
+    if(curPill){
+      out.push(`current ${curPill.colors.map(c=>LETTERS[c].toLowerCase()).join('')} next ${nextPill?nextPill.colors.map(c=>LETTERS[c].toLowerCase()).join(''):'-'}`);
+      out.push('orientations '+[0,1,2,3].map(o=>`${o}:${shapeText(o,curPill.colors)}`).join('  ')+'  (/ separates rows, top first)');
+    }
+    out.push('colors P pink, B blue, Y yellow. UPPERCASE germ, lowercase pill half. 4+ in a row or column clear. @ current pill, + where it lands');
+    out.push('   01234567');
+    boardRows().forEach((r,i)=>out.push(String(i).padStart(2,' ')+' '+r));
+    return out.join('\n');
+  },
+  apply:async (action, pace)=>{
+    const simple={ left:()=>handleMove(-1), right:()=>handleMove(1), rotate:handleRotate, down:handleDown, drop:handleHard };
+    if(simple[action]){ simple[action](); return true; }
+    const m=/^place ([0-3]) ([0-7])$/.exec(action);
+    if(!m || !curPill) return false;
+    const r=Number(m[1]), c=Number(m[2]);
+    if(c+(ORIENTS[r][0]===0?1:2)>COLS) return false;
+    for(let i=0;i<4 && curPill.ori!==r;i++){ const before=curPill.ori; handleRotate(); if(curPill.ori===before) break; await pace(); }
+    for(let guard=0;guard<COLS;guard++){
+      const col=leftCol(curPill.x,curPill.ori);
+      if(col===c) break;
+      const before=curPill.x;
+      handleMove(col<c?1:-1);
+      if(curPill.x===before) break;
+      await pace();
+    }
+    handleHard();
+    return true;
+  }
+});
+
 // init
-board=generateLevelBoard(1);
-nextPill=genPill();
-spawnPill();
-updateUI();
+restartGame();
 requestAnimationFrame(loop);
 // responsive canvas scaling handled by CSS? Keep logical size fixed; scale via container width
 function resize(){
