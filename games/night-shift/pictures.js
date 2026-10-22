@@ -123,8 +123,10 @@ var floor = picture(7, function (p) {
   op("line", 44, 0, 44, 26, MET + 5); op("line", 92, 0, 92, 26, MET + 5);
   op("rect", 34, 24, 68, 22, MET + 6); op("rect", 36, 26, 64, 18, 0);
   op("text", 40, 27, "HI-SCORES", CONC + 6);
-  op("text", 40, 33, "ZZZ 999999", CONY + 7);
-  op("text", 40, 39, "PRI 087150", CONY + 3);
+  // ZZZ drawn 4 pixels wide: in the 3x5 font a Z reads as a 2.
+  for (k = 0; k < 3; k++) { x = 40 + k * 5; op("line", x, 33, x + 3, 33, CONY + 7); op("line", x + 3, 33, x, 37, CONY + 7); op("line", x, 37, x + 3, 37, CONY + 7); }
+  op("text", 57, 33, "999999", CONY + 7);
+  op("text", 40, 39, "PRI", CONY + 3); op("rect", 54, 41, 30, 1, CONY + 1);
   op("light", 68, 35, 40, 18, 2);
 
   // Office door, locked and dark.
@@ -154,7 +156,10 @@ var floor = picture(7, function (p) {
   op("shade", 100, 150, 40, 32, -3);
   op("line", 100, 150, 139, 150, CARP + 6); op("line", 100, 181, 139, 181, CARP + 8);
   op("line", 100, 150, 100, 181, CARP + 7); op("line", 139, 150, 139, 181, CARP + 7);
-  for (k = 0; k < 4; k++) op("rect", 103 + (k % 2) * 31, 153 + Math.floor(k / 2) * 24, 3, 2, CARP);
+  for (k = 0; k < 4; k++) {
+    x = 104 + (k % 2) * 29; var dy = 155 + Math.floor(k / 2) * 21;
+    op("rect", x, dy, 4, 2, CARP); op("rect", x, dy + 2, 4, 1, CARP + 10);
+  }
 
   // A cabinet facing the player; its side panel shows on the `side` it is turned towards.
   function cabinet(x, y, w, h, ramp, side) {
@@ -225,7 +230,6 @@ var floor = picture(7, function (p) {
   }
   op("rect", 106, 125, 3, 3, YEL + 7); op("rect", 107, 126, 1, 1, RED + 12);
   op("rect", 105, 124, 1, 1, SPARK); op("rect", 110, 127, 1, 1, SPARK); op("rect", 104, 127, 1, 1, SPARK + 1); op("rect", 109, 123, 1, 1, SPARK + 2);
-  op("rect", 120, 165, 2, 1, YEL + 6); op("rect", 121, 167, 2, 1, YEL + 5);
 
   // Mop leaning by the prize-counter door, and the yellow bucket on wheels.
   op("light", 288, 168, 16, 4, -5);
@@ -300,6 +304,7 @@ var counter = picture(11, function (p) {
     op("rect", x + 10, 60, 10, 6, LOCK + 12); op("line", x + 1, 41, x + 1, 128, LOCK + 12);
   }
   locker(10); locker(44); locker(78);
+  op("ellipse", 22, 108, 4, 2, LOCK + 4); op("line", 19, 110, 25, 110, LOCK + 11);
   op("text", 13, 61, "1", LOCK + 2); op("text", 47, 61, "2", LOCK + 2); op("text", 81, 61, "3", LOCK + 2);
   [[50, 96, 14], [53, 96, 14], [53, 99, 14], [56, 96, 14]].forEach(function (s) { op("rect", s[0], s[1], 3, 3, s[2]); });
   op("rect", 49, 95, 11, 8, 13); op("rect", 50, 96, 9, 6, 1);
@@ -358,7 +363,7 @@ var office = picture(13, function (p) {
 
   // Wall clock: ten past two.
   op("ellipse", 127, 26, 8, 8, STEEL + 2); op("ellipse", 127, 26, 7, 7, PAPER + 6);
-  op("line", 127, 26, 131, 22, 0); op("line", 127, 26, 130, 27, 0); op("rect", 127, 26, 1, 1, 4);
+  op("line", 127, 26, 127, 20, 0); op("line", 127, 26, 130, 24, 0); op("rect", 127, 26, 1, 1, 4);
 
   // Opening day, 1979, in a light frame.
   op("rect", 30, 50, 26, 34, GOLD + 5); op("rect", 31, 51, 24, 32, GOLD + 2);
@@ -488,7 +493,6 @@ var dock = picture(19, function (p) {
   var NIGHT = p.ramp("#010206", "#20283e", 8), SOD = p.ramp("#1e0e02", "#ffb860", 8), HAZ = p.ramp("#2a2000", "#ffd030", 8);
   var WOOD = p.ramp("#140904", "#a07040", 8), PAPER = p.ramp("#3a3830", "#fcf8ec", 8), RED = p.ramp("#200204", "#ff4a40", 8);
   var VAN = p.ramp("#101014", "#c8c8c4", 8), DUST = p.tone("#e8cc90");
-  var RAIN = p.cycle(["#5a6a8a", "#1a2236", "#141a2a", "#101626"], 60);
 
   // Brick wall.
   op("vgrad", 0, 0, 320, 112, BRICK + 2, BRICK + 4);
@@ -507,7 +511,6 @@ var dock = picture(19, function (p) {
   op("rect", 194, 60, 2, 44, VAN + 1); op("rect", 172, 94, 4, 4, RED + 5); op("rect", 214, 94, 4, 4, RED + 5);
   op("rect", 172, 104, 12, 8, 0); op("rect", 206, 104, 12, 8, 0);
   op("light", 196, 100, 60, 14, -3);
-  for (k = 0; k < 40; k++) { x = 82 + ((k * 41) % 156); y = 32 + ((k * 29) % 72); op("line", x, y, x - 1, y + 4, RAIN + (k % 4)); }
   op("rect", 76, 18, 168, 12, MET + 5);
   for (y = 19; y < 30; y += 3) op("rect", 76, y, 168, 1, MET + 2);
   op("rect", 76, 30, 4, 82, MET + 3); op("rect", 240, 30, 4, 82, MET + 3);
@@ -523,11 +526,10 @@ var dock = picture(19, function (p) {
   op("rect", 28, 46, 12, 5, MET + 9);
 
   // Lift lever in its box, above the painted warning.
-  op("rect", 48, 92, 16, 14, MET + 4); op("rect", 50, 94, 12, 10, MET + 1);
-  op("rect", 55, 84, 2, 12, MET + 10); op("ellipse", 56, 84, 2, 2, RED + 6);
-  for (x = 36; x < 82; x += 6) op("poly", HAZ + 6, [x, 114, x + 3, 114, x + 6, 108, x + 3, 108]);
-  op("rect", 36, 106, 46, 2, 0); op("rect", 36, 114, 46, 1, 0);
-  op("text", 37, 99, "STAND", HAZ + 7); op("text", 63, 99, "CLEAR", HAZ + 7);
+  op("rect", 48, 86, 16, 13, MET + 4); op("rect", 50, 88, 12, 9, MET + 1);
+  op("rect", 55, 78, 2, 12, MET + 10); op("ellipse", 56, 78, 2, 2, RED + 6);
+  op("text", 37, 101, "STAND", HAZ + 7); op("text", 59, 101, "CLEAR", HAZ + 7);
+  for (x = 36; x < 82; x += 6) op("poly", HAZ + 6, [x, 111, x + 3, 111, x + 6, 107, x + 3, 107]);
 
   // The platform, which is the lift plate; hazard edge at the door.
   op("vgrad", 0, 112, 320, 88, CONC + 3, CONC + 7);
@@ -586,7 +588,8 @@ var alley = picture(23, function (p) {
 
   // Dock door at the far right, lit from inside.
   op("rect", 276, 60, 44, 52, MET + 4); op("vgrad", 280, 66, 40, 46, WARM + 5, WARM + 2);
-  op("rect", 276, 60, 44, 6, MET + 6);
+  op("rect", 274, 54, 46, 8, MET + 6); for (y = 55; y < 62; y += 2) op("rect", 274, y, 46, 1, MET + 3);
+  op("rect", 274, 62, 3, 50, MET + 5);
 
   // Payphone on the wall.
   op("rect", 56, 60, 18, 40, MET + 5); op("rect", 58, 62, 14, 8, MET + 9); op("rect", 59, 63, 12, 6, 0); op("text", 60, 64, "25", SOD + 6);
@@ -629,10 +632,10 @@ var alley = picture(23, function (p) {
 
   // Puddle, reflections and the oil stain where something heavy stood.
   op("ellipse", 155, 180, 36, 8, ASPH + 6); op("ellipse", 155, 180, 33, 6, ASPH + 3);
-  op("rect", 86, 170, 2, 18, SOD + 5); op("rect", 87, 168, 1, 22, SOD + 3);
-  for (k = 0; k < 6; k++) op("rect", 130 + k * 8, 176 + (k % 2) * 3, 5, 1, VAN + 10);
+  op("light", 150, 178, 30, 5, 3);
   op("ellipse", 222, 156, 22, 9, ASPH); op("ellipse", 222, 156, 17, 6, ASPH + 1);
   op("ellipse", 216, 155, 8, 3, OIL); op("ellipse", 230, 158, 6, 2, OIL + 2); op("ellipse", 222, 154, 3, 1, OIL + 4);
+  [[208, 151], [234, 151], [210, 161], [236, 161]].forEach(function (f) { op("rect", f[0], f[1], 4, 2, 0); });
   op("rect", 12, 150, 20, 6, MET + 1); for (x = 14; x < 32; x += 3) op("rect", x, 151, 1, 4, 0);
   for (k = 0; k < 8; k++) op("rect", 230 + k * 9, 113, 1, 2 + (k % 3), ASPH + 7);
 });
@@ -701,6 +704,8 @@ var diner = picture(31, function (p) {
   for (x = 0; x < 320; x += 8) op("rect", x, 0, 1, 100, TILE + 2);
   op("rect", 0, 64, 320, 3, CHROME + 9);
   op("rect", 232, 8, 72, 34, BLACK + 1); op("rect", 234, 10, 68, 30, BLACK);
+  op("rect", 304, 6, 16, 94, CHROME + 5); op("rect", 306, 8, 14, 92, RED + 3); op("rect", 308, 50, 3, 6, CHROME + 12);
+  op("text", 305, 1, "OUT", CREAM + 7);
   op("text", 237, 13, "PIE    1.50", CREAM + 7); op("text", 237, 21, "COFFEE  .75", CREAM + 7); op("text", 237, 29, "EGGS   2.25", CREAM + 7);
   [80, 210].forEach(function (lx) {
     op("line", lx, 0, lx, 8, BLACK + 3); op("poly", RED + 6, [lx - 6, 8, lx + 6, 8, lx + 9, 14, lx - 9, 14]); op("rect", lx - 6, 14, 12, 1, WARM + 7);
@@ -853,7 +858,8 @@ var workshop = picture(37, function (p) {
   for (k = 0; k < 8; k++) op("rect", 188 + k * 2, 90 + (k % 2), 1, 1, PIPE + 7);
   op("ellipse", 204, 92, 4, 3, CUP + 7); op("ellipse", 204, 92, 1, 1, CUP + 2);
 
-  // Coffee cup with a ring, screwdrivers.
+  // Coffee cup with a ring, a magnifier, screwdrivers.
+  op("ellipse", 64, 103, 3, 2, PIPE + 7); op("ellipse", 64, 103, 2, 1, CRT + 6); op("line", 61, 105, 58, 107, BENCH + 2);
   op("rect", 68, 98, 8, 8, CUP + 6); op("ellipse", 72, 98, 4, 1, CUP + 2); op("rect", 76, 100, 2, 4, CUP + 5);
   op("line", 214, 104, 218, 96, TOOL + 5); op("line", 216, 104, 219, 98, STICK + 5);
 

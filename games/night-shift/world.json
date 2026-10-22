@@ -4524,10 +4524,10 @@
       "text": "A string mop, mostly gray. It came with the job.",
       "takeable": true,
       "hotspot": [
-        276,
-        118,
-        22,
-        34
+        278,
+        112,
+        30,
+        40
       ]
     },
     "bucket": {
@@ -4582,10 +4582,10 @@
       ],
       "text": "A plain door with OFFICE stenciled on it and a brass lock that the owner is particular about.",
       "hotspot": [
-        140,
-        62,
-        36,
-        68
+        136,
+        56,
+        44,
+        70
       ],
       "extra": [
         {
@@ -5114,9 +5114,9 @@
       "text": "A two-wheeled hand dolly, the kind for moving cabinets. The rubber on one wheel is fresh with sawdust.",
       "hotspot": [
         256,
-        94,
-        26,
-        72
+        92,
+        36,
+        74
       ]
     },
     "clipboard": {
@@ -5177,9 +5177,9 @@
       "text": "Fresh tyre tracks from the dock into the alley, with a pair of narrow wheel lines between them: a dolly, pushed, then loaded.",
       "hotspot": [
         0,
-        150,
-        125,
-        42
+        118,
+        160,
+        74
       ]
     },
     "rollup": {
@@ -5263,9 +5263,9 @@
       "text": "A dumpster with its lid up, half full. A sign on the side says the truck comes at four.",
       "hotspot": [
         236,
-        86,
-        72,
-        50
+        60,
+        76,
+        76
       ]
     },
     "stain": {
@@ -5543,10 +5543,10 @@
       ],
       "text": "Two pots of coffee on their burners, one of them older than this shift.",
       "hotspot": [
-        40,
-        32,
-        180,
-        24
+        44,
+        28,
+        64,
+        28
       ]
     },
     "piecase": {
