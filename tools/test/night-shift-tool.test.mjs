@@ -271,3 +271,45 @@ test("the sampled winnability check finds a trap room and says it is sampled", (
   assert.match(ok.summary, /sampled/);
   assert.ok(ok.sampled > 0);
 });
+
+// Review findings on the checker itself.
+test("recovery planning accepts a win below the full score, and sampling includes deaths", () => {
+  const g = createGame(world, { random: mulberry32(SEED), bench: "case-150" });
+  g.command("look at board");
+  g.command("pull cord");
+  assert.equal(g.state().deaths, 1);
+  const snap = g.snapshot();
+  assert.equal(solve(world, SEED, "case-150", { blind: false, from: snap }), null, "the reference-route goal cannot reach 100 after a penalty");
+  const rec = solve(world, SEED, null, { blind: false, from: snap, goal: "win" });
+  assert.ok(rec, "no recovery route");
+  assert.equal(rec.score, 95);
+  const r = checkEach(world, [SEED]);
+  assert.deepEqual(r.problems, []);
+  assert.ok(r.sampledDeaths > 0, "no sampled state had a death");
+  assert.ok(r.sampledRooms >= 8, String(r.sampledRooms));
+});
+
+test("a return exit gated on a flag nothing sets is a trap", () => {
+  const w = {
+    id: "fixture", start: "hall", maxScore: 1, benchmarks: { "case-150": { label: "x", budget: 150 } },
+    verbs: [{ verb: "press", synonyms: [], args: 1, preps: [], usage: "press <object>" }, { verb: "smell", synonyms: [], args: 1, preps: [], usage: "smell <object>" }, { verb: "go", synonyms: [], args: 1, preps: [], usage: "go <direction>" }],
+    rooms: {
+      hall: { name: "Hall", text: "A hall.", exits: [], objects: ["button"], draw: [] },
+      pit: { name: "Pit", text: "A pit.", exits: [{ dir: "west", to: "hall", name: "the hall", require: { flags: { returnAllowed: true } }, fail: "No." }], objects: [], draw: [] },
+    },
+    objects: { button: { name: "button", nouns: ["button"], text: "A button." } },
+    rules: [
+      { id: "win", when: { verb: "press", object: "button" }, do: [{ score: 1 }, { win: "Done." }] },
+      { id: "fall", when: { verb: "smell", object: "button" }, do: [{ goto: "pit" }] },
+    ],
+  };
+  const r = check(w, [SEED], "case-150", null, { combos: "each", walks: 1, length: 1 });
+  assert.equal(r.ok, false);
+  assert.ok(r.problems.some((p) => /pit/.test(p) && /way back/.test(p)), r.problems.join("; "));
+  // The same fixture with a rule that sets the flag passes the structural check.
+  const w2 = structuredClone(w);
+  w2.rules.push({ id: "allow", when: { verb: "press", object: "button" }, require: { room: "pit" }, do: [{ flag: "returnAllowed", value: true }] });
+  w2.rooms.pit.objects.push("button");
+  const r2 = check(w2, [SEED], "case-150", null, { combos: "each", walks: 1, length: 1 });
+  assert.ok(!r2.problems.some((p) => /way back/.test(p)), r2.problems.join("; "));
+});

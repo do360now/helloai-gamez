@@ -2,7 +2,8 @@
 // the planner that produces the reference route, a Node replay verifier for recorded runs, and a
 // REPL to play from the terminal.
 //   node night-shift.mjs check            validate world.json: exact structural checks, the reference route on every
-//                                         parameter combination, and a sampled (not proven) winnability check (CI)
+//                                         parameter combination, and a sampled (not proven) winnability check (CI);
+//                                         the structural checks are necessary, not a proof
 //   node night-shift.mjs solve [seed]     print the planner's reference route (a good path, not a proven optimum)
 //   node night-shift.mjs route            print the reference route's length for the benchmark seed
 //   node night-shift.mjs verify <run.json ...>   replay recorded runs through the engine
@@ -130,6 +131,7 @@ function progressOf(snap, flags, items) {
 // plans from that state instead of the start. `random` may be a seed number or a random function.
 export function solve(world, random, bench = BENCH, opts = {}) {
   const blind = opts.blind !== false;
+  const goal = opts.goal || "max";   // "max": the full score and the ending; "win": any ending that is a win
   const rng = typeof random === "function" ? random : mulberry32(random);
   const game = createGame(world, { random: rng, bench });
   const max = game.maxScore;
@@ -165,7 +167,7 @@ export function solve(world, random, bench = BENCH, opts = {}) {
           const learnedAfter = blind ? learnFrom(node.learned, r.reply + "\n" + game.state().room.text) : node.learned;
           const p = node.path.concat(cmd);
           if (after.over) {
-            if (after.reason === "win" && after.score === max) {
+            if (after.reason === "win" && (goal === "win" || after.score === max)) {
               const actions = path.concat(p);
               return { route: actions.length, actions, scored: Object.keys(after.scored).sort(), score: after.score, states, params: game.params };
             }
@@ -203,16 +205,26 @@ export function sampleStates(world, random, bench = BENCH, opts = {}) {
   const length = opts.length || 30;
   const rng = mulberry32(opts.seed || 7);
   const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+  const route = opts.route || [];   // the reference route; walks start part-way along it so every room is covered
+  const deathRules = (world.rules || []).filter((r) => (r.do || []).some((e) => e.die !== undefined) && r.when && r.when.verb && r.when.object);
   const out = [];
   for (let n = 0; n < walks; n++) {
     const game = createGame(world, { random: typeof random === "function" ? random : mulberry32(random), bench });
     const codes = Object.values(game.params).filter((v) => /^\d+$/.test(String(v)));
-    for (let i = 0; i < length && !game.over; i++) {
+    // Prefixes are spread evenly along the route and tails vary in length, so the end states cover
+    // every room the route visits as well as the detours the random tail takes.
+    const prefix = route.length ? Math.floor((n / walks) * (route.length + 1)) : 0;
+    for (let i = 0; i < prefix && !game.over; i++) game.command(route[i]);
+    const tail = n % 3 === 0 ? 0 : Math.floor(rng() * (length + 1));   // every third walk ends exactly on the route
+    for (let i = 0; i < tail && !game.over; i++) {
       const s = game.state();
       const nouns = s.objects.map((o) => o.noun).concat(s.inventory.map((o) => o.noun));
       const kind = rng();
       let cmd;
-      if (kind < 0.25 && s.exits.length) cmd = pick(s.exits).dir;
+      const here = new Set(s.objects.map((o) => o.id).concat(s.inventory.map((o) => o.id)));
+      const deadly = deathRules.filter((r) => here.has(typeof r.when.object === "object" ? game.params[r.when.object.param] : r.when.object));
+      if (kind < 0.05 && deadly.length) { const r = pick(deadly); const oid = typeof r.when.object === "object" ? game.params[r.when.object.param] : r.when.object; cmd = r.when.verb + " " + world.objects[oid].nouns[0]; }
+      else if (kind < 0.3 && s.exits.length) cmd = pick(s.exits).dir;
       else if (kind < 0.35 && s.inventory.length) cmd = "drop " + pick(s.inventory).noun;
       else if (kind < 0.4) cmd = "wait";
       else if (kind < 0.5 && codes.length && nouns.length) cmd = pick(["open", "turn", "unlock"]) + " " + pick(nouns) + " with " + pick(codes);
@@ -327,7 +339,18 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
   {
     const edges = {};
     const link = (a, b) => { (edges[a] = edges[a] || new Set()).add(b); };
-    for (const [rid, room] of Object.entries(rooms)) for (const e of room.exits || []) if (rooms[idOf(e.to)]) link(rid, idOf(e.to));
+    // An exit or goto whose require names a flag counts only if some rule can set that flag, and
+    // whose require names an item counts only if that item exists. This is a necessary check, not
+    // a proof: it does not show the setter is reachable from the trapped side.
+    const setters = new Set();
+    for (const r of world.rules || []) for (const e of r.do || []) if (e.flag !== undefined && e.value !== false) setters.add(e.flag);
+    const satisfiable = (req) => {
+      if (!req) return true;
+      for (const [k, v] of Object.entries(req.flags || {})) if (v && !setters.has(k)) return false;
+      for (const id of req.has || []) if (!objects[idOf(id)]) return false;
+      return true;
+    };
+    for (const [rid, room] of Object.entries(rooms)) for (const e of room.exits || []) if (rooms[idOf(e.to)] && satisfiable(e.require)) link(rid, idOf(e.to));
     // A goto fires where its object is: the rooms that hold it, or anywhere if it can be carried or
     // is an everywhere object.
     const sourcesOf = (r) => {
@@ -337,6 +360,7 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
       return Object.entries(rooms).filter(([, room]) => (room.objects || []).map(idOf).includes(oid)).map(([rid]) => rid);
     };
     for (const r of world.rules || []) {
+      if (!satisfiable(r.require)) continue;
       for (const e of r.do || []) {
         if (e.goto !== undefined && rooms[idOf(e.goto)]) for (const rid of sourcesOf(r)) link(rid, idOf(e.goto));
         if (e.exit && rooms[e.exit.room] && rooms[idOf(e.exit.to)]) link(e.exit.room, idOf(e.exit.to));
@@ -433,6 +457,9 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
   const maxScore = maxScoreOf(world);
   let scored = null;
   let sampled = 0;
+  let sampledDeaths = 0;
+  let sampledRooms = 0;
+  let budgetShort = 0;
   if (!problems.length) {
     const results = [];
     const runs = combos.map((c) => ({ label: "params " + JSON.stringify(c.pick), random: c.random })).concat(seeds.map((s) => ({ label: "seed " + s, random: mulberry32(s) })));
@@ -453,15 +480,29 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
         problems.push("an omniscient plan (" + open.route + ") beats the blind one (" + results[0].route + "): a seeded value is usable before the text shows it");
       }
     }
-    // Sampled winnability: from states reached by random walks, the planner must still reach the
-    // full score and the ending. Sampled, not proven; the structural checks above are the proof.
+    // Sampled winnability: from states reached by random walks (which start part-way along the
+    // reference route, so every room is covered, and which include deaths), the planner must still
+    // reach an ending that is a win, with no budget. Outcomes: winnable, budget-short (a win exists
+    // but not within the commands left; a player who wasted commands can run out, that is not a
+    // soft-lock) or planner-failed, which fails the check. Sampled, not proven.
     if (!problems.length) {
       const rnd = combos.length ? combos[0].random : mulberry32(seeds[0] || 0);
-      const states = sampleStates(world, rnd, bench, { walks: opts.walks || 30, length: opts.length || 30 });
+      const states = sampleStates(world, rnd, bench, { walks: opts.walks || 60, length: opts.length || 30, route: results[0].actions });
       sampled = states.length;
+      const roomsSeen = new Set();
+      const budget = (world.benchmarks && world.benchmarks[bench] && world.benchmarks[bench].budget) || Infinity;
       for (const snap of states) {
-        const s = solve(world, rnd, bench, { blind: false, from: snap });
-        if (!s) { problems.push("sampled state in " + snap.room + " after " + snap.commands + " commands cannot reach the full score and the ending (unwinnable)"); break; }
+        roomsSeen.add(snap.room);
+        if (snap.deaths > 0) sampledDeaths++;
+        const s = solve(world, rnd, null, { blind: false, from: snap, goal: "win" });
+        if (!s) { problems.push("planner-failed: from a sampled state in " + snap.room + " after " + snap.commands + " commands (" + snap.deaths + " deaths) no route to an ending was found"); break; }
+        if (snap.commands + s.route > budget) budgetShort++;
+      }
+      sampledRooms = roomsSeen.size;
+      const allRooms = Object.keys(rooms).length;
+      if (opts.walks !== 1 && opts.length !== 1) {
+        if (sampledRooms < allRooms) problems.push("sampling coverage short: " + sampledRooms + " of " + allRooms + " rooms sampled; raise walks");
+        if (!sampledDeaths) problems.push("sampling coverage short: no sampled state had a death; raise walks");
       }
     }
     if (results.length) {
@@ -475,8 +516,9 @@ export function check(world, seeds = [], bench = BENCH, validateDraw = DRAW_VALI
     }
   }
   const summary = (problems.length ? "FAIL" : "ok") + ": " + world.id + " maxScore " + maxScore + (route ? ", reference route " + route + " commands" : "") +
-    " over " + combos.length + " parameter combinations; winnability sampled from " + sampled + " random states, not proven" + (scored ? "; scorable " + scored.join(",") : "");
-  return { ok: !problems.length, problems, route, maxScore, scored, combos: combos.length, sampled, summary };
+    " over " + combos.length + " parameter combinations; structural checks are necessary, not a proof; winnability sampled from " + sampled +
+    " random states (" + sampledRooms + " rooms, " + sampledDeaths + " with deaths, " + budgetShort + " budget-short), not proven" + (scored ? "; scorable " + scored.join(",") : "");
+  return { ok: !problems.length, problems, route, maxScore, scored, combos: combos.length, sampled, sampledDeaths, sampledRooms, budgetShort, summary };
 }
 
 // Replays a run's actions through the engine. Stops applying once the game is over.
@@ -589,7 +631,7 @@ async function main(argv) {
     for (const p of r.problems) console.log("PROBLEM " + p);
     console.log(r.summary);
     process.exit(r.ok ? 0 : 1);
-  } else if (cmd === "solve" || cmd === "route" || cmd === "par") {
+  } else if (cmd === "solve" || cmd === "route") {
     const world = await loadWorld();
     const s = solve(world, rest[0] ? Number(rest[0]) : seed);
     if (!s) { console.log("no route found"); process.exit(1); }

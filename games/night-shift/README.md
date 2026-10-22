@@ -42,18 +42,23 @@ All text, art and rules are original. The classics were studied for structure on
   (world time; an unrecognised command does not advance it). `state().understood` says whether
   the last command advanced world time, so agents need not match reply strings.
 - A seeded value (the safe combination) can only be used after some text has shown it. The
-  solver plays blind the same way, and `check` fails if an omniscient player could do better.
+  solver plays blind the same way, and `check` requires a typed value's rule to be gated on a flag
+  that only rules showing that value can set.
 - **The reference route** is the planner's path to the full score and the ending: from each
   state, the nearest new progress (a scored event, an item some rule needs, a revealed object, a
   flag some rule reads), committed to greedily. It is a good path, not a proven optimum: an exact
   search over ten rooms grows past millions of states (97,000 by depth 18 of 48). Beating it is
   possible and is the result to aim for. The scoreboard ranks by score, then fewest commands.
-- **Soft-locks are ruled out by construction**, and `check` proves it structurally: no effect
-  ever sets a flag false; an item is consumed only by the rule that needs it; every room has a way
-  back to the start; and a rule that needs a typed seeded value is gated on a flag that only rules
-  showing that value can set. On top of that, `check` samples random walks (every verb against
-  every noun, drop, wait, deaths) and the planner must still finish from each sampled state. That
-  part is sampled, not proven, and its output says so.
+- **Soft-locks: necessary checks, not a proof.** `check` requires that no effect ever sets a flag
+  false, that an item is consumed only by the rule that needs it, that every room has a way back
+  to the start through exits whose requirements some rule can satisfy, and that a rule needing a
+  typed seeded value is gated as above. These catch real mistakes cheaply but do not prove the
+  absence of a soft-lock. On top of that, `check` samples random walks (started part-way along the
+  reference route so every room is covered; every verb against every noun, drop, wait, deaths)
+  and the planner must still reach an ending from each sampled state, with no budget. Outcomes
+  are winnable, budget-short (a win exists but not within the commands left) or planner-failed;
+  only the last fails the check, and the check also fails if the sample misses a room or has no
+  death. Sampled, not proven, and the output says so.
 - Seeded parameters are picked from `world.json`'s `params` in file order; adding or reordering
   a parameter changes which case every seed gets, so the benchmark seed's case is pinned by the
   recorded runs.
@@ -66,7 +71,7 @@ From `tools/`:
 
 ```
 npm test                              # parser, engine, adapter, world and tool tests
-node night-shift.mjs check            # validate world.json and prove the seed invariants (CI)
+node night-shift.mjs check            # validate world.json: structural checks, routes on every parameter combination, sampled winnability (CI)
 node night-shift.mjs solve [seed]     # the planner's reference route (a good path, not a proven optimum)
 node night-shift.mjs route            # its length for the benchmark seed
 node night-shift.mjs verify <run.json ...>   # replay recorded runs through the engine
@@ -78,7 +83,7 @@ node verify.mjs data/runs/night-shift/case-150/<run>.json   # the official brows
 `check` runs the structural proofs above, then for every combination of the seeded parameters
 (81 today; the tests vary one parameter at a time) and the benchmark seed plans a blind route and
 requires the max score, the set of scorable events and the route length to be identical, and the
-omniscient route to be no shorter. It also checks that every hidden object is revealed by some
+omniscient route to be no shorter (a smoke test; the gating check above is the real one). It also checks that every hidden object is revealed by some
 rule, that every scoring topic is named in text the player can read other than its own reply,
 that a score id is worth the same points everywhere, that no rule uses an unknown key, and that
 every room's draw list passes `render.js` `validate()`.
