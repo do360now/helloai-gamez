@@ -66,7 +66,68 @@
         { "dir": "east", "to": "counter", "name": "the prize counter" }
       ],
       "objects": ["cabinet", "board", "gap", "mop", "bucket", "cord", "token", "door"],
-      "draw": []
+      "draw": [
+        ["fill",1],
+        ["rect",0,112,320,6,8],
+        ["dither",0,118,320,82,8,0],
+        ["dither",0,118,320,10,0,8],
+        ["rect",10,40,70,62,15],
+        ["rect",11,41,68,60,11],
+        ["dither",12,42,66,58,11,3],
+        ["line",45,40,45,101,15],
+        ["line",10,70,79,70,15],
+        ["rect",196,70,34,90,5],
+        ["rect",201,78,24,26,0],
+        ["rect",204,82,6,6,14],
+        ["rect",214,90,6,6,10],
+        ["rect",200,110,26,6,8],
+        ["rect",234,64,34,96,3],
+        ["rect",239,72,24,28,0],
+        ["rect",244,78,8,8,12],
+        ["rect",252,86,8,6,14],
+        ["rect",238,108,26,6,8],
+        ["rect",140,62,36,68,0],
+        ["rect",141,63,34,66,6],
+        ["rect",142,64,32,64,6],
+        ["line",158,64,158,128,0],
+        ["rect",168,98,4,4,14],
+        ["rect",140,58,36,4,8],
+        ["rect",40,50,56,110,4],
+        ["rect",40,50,56,4,12],
+        ["rect",48,62,40,40,0],
+        ["rect",52,66,8,8,14],
+        ["rect",60,66,8,8,14],
+        ["rect",60,74,8,8,10],
+        ["rect",68,82,8,8,12],
+        ["rect",52,90,8,8,9],
+        ["rect",76,90,8,8,10],
+        ["rect",44,106,48,10,7],
+        ["line",58,108,58,114,15],
+        ["rect",56,106,4,3,12],
+        ["rect",76,109,5,4,14],
+        ["rect",84,109,5,4,10],
+        ["rect",66,126,8,3,0],
+        ["rect",44,136,48,24,5],
+        ["rect",36,26,64,18,15],
+        ["rect",37,27,62,16,0],
+        ["rect",40,30,6,10,14],
+        ["rect",48,30,6,10,14],
+        ["rect",56,30,6,10,10],
+        ["rect",66,30,6,10,12],
+        ["rect",74,30,6,10,12],
+        ["rect",82,30,6,10,14],
+        ["dither",100,150,40,32,7,15],
+        ["rect",100,150,40,1,15],
+        ["line",70,160,86,168,14],
+        ["line",86,168,98,166,14],
+        ["line",98,166,112,174,14],
+        ["rect",112,173,3,3,12],
+        ["line",280,112,294,152,6],
+        ["line",281,112,295,152,6],
+        ["poly",7,[286,148,302,148,304,156,284,156]],
+        ["rect",274,152,22,18,9],
+        ["rect",274,152,22,3,11]
+      ]
     },
     "counter": {
       "name": "Prize counter",
@@ -76,7 +137,78 @@
         { "dir": "west", "to": "floor", "name": "the arcade floor" }
       ],
       "objects": ["grille", "slush", "ledger", "locker1", "locker2", "locker3", "officekey", "register"],
-      "draw": []
+      "draw": [
+        ["fill",3],
+        ["rect",0,112,320,6,8],
+        ["dither",0,118,320,82,8,0],
+        ["rect",10,40,30,90,7],
+        ["rect",10,40,30,4,15],
+        ["rect",24,70,3,10,14],
+        ["rect",12,100,26,1,8],
+        ["rect",44,40,30,90,7],
+        ["rect",44,40,30,4,15],
+        ["rect",58,70,3,10,14],
+        ["rect",46,100,26,1,8],
+        ["rect",78,40,30,90,7],
+        ["rect",78,40,30,4,15],
+        ["rect",92,70,3,10,14],
+        ["rect",80,100,26,1,8],
+        ["rect",120,40,140,54,1],
+        ["rect",120,66,140,2,6],
+        ["poly",12,[132,56,142,56,142,66,132,66]],
+        ["poly",12,[160,56,170,56,170,66,160,66]],
+        ["rect",190,54,14,12,14],
+        ["rect",214,56,12,10,14],
+        ["rect",236,58,14,8,11],
+        ["rect",130,80,12,14,13],
+        ["rect",160,82,12,12,12],
+        ["rect",196,84,16,10,11],
+        ["rect",226,80,12,14,13],
+        ["line",120,40,120,93,8],
+        ["line",126,40,126,93,8],
+        ["line",132,40,132,93,8],
+        ["line",138,40,138,93,8],
+        ["line",144,40,144,93,8],
+        ["line",150,40,150,93,8],
+        ["line",156,40,156,93,8],
+        ["line",162,40,162,93,8],
+        ["line",168,40,168,93,8],
+        ["line",174,40,174,93,8],
+        ["line",180,40,180,93,8],
+        ["line",186,40,186,93,8],
+        ["line",192,40,192,93,8],
+        ["line",198,40,198,93,8],
+        ["line",204,40,204,93,8],
+        ["line",210,40,210,93,8],
+        ["line",216,40,216,93,8],
+        ["line",222,40,222,93,8],
+        ["line",228,40,228,93,8],
+        ["line",234,40,234,93,8],
+        ["line",240,40,240,93,8],
+        ["line",246,40,246,93,8],
+        ["line",252,40,252,93,8],
+        ["line",258,40,258,93,8],
+        ["rect",120,40,140,2,7],
+        ["rect",120,92,140,3,7],
+        ["rect",110,108,155,10,6],
+        ["rect",110,118,155,50,6],
+        ["rect",110,118,155,2,0],
+        ["rect",116,126,143,36,4],
+        ["rect",140,98,30,10,15],
+        ["rect",142,100,12,1,0],
+        ["rect",142,103,26,1,0],
+        ["rect",155,99,1,9,0],
+        ["rect",215,94,30,14,8],
+        ["rect",218,96,16,5,10],
+        ["rect",236,98,6,6,7],
+        ["rect",270,70,34,90,9],
+        ["rect",270,70,34,14,11],
+        ["rect",274,88,26,34,1],
+        ["rect",278,92,18,26,9],
+        ["dither",278,100,18,18,9,11],
+        ["rect",284,128,6,8,0],
+        ["rect",274,150,26,6,0]
+      ]
     },
     "office": {
       "name": "Back office",
@@ -88,7 +220,46 @@
         { "dir": "south", "to": "floor", "name": "the arcade floor" }
       ],
       "objects": ["desk", "safe", "photo", "panel", "marge"],
-      "draw": []
+      "draw": [
+        ["fill",8],
+        ["dither",0,0,320,112,8,7],
+        ["rect",0,112,320,6,0],
+        ["rect",0,118,320,82,6],
+        ["dither",0,118,320,82,6,0],
+        ["rect",30,50,26,34,14],
+        ["rect",32,52,22,30,3],
+        ["poly",2,[34,80,43,64,52,80]],
+        ["poly",12,[40,62,46,62,46,68,40,68]],
+        ["rect",250,40,50,60,7],
+        ["rect",252,42,46,56,8],
+        ["rect",256,48,8,10,12],
+        ["rect",272,48,8,10,10],
+        ["rect",288,48,8,10,12],
+        ["rect",256,64,8,10,10],
+        ["rect",272,64,8,10,12],
+        ["rect",288,64,8,10,10],
+        ["rect",90,110,140,14,6],
+        ["rect",90,110,140,2,14],
+        ["rect",94,124,6,46,6],
+        ["rect",220,124,6,46,6],
+        ["rect",106,114,12,10,15],
+        ["rect",60,118,24,4,0],
+        ["rect",62,122,4,44,0],
+        ["rect",80,122,4,44,0],
+        ["rect",98,96,3,14,0],
+        ["poly",14,[92,84,108,84,104,96,96,96]],
+        ["rect",186,76,30,32,5],
+        ["rect",190,56,22,22,12],
+        ["rect",190,52,22,8,15],
+        ["rect",195,64,3,3,0],
+        ["rect",204,64,3,3,0],
+        ["rect",196,72,10,2,4],
+        ["rect",145,140,40,30,8],
+        ["rect",145,140,40,3,7],
+        ["rect",149,146,32,20,0],
+        ["rect",160,150,10,10,7],
+        ["rect",164,154,2,2,14]
+      ]
     }
   },
   "objects": {
@@ -96,38 +267,38 @@
       "name": "Block Drop cabinet",
       "nouns": ["block drop cabinet", "cabinet", "block drop", "machine", "game"],
       "text": "A Block Drop cabinet, the arcade's pride, with a coin slot, a joystick worn smooth, and the high score board glowing above the screen. The attract screen drops blocks for no one.",
-      "hotspot": null
+      "hotspot": [40, 50, 56, 110]
     },
     "board": {
       "name": "high score board",
       "nouns": ["high score board", "board", "scores", "high scores", "score board"],
       "text": "The high score board lists ten names. The top one is new: ZZZ, 999,999 points, entered at 3:07 this morning. Nobody was playing at 3:07; you locked the doors at midnight. Below it, the honest scores, the best of them by someone who signs as PRI.",
-      "hotspot": null
+      "hotspot": [36, 26, 64, 18]
     },
     "gap": {
       "name": "clean square of carpet",
       "nouns": ["clean square of carpet", "square", "carpet", "clean square", "space", "gap"],
       "text": "A rectangle of carpet, cleaner and darker than the rest, with four dents where the feet of a cabinet stood for years. A power cord trails from the wall into the space and ends in nothing.",
-      "hotspot": null
+      "hotspot": [100, 150, 40, 32]
     },
     "mop": {
       "name": "mop",
       "nouns": ["mop"],
       "text": "A string mop, mostly gray. It came with the job.",
       "takeable": true,
-      "hotspot": null
+      "hotspot": [276, 118, 22, 34]
     },
     "bucket": {
       "name": "bucket",
       "nouns": ["bucket", "mop bucket"],
       "text": "A yellow bucket on wheels, half full of water that was clean once.",
-      "hotspot": null
+      "hotspot": [274, 152, 22, 18]
     },
     "cord": {
       "name": "frayed power cord",
       "nouns": ["frayed power cord", "cord", "power cord", "frayed cord", "wire", "cable"],
       "text": "The power cord that fed the missing cabinet. It trails from the wall into the clean square of carpet, and the insulation near the plug is split open to the copper.",
-      "hotspot": null
+      "hotspot": [66, 158, 50, 20]
     },
     "token": {
       "name": "arcade token",
@@ -141,49 +312,49 @@
       "name": "office door",
       "nouns": ["office door", "door"],
       "text": "A plain door with OFFICE stenciled on it and a brass lock that the owner is particular about.",
-      "hotspot": null
+      "hotspot": [140, 62, 36, 68]
     },
     "grille": {
       "name": "steel grille",
       "nouns": ["steel grille", "grille", "gate", "shutter", "shelves", "prizes"],
       "text": "A steel grille, padlocked at the floor. Behind it, bears, sunglasses and a radio-controlled car that has been the top prize for three years.",
-      "hotspot": null
+      "hotspot": [120, 40, 140, 54]
     },
     "slush": {
       "name": "slush machine",
       "nouns": ["slush machine", "slush", "machine", "drink", "blue drink", "blue raspberry"],
       "text": "A slush machine churning Blue Raspberry. The date on the hygiene sticker is from before you were hired.",
-      "hotspot": null
+      "hotspot": [270, 70, 34, 90]
     },
     "ledger": {
       "name": "pickup ledger",
       "nouns": ["pickup ledger", "ledger", "book", "log", "logbook"],
       "text": "A pickup ledger: every delivery and collection, with a time and a signature.",
-      "hotspot": null
+      "hotspot": [140, 96, 30, 12]
     },
     "register": {
       "name": "register",
       "nouns": ["register", "cash register", "till"],
       "text": "An old cash register. Closed, and you were told on your first night never to touch it.",
-      "hotspot": null
+      "hotspot": [215, 94, 30, 14]
     },
     "locker1": {
       "name": "first locker",
       "nouns": ["first locker", "locker one", "left locker", "locker 1"],
       "text": "The first of three gray staff lockers, dented at knee height.",
-      "hotspot": null
+      "hotspot": [10, 40, 30, 90]
     },
     "locker2": {
       "name": "second locker",
       "nouns": ["second locker", "locker two", "middle locker", "locker 2"],
       "text": "The middle of three gray staff lockers. Someone has stuck a Block Drop sticker on it.",
-      "hotspot": null
+      "hotspot": [44, 40, 30, 90]
     },
     "locker3": {
       "name": "third locker",
       "nouns": ["third locker", "locker three", "right locker", "locker 3"],
       "text": "The last of three gray staff lockers. Its door does not quite close.",
-      "hotspot": null
+      "hotspot": [78, 40, 30, 90]
     },
     "officekey": {
       "name": "brass key",
@@ -197,32 +368,32 @@
       "name": "desk",
       "nouns": ["desk", "chair", "lamp", "desk lamp"],
       "text": "A steel desk under a lamp, covered in invoices. A framed photo stands at the corner.",
-      "hotspot": null
+      "hotspot": [90, 110, 140, 14]
     },
     "safe": {
       "name": "floor safe",
       "nouns": ["floor safe", "safe", "dial"],
       "text": "A squat floor safe under the desk with a four-digit combination dial.",
-      "hotspot": null
+      "hotspot": [145, 140, 40, 30]
     },
     "photo": {
       "name": "framed photo",
       "nouns": ["framed photo", "photo", "photograph", "picture", "frame"],
       "text": "Opening day, 1979: a younger Marge and a man in a wide tie cut a ribbon in front of the arcade. The frame is light, and something is written on the back of the print.",
-      "hotspot": null
+      "hotspot": [30, 50, 26, 34]
     },
     "panel": {
       "name": "switch panel",
       "nouns": ["switch panel", "panel", "switches", "key switch", "key switches", "switch"],
       "text": "A panel of keyed switches, one per cabinet, each labeled with a game. Turned to EDIT, a switch lets whoever holds the key rewrite that cabinet's high score board. The Block Drop switch is turned to EDIT right now.",
-      "hotspot": null
+      "hotspot": [250, 40, 50, 60]
     },
     "marge": {
       "name": "Marge",
       "nouns": ["marge", "owner", "woman", "boss"],
       "text": "Marge Okafor, sixty, owner of the Starlight since opening day. Reading glasses, a cardigan, and a pencil she never puts down.",
       "person": true,
-      "hotspot": null,
+      "hotspot": [186, 52, 30, 56],
       "topics": {
         "cabinet": {
           "synonyms": ["missing cabinet", "gap", "carpet", "clean square", "space"],
