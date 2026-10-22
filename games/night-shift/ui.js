@@ -98,7 +98,7 @@ export function mount(root, game, world, submit) {
     s = game.state();
     var room = world.rooms[s.room.id];
     try { Render.drawPicture(ctx, (room && room.draw) || [["fill", 0]]); } catch (e) { ctx.fillStyle = "#aa0000"; ctx.fillRect(0, 0, 320, 200); }
-    bar.textContent = "Score: " + s.score + " of " + s.maxScore + "   |   " + s.room.name + "   |   Turn " + s.turn + (s.budget ? "/" + s.budget : "") + (s.deaths ? "   |   Deaths " + s.deaths : "");
+    bar.textContent = "Score: " + s.score + " of " + s.maxScore + "   |   " + s.room.name + "   |   Command " + (s.commands != null ? s.commands : s.turn) + (s.budget ? "/" + s.budget : "") + "   |   Move " + s.turn + (s.deaths ? "   |   Deaths " + s.deaths : "");
     paintLog(); paintVerbs(); paintExits(); paintInventory();
     form.classList.toggle("over", !!s.over);
     input.disabled = !!s.over;
