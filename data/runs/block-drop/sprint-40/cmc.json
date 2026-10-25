@@ -1,0 +1,24 @@
+{
+ "protocol": "arcade/0.1",
+ "game": "block-drop",
+ "bench": "sprint-40",
+ "seed": 20261022,
+ "mode": "realtime",
+ "actions": ["tick","tick","left","left","left","left","left","left","left","tick","left","drop","left","drop","tick","right","right","tick","tick","drop","tick","tick","right","drop","tick","rotate","right","tick","right","right","drop","tick","rotate","left","tick","left","drop","tick","right","right","tick","tick","drop","tick","tick","rotate","tick","rotate","rotate","tick","rotate","rotate","tick","tick","tick","rotate","rotate","left","left","tick","left","drop","tick","rotate","left","drop","tick","tick","rotate","tick","rotate","tick","drop","tick","rotate","rotate","tick","rotate","right","right","tick","right","drop","tick","rotate","tick","tick","tick","tick","tick","right","tick","drop","rotate","tick","right","right","right","right","tick","drop","tick","right","right","right","right","drop","tick","tick","rotate","left","left","left","tick","drop","left","tick","tick","tick","drop","right","right","right","tick","tick","tick","drop","rotate","left","left","tick","left","left","left","drop","tick","tick","rotate","tick","left","tick","drop","tick","right","right","tick","right","drop","tick","left","left","left","drop","tick","rotate","tick","rotate","rotate","tick","rotate","tick","rotate","rotate","tick","rotate","right","right","tick","drop","rotate","tick","left","tick","left","tick","rotate","tick","tick","tick","drop","tick","left","tick","left","drop","tick","rotate","tick","drop","tick","rotate","right","tick","right","right","right","tick","drop","tick","tick","right","tick","rotate","tick","right","right","right","drop","tick","tick","tick","tick","rotate","rotate","tick","rotate","right","right","right","tick","drop","rotate","tick","right","right","right","tick","right","drop","tick","rotate","tick","drop","right","tick","right","drop","rotate","tick","rotate","rotate","left","left","tick","left","left","drop","tick","tick","tick","rotate","rotate","rotate","tick","rotate","rotate","rotate","tick","right","right","right","tick","right","drop","rotate","tick","rotate","rotate","tick","rotate","rotate","tick","left","drop","tick","tick","rotate","tick","rotate","rotate","tick","right","tick","drop","tick","rotate","right","right","tick","drop","rotate","tick","left","left","left","tick","drop","tick","rotate","rotate","tick","left","left","left","drop","tick","tick","left","left","left","tick","drop","tick","tick","rotate","tick","rotate","down","left","drop"],
+ "score": 3881,
+ "over": true,
+ "stats": {
+  "lines": 14,
+  "level": 2,
+  "pieces": 40
+ },
+ "player": {
+  "id": "cmc",
+  "name": "CMC",
+  "kind": "human",
+  "model": null,
+  "harness": "played by hand, real time",
+  "notes": ""
+ },
+ "date": "2026-10-25"
+}
