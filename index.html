@@ -177,8 +177,17 @@
   .game h3 { font-size: 28px; line-height: 1; }
   .game p { margin: 0; color: #b9b9c0; font-size: 14px; }
   .game .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-  .game .art { height: 70px; border-radius: 12px; border: 1px solid var(--line); background: #0d0d10; display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; padding: 8px; align-content: end; }
+  .game .art { min-height: 70px; border-radius: 12px; border: 1px solid var(--line); background: #0d0d10; display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; padding: 8px; align-content: end; }
   .game .art b { aspect-ratio: 1; border-radius: 2px; }
+  /* Color Stack: glossy rounded tiles. Pill Drop: capsule halves and germs with eyes. Night Shift: its own scene. */
+  .game .art .tile { border-radius: 4px; background-image: linear-gradient(180deg, rgba(255,255,255,.3) 0 18%, transparent 18% 64%, rgba(0,0,0,.2) 64%); }
+  .game .art .pl { border-radius: 99px 0 0 99px; margin-right: -2px; }
+  .game .art .pr { border-radius: 0 99px 99px 0; }
+  .game .art .pt { border-radius: 99px 99px 0 0; margin-bottom: -2px; }
+  .game .art .pb { border-radius: 0 0 99px 99px; }
+  .game .art .germ { border-radius: 50%; background-image: radial-gradient(circle at 34% 44%, #fff 0 10%, #111 10% 16%, transparent 16%), radial-gradient(circle at 66% 44%, #fff 0 10%, #111 10% 16%, transparent 16%); }
+  .game .art.scene { display: block; padding: 0; overflow: hidden; }
+  .game .art.scene img { display: block; width: 100%; aspect-ratio: 32 / 11; object-fit: cover; }
   .game footer { margin-top: auto; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .game footer span { font: 400 11px var(--mono); color: var(--dim); }
   .queue { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 18px; font-size: 13px; color: var(--dim); }
@@ -490,13 +499,46 @@ legend: # filled, @ current piece, + where it lands, . empty
   }
 
   // Games grid.
-  GAMES.forEach(function (g) {
+  // Card art in each game's own look. Maps are 16 columns, top row first; a cell is ".." or a shape and a color:
+  // t tile, g germ, l/r left/right pill half, u/d top/bottom pill half; r red, b blue, y yellow, g green.
+  var ART_COLORS = { r: "#ff4d6a", b: "#4f46e5", y: "#ffb800", g: "#c8ff00" };
+  var ART_SHAPES = { t: "tile", g: "germ", l: "pl", r: "pr", u: "pt", d: "pb" };
+  var ART_MAPS = {
+    "color-stack": [
+      ".. .. .. .. tr .. .. .. .. .. .. .. .. .. .. ..",
+      ".. .. .. .. ty .. .. .. .. .. .. .. tg .. .. ..",
+      "tb .. .. .. tg .. .. tr ty .. .. ty tg tb .. tr",
+      "tb ty tr .. .. .. tg tr ty ty .. tb tg tb tr tr"
+    ],
+    "pill-drop": [
+      ".. .. .. .. .. .. .. uy .. .. .. .. .. .. .. ..",
+      ".. .. .. .. .. .. .. dr .. .. .. .. .. .. .. ..",
+      ".. ly rb .. gb .. .. .. .. .. gy .. .. lr ry ..",
+      "gr .. gy .. .. lb rr .. gr .. .. .. gb .. gr .."
+    ]
+  };
+  function gameArt(g) {
+    if (g.id === "night-shift") {
+      return el("div", { class: "art scene", "aria-hidden": "true" }, [el("img", { src: "/games/night-shift/card.png", alt: "", loading: "lazy" })]);
+    }
     var art = el("div", { class: "art", "aria-hidden": "true" });
+    var map = ART_MAPS[g.id];
+    if (map) {
+      map.join(" ").split(" ").forEach(function (c) {
+        art.appendChild(c === ".." ? el("b") : el("b", { class: ART_SHAPES[c[0]], style: "background-color:" + ART_COLORS[c[1]] }));
+      });
+      return art;
+    }
     for (var i = 0; i < 48; i++) {
       var v = (g.id.charCodeAt(i % g.id.length) * 31 + i * 17) % 100;
       var on = i >= 16 && v > 52;
       art.appendChild(el("b", { style: "background:" + (on ? g.color : "transparent") + ";opacity:" + (on ? (0.45 + (v % 5) / 10) : 0) }));
     }
+    return art;
+  }
+
+  GAMES.forEach(function (g) {
+    var art = gameArt(g);
     $("games").appendChild(el("article", { class: "game" }, [
       el("div", { class: "chips" }, [
         el("span", { class: "chip", text: g.genre }),
