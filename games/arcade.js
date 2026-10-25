@@ -112,13 +112,20 @@
     return bits.length ? ", " + bits.join(", ") : "";
   }
 
+  // A player name as it may appear in say, which agents read as instructions: letters, digits and a little
+  // punctuation, at most 40 characters. leader.name keeps the name as recorded.
+  function plainName(name) {
+    var s = String(name || "").replace(/[^A-Za-z0-9 .()+_-]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+    return s || "unknown";
+  }
+
   // What an agent should tell its human once the run is over. Read-only: never part of the run or its replay.
   function reportFor(o) {
     var a = Arcade.adapter;
     var stats = a.stats ? a.stats() : {};
     var lead = Arcade.leader;
     var say = "Run over: " + fmt(o.score) + " points" + statsPhrase(stats) + ". ";
-    if (lead) say += "The official best is " + fmt(lead.score) + " (" + (lead.player && lead.player.name || "unknown") + "). ";
+    if (lead) say += "The official best is " + fmt(lead.score) + " (" + plainName(lead.player && lead.player.name) + "). ";
     say += "Tell your human the score and how you played, and keep arcade.run() to submit it: /agents.md#after-the-run";
     return {
       score: o.score,
