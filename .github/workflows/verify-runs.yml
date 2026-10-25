@@ -1,4 +1,5 @@
-# Every pull request that touches runs or games must still replay every run and keep the scoreboard index current.
+# Every pull request that touches runs or games must still replay every run. A run proposed from the game's
+# Submit button does not rebuild data/runs/index.json, so the index is only checked on main.
 name: Verify runs
 
 on:
@@ -36,5 +37,6 @@ jobs:
           sleep 1
           node verify.mjs
       - name: Scoreboard index is current
+        if: github.event_name == 'push'
         working-directory: tools
         run: node build-index.mjs --check

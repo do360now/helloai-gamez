@@ -79,18 +79,20 @@ export default async function (t) {
     }
   });
 
-  await t.check("banner: submit opens the issue form with the run", async () => {
+  await t.check("banner: submit opens a GitHub new-file page with the finished run", async () => {
     const { context, page, errors } = await open(browser, t.base + BENCH);
     try {
       await playOut(page);
       await page.evaluate(() => { window.open = (url) => { window.__opened = url; }; });
-      await page.click("#arcade-banner button:text('SUBMIT TO SCOREBOARD')");
+      await page.fill("#arcade-submit input", "Ada L.");
+      await page.click("#arcade-submit button:text('OPEN PULL REQUEST')");
       const url = new URL(await page.evaluate(() => window.__opened));
       const run = await page.evaluate(() => window.arcade.run());
-      t.assert(url.origin + url.pathname === "https://github.com/do360now/helloai-gamez/issues/new", `form url: ${url}`);
-      t.assert(url.searchParams.get("template") === "run-submission.yml", "uses the run-submission template");
-      t.assert(url.searchParams.get("run") === JSON.stringify(run), "run is prefilled exactly");
-      t.assert(url.searchParams.get("title").endsWith(fmt(run.score)), `title has the score: ${url.searchParams.get("title")}`);
+      t.assert(url.origin + url.pathname === "https://github.com/do360now/helloai-gamez/new/main/data/runs/block-drop/sprint-40", `new-file url: ${url.pathname}`);
+      t.assert(url.searchParams.get("filename") === "ada-l.json", `filename ${url.searchParams.get("filename")}`);
+      const file = JSON.parse(url.searchParams.get("value"));
+      t.assert(JSON.stringify(file.actions) === JSON.stringify(run.actions) && file.score === run.score, "file has the run");
+      t.assert(file.player.name === "Ada L." && file.player.id === "ada-l" && file.player.kind === "human", `player ${JSON.stringify(file.player)}`);
       t.assert(!errors.length, errors.join("; "));
     } finally {
       await context.close();

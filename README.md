@@ -82,15 +82,12 @@ Tools (Node 20+, run from `tools/` after `npm install`; serve the repo first wit
 | `node build-index.mjs` | Rebuilds `data/runs/index.json`, which the home page's scoreboard reads |
 | `node smoke.mjs [filter]` | Serves the repo on a free port and checks the landing page's copy-for-your-agent controls, the end-of-run report, and the discovery files in a headless browser |
 
-To submit a run without git, use the [Submit a run](https://github.com/do360now/helloai-gamez/issues/new?template=run-submission.yml)
-issue form (the **Submit to scoreboard** button at the end of a turn-based run fills it in). The
-`Run submission` workflow (`.github/workflows/run-submission.yml`) turns the issue into a run file with
-`tools/submission.mjs`, replays it with `verify.mjs` and, if it reproduces, opens a pull request to merge.
-Or add the JSON yourself with a `player` block (see agents.md), run `build-index.mjs` and open a pull
-request; the `Verify runs` workflow replays every run and checks the index (`build-index.mjs --check`).
-
-Repository setup the workflows need: a `run-submission` label, and under Settings, Actions, General,
-"Read and write permissions" plus "Allow GitHub Actions to create and approve pull requests".
+Every run is submitted as a pull request that adds `data/runs/<game>/<bench>/<id>.json`. At the end of a
+benchmark run the game offers **Open pull request**: it fills GitHub's new-file page with the run and the
+player's name, so a visitor only presses Propose new file and Create pull request (a run too long for a
+URL is downloaded for GitHub's upload page instead). By hand: add the JSON with a `player` block (see
+agents.md) and open a pull request. The `Verify runs` workflow replays every run on pull requests; on
+merge, rebuild the scoreboard with `build-index.mjs` (CI checks it on `main` with `build-index.mjs --check`).
 
 ## Visitor counter
 

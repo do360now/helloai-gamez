@@ -119,29 +119,26 @@
     return s || "unknown";
   }
 
-  // The run-submission issue form with the run prefilled. GitHub refuses URLs much over 8,000 characters, so a
-  // long run (a real-time game logs every key and gravity step) goes in deflated, as "deflate:<base64url>", which
-  // tools/submission.mjs unpacks. A run that still does not fit is left for the clipboard.
-  var SUBMIT_FORM = "https://github.com/do360now/helloai-gamez/issues/new?template=run-submission.yml";
-  function deflated(text) {
-    if (typeof CompressionStream !== "function") return Promise.resolve(null);
-    var stream = new Blob([text]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-    return new Response(stream).arrayBuffer().then(function (buf) {
-      var bytes = new Uint8Array(buf), bin = "";
-      for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-      return "deflate:" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-    }).catch(function () { return null; });
+  // A run reaches the scoreboard as a pull request that adds data/runs/<game>/<bench>/<id>.json. GitHub's new-file
+  // page takes the file name and contents in the URL (a visitor without write access gets a fork and "Propose new
+  // file"). GitHub refuses URLs much over 6,500 characters, so a longer run is downloaded for the upload page instead.
+  var REPO = "https://github.com/do360now/helloai-gamez";
+  // One key per line for a readable diff, with the move list on one line.
+  function runFile(run) {
+    return JSON.stringify(Object.assign({}, run, { actions: "@ACTIONS@" }), null, 1).replace('"@ACTIONS@"', JSON.stringify(run.actions)) + "\n";
   }
-  function submitLink(run, harness) {
-    var info = benchInfo();
-    var title = "Run: " + ((info && info.label) || run.game) + ", " + fmt(run.score);
-    var base = SUBMIT_FORM + "&title=" + encodeURIComponent(title) + "&harness=" + encodeURIComponent(harness);
-    var fits = function (v) { return base.length + 5 + encodeURIComponent(v).length <= 8000; };
-    var json = JSON.stringify(run);
-    if (fits(json)) return Promise.resolve({ url: base + "&run=" + encodeURIComponent(json) });
-    return deflated(json).then(function (packed) {
-      return packed && fits(packed) ? { url: base + "&run=" + encodeURIComponent(packed) } : { url: base, copy: json };
-    });
+  // encodeURIComponent, but keeping the JSON punctuation a query string allows, so more moves fit.
+  function enc(s) {
+    return encodeURIComponent(s).replace(/%2C/g, ",").replace(/%3A/g, ":").replace(/%5B/g, "[").replace(/%5D/g, "]").replace(/%7B/g, "{").replace(/%7D/g, "}");
+  }
+  function slug(s) { return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40); }
+  function pullRequest(run) {
+    var dir = "data/runs/" + run.game + "/" + run.bench;
+    var text = runFile(run);
+    var url = REPO + "/new/main/" + dir + "?filename=" + encodeURIComponent(run.player.id + ".json") +
+      "&message=" + encodeURIComponent("runs: " + run.game + " " + run.bench + ", " + run.player.name + " (" + fmt(run.score) + ")") +
+      "&value=" + enc(text);
+    return url.length <= 6200 ? { url: url } : { url: REPO + "/upload/main/" + dir, text: text };
   }
 
   // What an agent should tell its human once the run is over. Read-only: never part of the run or its replay.
@@ -374,90 +371,108 @@
       if (bar.parentNode) document.body.style.paddingTop = bar.offsetHeight + 8 + "px";
     }
     render();
-    // Download and submit, once a run that can be replayed is over: any turn-based run, and a real-time run on a
-    // seeded benchmark (its inputs and gravity steps are logged through Arcade.input).
-    var tools = document.createElement("span");
-    tools.style.cssText = "display:none;gap:8px;flex-wrap:wrap;justify-content:center";
-    bar.appendChild(tools);
+    // Once a run that can be replayed is over (any turn-based run, and a real-time run on a seeded benchmark, whose
+    // inputs and gravity steps are logged through Arcade.input), a panel where the player is looking offers the pull
+    // request. The strip keeps a button that brings the panel back, and a plain download.
     var harness = playing ? "played by hand, turn-based" : "played by hand, real time";
-    var pending = null;   // {promise, value}: the submit link for the run that just ended
+    var rules = benchInfo() || {};
     function recordable() {
       var a = Arcade.adapter;
       return !Arcade.replaying && a.over() && Arcade.log.length > 0 && (playing || (Arcade.seeded && !!Arcade.bench));
     }
-    function button(label, prominent, onclick) {
-      var b = document.createElement("button");
-      b.textContent = label;
-      b.style.cssText = "font:inherit;border-radius:999px;padding:3px 12px;cursor:pointer;" +
+    function css(prominent) {
+      return "font:inherit;border-radius:999px;padding:4px 12px;cursor:pointer;" +
         (prominent ? "color:#0a0a0b;background:#c8ff00;border:1px solid #0a0a0b;" : "color:#c8ff00;background:#0a0a0b;border:1px solid #c8ff00;");
-      b.onclick = onclick;
-      tools.appendChild(b);
     }
-    // Opens the repo's run-submission issue form with the run filled in; a bot replays it and opens the pull request.
-    function submitRun() {
-      var go = function (l) {
-        if (l.copy) {
-          try { navigator.clipboard.writeText(l.copy); } catch (e) { /* the download button still works */ }
-          try { window.alert("This run is too long to fill in automatically. It is on your clipboard: paste it into Run JSON."); } catch (e) { /* blocked dialog */ }
-        }
-        window.open(l.url, "_blank", "noopener");
-      };
-      if (pending && pending.value) go(pending.value);
-      else (pending ? pending.promise : submitLink(record(), harness)).then(go);
-    }
-    button("SUBMIT TO SCOREBOARD", true, submitRun);
-    button("DOWNLOAD RUN (JSON)", false, function () {
-      var run = record();
-      run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: harness, notes: "" };
-      run.date = new Date().toISOString().slice(0, 10);
-      // A benchmark that declares disclosure: true needs the player to say how the run was played.
-      var rules = benchInfo();
-      if (rules && rules.disclosure) {
-        var blind = false;
-        try {
-          blind = window.confirm("Was this run blind: text only, no source, no world data and no walkthrough?\n\nOK = blind. Cancel = open book.");
-        } catch (e) { /* a blocked dialog counts as open book */ }
-        run.player.disclosure = blind ? "blind" : "open-book";
-      }
-      var url = URL.createObjectURL(new Blob([JSON.stringify(run) + "\n"], { type: "application/json" }));
-      var file = document.createElement("a");
-      file.href = url;
-      file.download = run.game + "-" + (run.bench || "free") + "-" + run.score + ".json";
-      file.click();
-      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-    });
-    // The same offer where the player is looking when the game ends, not only in the strip at the top.
+    var tools = document.createElement("span");
+    tools.style.cssText = "display:none;gap:8px;flex-wrap:wrap;justify-content:center";
+    bar.appendChild(tools);
+
     var cta = document.createElement("div");
     cta.id = "arcade-submit";
     cta.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;display:none;align-items:center;" +
-      "gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);box-sizing:border-box;padding:10px 14px;" +
+      "gap:10px;flex-wrap:wrap;justify-content:center;width:max-content;max-width:min(560px, calc(100vw - 32px));box-sizing:border-box;padding:12px 14px;" +
       "font:600 12px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.04em;color:#f5f5f0;background:#0a0a0b;" +
       "border:1px solid #c8ff00;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.6)";
     var ctaText = document.createElement("span");
-    var ctaButton = document.createElement("button");
-    ctaButton.textContent = "SUBMIT TO SCOREBOARD";
-    ctaButton.style.cssText = "font:inherit;color:#0a0a0b;background:#c8ff00;border:0;border-radius:999px;padding:6px 14px;cursor:pointer";
-    ctaButton.onclick = submitRun;
+    ctaText.style.cssText = "flex-basis:100%;text-align:center";
+    var nameInput = document.createElement("input");
+    nameInput.placeholder = "Your name";
+    nameInput.maxLength = 40;
+    nameInput.setAttribute("aria-label", "Your name on the scoreboard");
+    nameInput.style.cssText = "font:inherit;color:#f5f5f0;background:#141417;border:1px solid #2e2e35;border-radius:999px;padding:6px 12px;width:14em";
+    try { nameInput.value = localStorage.getItem("arcade.name") || ""; } catch (e) { /* storage may be unavailable */ }
+    nameInput.addEventListener("keydown", function (e) { e.stopPropagation(); if (e.key === "Enter") submitRun(); });
+    var disclosure = null;
+    if (rules.disclosure) {
+      disclosure = document.createElement("select");
+      disclosure.setAttribute("aria-label", "How this run was played");
+      disclosure.style.cssText = nameInput.style.cssText + ";width:auto";
+      [["blind", "blind: text only"], ["open-book", "open book"]].forEach(function (o) {
+        var opt = document.createElement("option");
+        opt.value = o[0];
+        opt.textContent = o[1];
+        disclosure.appendChild(opt);
+      });
+    }
+    var prButton = document.createElement("button");
+    prButton.textContent = "OPEN PULL REQUEST";
+    prButton.style.cssText = css(true) + "padding:6px 14px";
+    prButton.onclick = submitRun;
     var ctaClose = document.createElement("button");
     ctaClose.textContent = "×";
     ctaClose.setAttribute("aria-label", "Close");
     ctaClose.style.cssText = "font:inherit;font-size:16px;color:#9a9aa0;background:none;border:0;cursor:pointer;padding:0 4px";
     var ctaClosed = false;
     ctaClose.onclick = function () { ctaClosed = true; render(); };
-    cta.appendChild(ctaText);
-    cta.appendChild(ctaButton);
-    cta.appendChild(ctaClose);
+    [ctaText, nameInput, disclosure, prButton, ctaClose].forEach(function (e) { if (e) cta.appendChild(e); });
     document.body.appendChild(cta);
+
+    // The run with a player block from the panel: what the pull request adds.
+    function finished() {
+      var run = record();
+      var name = String(nameInput.value || "").replace(/[^A-Za-z0-9 .()+_-]/g, "").replace(/\s+/g, " ").trim().slice(0, 40);
+      run.player = { id: slug(name) || "your-handle", name: name || "Your name", kind: "human", model: null, harness: harness, notes: "" };
+      if (disclosure) run.player.disclosure = disclosure.value;
+      run.date = new Date().toISOString().slice(0, 10);
+      return run;
+    }
+    function download(run, text) {
+      var url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      var file = document.createElement("a");
+      file.href = url;
+      file.download = run.player.id + ".json";
+      file.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    }
+    function submitRun() {
+      if (!nameInput.value.trim()) { nameInput.focus(); ctaText.textContent = "Type the name to show on the scoreboard first."; return; }
+      try { localStorage.setItem("arcade.name", nameInput.value); } catch (e) { /* storage may be unavailable */ }
+      var run = finished();
+      var pr = pullRequest(run);
+      if (pr.text) {
+        download(run, pr.text);
+        ctaText.textContent = "Too long for a link: drag the downloaded " + run.player.id + ".json onto the GitHub page, then Propose changes.";
+      } else {
+        ctaText.textContent = "On GitHub: Propose new file (or Commit changes), then Create pull request.";
+      }
+      window.open(pr.url, "_blank", "noopener");
+    }
+    var again = document.createElement("button");
+    again.textContent = "SUBMIT TO SCOREBOARD";
+    again.style.cssText = css(true);
+    again.onclick = function () { ctaClosed = false; render(); nameInput.focus(); };
+    tools.appendChild(again);
+    var dl = document.createElement("button");
+    dl.textContent = "DOWNLOAD RUN (JSON)";
+    dl.style.cssText = css(false);
+    dl.onclick = function () { var run = finished(); download(run, runFile(run)); };
+    tools.appendChild(dl);
+
     Arcade.on(function (type) {
       if (type === "over") {
         ctaClosed = false;
-        ctaText.textContent = fmt(Arcade.adapter.score()) + " points. Put it on the scoreboard: a bot replays your run to check it.";
-      }
-      // The link is built when the run ends, so the click can open it at once (a pop-up must open inside the click).
-      if (type === "over" && recordable()) {
-        var p = { promise: submitLink(record(), harness), value: null };
-        p.promise.then(function (v) { p.value = v; });
-        pending = p;
+        ctaText.textContent = fmt(Arcade.adapter.score()) + " points. Add it to the scoreboard as a pull request: the run replays move by move, so the score is checked.";
       }
       render();
     });

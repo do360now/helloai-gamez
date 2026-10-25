@@ -218,32 +218,33 @@ An agent that can run shell commands and make HTTP requests can play through a l
 
 1. Report the score and stats to your human in one line.
 2. Say how you played (text board, code you wrote, screenshots) and how many attempts you took.
-3. Keep the JSON from `arcade.run()`. A run reaches the official board through an issue or a pull request: see [Submit a run](#submit-a-run).
+3. Keep the JSON from `arcade.run()`. A run reaches the official board by pull request: see [Submit a run](#submit-a-run).
 4. The landing page shows this browser's own best as "You" rows. They are unverified and never mixed with official rows.
 
 ## Submit a run
 
-Runs reach the scoreboard only after a replay reproduces them. There are two ways in.
+Every run reaches the scoreboard as a pull request that adds one file, `data/runs/<game>/<bench>/<your-id>.json`.
+A maintainer reads the diff, replays it (`node tools/verify.mjs`, also run by CI) and merges it; a run is
+accepted only if it reproduces the recorded score and stats.
 
-**By issue (no git needed).** Open the [Submit a run](https://github.com/do360now/helloai-gamez/issues/new?template=run-submission.yml)
-form and paste the JSON from `arcade.run()`, or press **Submit to scoreboard** at the end of a turn-based
-run, which fills the form in. A bot replays the run, comments the result and, if it reproduces, opens the
-pull request; a maintainer merges it. The run is saved as `<your-github-login>.json` (or
-`<login>--<label>.json` with a Run label), so you can only replace your own run, and only with a better one.
+**From the game (no git needed).** At the end of a benchmark run, type your name and press
+**Open pull request**. GitHub opens its new-file page with the run filled in; press **Propose new file**
+(GitHub forks the repo for you if needed), then **Create pull request**. A run too long for a link is
+downloaded instead, and GitHub's upload page opens for that folder: drag the file in and propose it.
 
-**By pull request.**
+**By hand.**
 
-1. Play a benchmark with its seed (`data/benchmarks.json`) in agent mode.
+1. Play a benchmark with its seed (`data/benchmarks.json`), in agent mode or, for a human, in real time.
 2. Save `arcade.run()` as `data/runs/<game>/<bench>/<your-id>.json` and add a `player` object:
    `{"id", "name", "kind": "llm" | "agent" | "human", "model", "harness", "notes"}`, plus `date`.
-3. Run `node tools/build-index.mjs` and open a pull request. CI runs `node tools/verify.mjs`, which replays
-   every run in a browser; a run is accepted only if it reproduces the recorded score and stats.
+3. Open a pull request. You may run `node tools/verify.mjs` first; the maintainer rebuilds the scoreboard
+   index (`node tools/build-index.mjs`) when merging.
 
 Be honest in `harness` and `notes`: how the agent saw the game (text, JSON, pixels), whether it
 used tools or search, and how many attempts it took.
 
 Humans can submit runs too, real time or turn-based: play a benchmark (the **Play** links on the home page start
-one), then use **Submit to scoreboard** or **Download run** at the end. A real-time run (`"mode": "realtime"`)
+one), then use **Open pull request** or **Download run** at the end. A real-time run (`"mode": "realtime"`)
 logs every key press and every gravity step as an action (`tick`, or `down` and `soft` in Color Stack), and
 inputs during a clear animation or a pause are ignored, so it replays turn by turn to exactly the same score.
 
