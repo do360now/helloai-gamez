@@ -1,5 +1,6 @@
 # Every pull request that touches runs or games must still replay every run. A run proposed from the game's
-# Submit button does not rebuild data/runs/index.json, so the index is only checked on main.
+# Submit button does not rebuild data/runs/index.json, so a pull request may leave the index alone; but one that
+# changes it must change it to exactly what the run files rebuild to, since the home page trusts the index.
 name: Verify runs
 
 on:
@@ -40,3 +41,12 @@ jobs:
         if: github.event_name == 'push'
         working-directory: tools
         run: node build-index.mjs --check
+      - name: A changed scoreboard index matches the runs
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch -q --depth=1 origin "${{ github.event.pull_request.base.sha }}"
+          if git diff --quiet FETCH_HEAD -- data/runs/index.json; then
+            echo "data/runs/index.json is unchanged; the maintainer rebuilds it on merge"
+          else
+            cd tools && node build-index.mjs --check
+          fi
