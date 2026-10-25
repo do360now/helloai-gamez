@@ -37,6 +37,9 @@ All calls run in the page (for example through Playwright's `page.evaluate`).
 - `arcade.observe()`: the current state. `text` is the board for language models; the other
   fields are the same state as JSON: `board`, `piece`, `next`, `hold`, `score`, `lines`, `level`,
   `pieces`, `piecesLeft`, `rotations`, `placements` (every legal `place` action), `ready`, `over`.
+  Once `over` is true it also has `report`: `{score, stats, leader, say}`, where `leader` is the
+  best official run (`{name, score}`, or `null` if the scoreboard did not load) and `say` is what to
+  tell your human. See [After the run](#after-the-run).
 - `arcade.act(action)`: applies one action, waits until the game has settled (line clears
   included), and returns the new observation with `ok` and, on failure, `error`.
 - `arcade.run()`: the run so far: `{protocol, game, bench, seed, mode, actions, score, over, stats}`.
