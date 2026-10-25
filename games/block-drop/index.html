@@ -666,6 +666,16 @@
         }
       }
 
+      // One gravity step: down a row with no points, or lock. Real-time play logs it as "tick" so runs replay.
+      gravity() {
+        if (!this.currentPiece || this.isPaused || this.isGameOver) return;
+        this.currentPiece.y++;
+        if (this.collide(this.grid, this.currentPiece)) {
+          this.currentPiece.y--;
+          this.lockPiece();
+        }
+      }
+
       hardDrop() {
         if (!this.currentPiece || this.isPaused || this.isGameOver) return;
         let dropCount = 0;
@@ -897,7 +907,7 @@
         const bench = Arcade.adapter && Arcade.bench ? Arcade.adapter.benchmarks[Arcade.bench] : null;
         const note = [];
         if (bench && bench.pieces && !this.benchComplete) note.push(`Ended early at ${this.pieces} of ${bench.pieces} pieces.`);
-        if (Arcade.bench && Arcade.seeded && !Arcade.replaying) note.push('Your best stays in this browser. <a href="/#scoreboard" target="_top" class="text-cyan-400 underline">See the scoreboard</a>');
+        if (Arcade.bench && Arcade.seeded && !Arcade.replaying) note.push('Submit it below to put it on the <a href="/#scoreboard" target="_top" class="text-cyan-400 underline">scoreboard</a>.');
         this.gameOverNote.innerHTML = note.join('<br>');
         this.gameOverOverlay.classList.remove('hidden');
       }
@@ -1081,11 +1091,7 @@
         if (this.flashingRows.length === 0 && !Arcade.agent) {
           this.dropCounter += (deltaTime * 1000);
           if (this.dropCounter > this.dropInterval) {
-            this.currentPiece.y++;
-            if (this.collide(this.grid, this.currentPiece)) {
-              this.currentPiece.y--;
-              this.lockPiece();
-            }
+            if (Arcade.input('tick')) this.gravity();
             this.dropCounter = 0;
           }
         }
@@ -1168,7 +1174,7 @@
           return;
         }
         // When running, space acts as Hard Drop
-        game.hardDrop();
+        realtime('drop');
         return;
       }
 
@@ -1186,21 +1192,21 @@
         case 'a':
         case 'A':
           e.preventDefault();
-          game.move(-1);
+          realtime('left');
           break;
 
         case 'ArrowRight':
         case 'd':
         case 'D':
           e.preventDefault();
-          game.move(1);
+          realtime('right');
           break;
 
         case 'ArrowDown':
         case 's':
         case 'S':
           e.preventDefault();
-          game.softDrop();
+          realtime('down');
           break;
 
         case 'ArrowUp':
@@ -1209,7 +1215,7 @@
         case 'x':
         case 'X':
           e.preventDefault();
-          game.rotate(1); // Clockwise
+          realtime('rotate');
           break;
 
         case 'z':
@@ -1217,14 +1223,14 @@
         case 'q':
         case 'Q':
           e.preventDefault();
-          game.rotate(-1); // Counter-clockwise
+          realtime('rotate_ccw');
           break;
 
         case 'c':
         case 'C':
         case 'Shift':
           e.preventDefault();
-          game.hold();
+          realtime('hold');
           break;
       }
     });
@@ -1237,13 +1243,19 @@
         e.preventDefault();
         sound.init();
         if (Arcade.agent) Arcade.onKeyAction(action);
-        else agentActions[action]();
+        else realtime(action);
       });
     };
     const agentActions = {
       left: () => game.move(-1), right: () => game.move(1), down: () => game.softDrop(),
       rotate: () => game.rotate(1), rotate_ccw: () => game.rotate(-1), hold: () => game.hold(), drop: () => game.hardDrop()
     };
+    // A real-time input is logged (Arcade.input) and applied only while the game takes input, never mid line clear,
+    // so the run replays turn by turn. Hold is logged only when it would do something.
+    function realtime(action) {
+      if (action === 'hold' && !game.canHold) return;
+      if (Arcade.input(action)) agentActions[action]();
+    }
 
     bindTouch('btnLeft', 'left');
     bindTouch('btnRight', 'right');
@@ -1316,6 +1328,7 @@
         rotate: 'rotate clockwise (with wall kicks)', rotate_ccw: 'rotate counter-clockwise',
         down: 'move down one row (+1 point); locks the piece if it cannot move', drop: 'hard drop and lock (+2 points per row)',
         hold: 'swap with the held piece (once per piece)',
+        tick: 'gravity: move down one row with no points; locks the piece if it cannot move',
         'place R C': 'macro: rotate clockwise R times (0-3), move so the leftmost cell is in column C (0-9), hard drop'
       },
       start: () => { game.start(); },
@@ -1360,7 +1373,7 @@
       },
       apply: async (action, pace) => {
         const simple = { left: () => game.move(-1), right: () => game.move(1), down: () => game.softDrop(),
-          rotate: () => game.rotate(1), rotate_ccw: () => game.rotate(-1), drop: () => game.hardDrop() };
+          rotate: () => game.rotate(1), rotate_ccw: () => game.rotate(-1), drop: () => game.hardDrop(), tick: () => game.gravity() };
         if (simple[action]) { simple[action](); return true; }
         if (action === 'hold') { if (!game.canHold) return false; game.hold(); return true; }
         const m = /^place ([0-3]) (\d)$/.exec(action);

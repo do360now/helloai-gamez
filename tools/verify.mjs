@@ -34,7 +34,8 @@ for (const file of files) {
   const bench = benchmarks.find((b) => b.game === run.game && b.bench === run.bench);
   if (!bench) problems.push(`no benchmark ${run.game}/${run.bench}`);
   else if (bench.seed !== run.seed) problems.push(`seed ${run.seed} is not the benchmark seed ${bench.seed}`);
-  if (run.mode !== "turn") problems.push("only turn-based runs can be replayed");
+  // A real-time run logs every input and gravity step, so it replays turn by turn like any other.
+  if (run.mode !== "turn" && run.mode !== "realtime") problems.push(`mode must be "turn" or "realtime"`);
   if (bench && bench.disclosure && !["blind", "open-book"].includes(run.player && run.player.disclosure)) problems.push('player.disclosure must be "blind" or "open-book"');
 
   if (!problems.length) {

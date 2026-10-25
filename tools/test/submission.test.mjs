@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { buildSubmission, parseIssueForm } from "../submission.mjs";
+import { deflateRawSync } from "node:zlib";
 
 const benchmarks = JSON.parse(await readFile(new URL("../../data/benchmarks.json", import.meta.url), "utf8"));
 const haiku = JSON.parse(await readFile(new URL("../../data/runs/block-drop/sprint-40/claude-haiku-5-5.json", import.meta.url), "utf8"));
@@ -47,7 +48,7 @@ test("names lose characters agents could read as markup or mentions", () => {
 
 test("rejects runs that cannot be replayed", () => {
   const bad = (patch) => submit({ "Run JSON": JSON.stringify({ ...haiku, ...patch }) });
-  assert.match(bad({ mode: "realtime" }).error, /turn-based/);
+  assert.match(bad({ mode: "live" }).error, /mode must be/);
   assert.match(bad({ seed: 1 }).error, /seed/);
   assert.match(bad({ bench: "nope" }).error, /no benchmark/);
   assert.match(bad({ over: false }).error, /not over/);
@@ -88,4 +89,14 @@ test("free text in the PR body cannot close issues or break the table", () => {
   const multi = buildSubmission({ ...issue({}), body: body({}).replace("by hand", "x\nCloses https://github.com/o/r/issues/1") },
     benchmarks, none, "2026-10-25");
   assert.ok(multi.prBody.includes("| How | `x Closes https: github.com o r issues 1` |"), multi.prBody);
+});
+
+test("a real-time run is accepted, plain or deflated as the Submit button sends a long one", () => {
+  const live = { ...haiku, mode: "realtime" };
+  assert.equal(submit({ "Run JSON": JSON.stringify(live) }).run.mode, "realtime");
+  const packed = "deflate:" + deflateRawSync(Buffer.from(JSON.stringify(live))).toString("base64url");
+  const r = submit({ "Run JSON": packed });
+  assert.equal(r.ok, true, r.error);
+  assert.deepEqual(r.run.actions, haiku.actions);
+  assert.match(submit({ "Run JSON": "deflate:!!!" }).error, /not valid JSON/);
 });

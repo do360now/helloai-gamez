@@ -119,18 +119,29 @@
     return s || "unknown";
   }
 
-  // The run-submission issue form with the run prefilled. GitHub refuses very long URLs, so a run that does
-  // not fit is copied to the clipboard instead, for pasting into the form.
+  // The run-submission issue form with the run prefilled. GitHub refuses URLs much over 8,000 characters, so a
+  // long run (a real-time game logs every key and gravity step) goes in deflated, as "deflate:<base64url>", which
+  // tools/submission.mjs unpacks. A run that still does not fit is left for the clipboard.
   var SUBMIT_FORM = "https://github.com/do360now/helloai-gamez/issues/new?template=run-submission.yml";
-  function submitUrl(run) {
+  function deflated(text) {
+    if (typeof CompressionStream !== "function") return Promise.resolve(null);
+    var stream = new Blob([text]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+    return new Response(stream).arrayBuffer().then(function (buf) {
+      var bytes = new Uint8Array(buf), bin = "";
+      for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      return "deflate:" + btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    }).catch(function () { return null; });
+  }
+  function submitLink(run, harness) {
     var info = benchInfo();
     var title = "Run: " + ((info && info.label) || run.game) + ", " + fmt(run.score);
-    var url = SUBMIT_FORM + "&title=" + encodeURIComponent(title) + "&harness=" + encodeURIComponent("played by hand, turn-based");
+    var base = SUBMIT_FORM + "&title=" + encodeURIComponent(title) + "&harness=" + encodeURIComponent(harness);
+    var fits = function (v) { return base.length + 5 + encodeURIComponent(v).length <= 8000; };
     var json = JSON.stringify(run);
-    if (url.length + encodeURIComponent(json).length + 5 <= 8000) return url + "&run=" + encodeURIComponent(json);
-    try { navigator.clipboard.writeText(json); } catch (e) { /* the download button still works */ }
-    try { window.alert("This run is too long to fill in automatically. It is on your clipboard: paste it into Run JSON."); } catch (e) { /* blocked dialog */ }
-    return url;
+    if (fits(json)) return Promise.resolve({ url: base + "&run=" + encodeURIComponent(json) });
+    return deflated(json).then(function (packed) {
+      return packed && fits(packed) ? { url: base + "&run=" + encodeURIComponent(packed) } : { url: base, copy: json };
+    });
   }
 
   // What an agent should tell its human once the run is over. Read-only: never part of the run or its replay.
@@ -281,6 +292,14 @@
   };
 
   Arcade.onGameOver = function () { saveBest(); emit("over"); };
+  // Real-time play: a game passes each input and each gravity step through here before applying it, and skips it
+  // when this returns false (the game is paused, animating or over). The log then replays turn by turn, exactly.
+  Arcade.input = function (action) {
+    var a = Arcade.adapter;
+    if (!a || Arcade.agent || a.over() || !a.ready()) return false;
+    Arcade.log.push(action);
+    return true;
+  };
   Arcade.on = function (fn) { Arcade.listeners.push(fn); };
 
   // A strip at the top of a benchmark or agent page: seed, piece count, and the score to beat.
@@ -349,44 +368,98 @@
     }
     function render() {
       text.textContent = contest();
+      if (tools) tools.style.display = recordable() ? "inline-flex" : "none";
+      if (cta) cta.style.display = recordable() && !ctaClosed ? "flex" : "none";
       if (leader && leader.player && leader.player.harness) text.title = leader.player.harness;
       if (bar.parentNode) document.body.style.paddingTop = bar.offsetHeight + 8 + "px";
     }
     render();
-    Arcade.on(function (type) {
-      render();
-      if (type === "over" && playing && !bar.querySelector("button")) {
-        var b = document.createElement("button");
-        b.textContent = "DOWNLOAD RUN (JSON)";
-        b.style.cssText = "font:inherit;color:#c8ff00;background:#0a0a0b;border:0;border-radius:999px;padding:3px 10px;cursor:pointer";
-        b.onclick = function () {
-          var run = record();
-          run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: "played by hand, turn-based", notes: "" };
-          run.date = new Date().toISOString().slice(0, 10);
-          // A benchmark that declares disclosure: true needs the player to say how the run was played.
-          var rules = benchInfo();
-          if (rules && rules.disclosure) {
-            var blind = false;
-            try {
-              blind = window.confirm("Was this run blind: text only, no source, no world data and no walkthrough?\n\nOK = blind. Cancel = open book.");
-            } catch (e) { /* a blocked dialog counts as open book */ }
-            run.player.disclosure = blind ? "blind" : "open-book";
-          }
-          var url = URL.createObjectURL(new Blob([JSON.stringify(run) + "\n"], { type: "application/json" }));
-          var file = document.createElement("a");
-          file.href = url;
-          file.download = run.game + "-" + (run.bench || "free") + "-" + run.score + ".json";
-          file.click();
-          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
-        };
-        bar.appendChild(b);
-        // Opens the repo's run-submission issue form with the run filled in; a bot replays it and opens the pull request.
-        var s = document.createElement("button");
-        s.textContent = "SUBMIT TO SCOREBOARD";
-        s.style.cssText = b.style.cssText;
-        s.onclick = function () { window.open(submitUrl(record()), "_blank", "noopener"); };
-        bar.appendChild(s);
+    // Download and submit, once a run that can be replayed is over: any turn-based run, and a real-time run on a
+    // seeded benchmark (its inputs and gravity steps are logged through Arcade.input).
+    var tools = document.createElement("span");
+    tools.style.cssText = "display:none;gap:8px;flex-wrap:wrap;justify-content:center";
+    bar.appendChild(tools);
+    var harness = playing ? "played by hand, turn-based" : "played by hand, real time";
+    var pending = null;   // {promise, value}: the submit link for the run that just ended
+    function recordable() {
+      var a = Arcade.adapter;
+      return !Arcade.replaying && a.over() && Arcade.log.length > 0 && (playing || (Arcade.seeded && !!Arcade.bench));
+    }
+    function button(label, prominent, onclick) {
+      var b = document.createElement("button");
+      b.textContent = label;
+      b.style.cssText = "font:inherit;border-radius:999px;padding:3px 12px;cursor:pointer;" +
+        (prominent ? "color:#0a0a0b;background:#c8ff00;border:1px solid #0a0a0b;" : "color:#c8ff00;background:#0a0a0b;border:1px solid #c8ff00;");
+      b.onclick = onclick;
+      tools.appendChild(b);
+    }
+    // Opens the repo's run-submission issue form with the run filled in; a bot replays it and opens the pull request.
+    function submitRun() {
+      var go = function (l) {
+        if (l.copy) {
+          try { navigator.clipboard.writeText(l.copy); } catch (e) { /* the download button still works */ }
+          try { window.alert("This run is too long to fill in automatically. It is on your clipboard: paste it into Run JSON."); } catch (e) { /* blocked dialog */ }
+        }
+        window.open(l.url, "_blank", "noopener");
+      };
+      if (pending && pending.value) go(pending.value);
+      else (pending ? pending.promise : submitLink(record(), harness)).then(go);
+    }
+    button("SUBMIT TO SCOREBOARD", true, submitRun);
+    button("DOWNLOAD RUN (JSON)", false, function () {
+      var run = record();
+      run.player = { id: "your-handle", name: "Your name", kind: "human", model: null, harness: harness, notes: "" };
+      run.date = new Date().toISOString().slice(0, 10);
+      // A benchmark that declares disclosure: true needs the player to say how the run was played.
+      var rules = benchInfo();
+      if (rules && rules.disclosure) {
+        var blind = false;
+        try {
+          blind = window.confirm("Was this run blind: text only, no source, no world data and no walkthrough?\n\nOK = blind. Cancel = open book.");
+        } catch (e) { /* a blocked dialog counts as open book */ }
+        run.player.disclosure = blind ? "blind" : "open-book";
       }
+      var url = URL.createObjectURL(new Blob([JSON.stringify(run) + "\n"], { type: "application/json" }));
+      var file = document.createElement("a");
+      file.href = url;
+      file.download = run.game + "-" + (run.bench || "free") + "-" + run.score + ".json";
+      file.click();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    });
+    // The same offer where the player is looking when the game ends, not only in the strip at the top.
+    var cta = document.createElement("div");
+    cta.id = "arcade-submit";
+    cta.style.cssText = "position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9999;display:none;align-items:center;" +
+      "gap:12px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);box-sizing:border-box;padding:10px 14px;" +
+      "font:600 12px/1.4 ui-monospace,Consolas,monospace;letter-spacing:.04em;color:#f5f5f0;background:#0a0a0b;" +
+      "border:1px solid #c8ff00;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.6)";
+    var ctaText = document.createElement("span");
+    var ctaButton = document.createElement("button");
+    ctaButton.textContent = "SUBMIT TO SCOREBOARD";
+    ctaButton.style.cssText = "font:inherit;color:#0a0a0b;background:#c8ff00;border:0;border-radius:999px;padding:6px 14px;cursor:pointer";
+    ctaButton.onclick = submitRun;
+    var ctaClose = document.createElement("button");
+    ctaClose.textContent = "×";
+    ctaClose.setAttribute("aria-label", "Close");
+    ctaClose.style.cssText = "font:inherit;font-size:16px;color:#9a9aa0;background:none;border:0;cursor:pointer;padding:0 4px";
+    var ctaClosed = false;
+    ctaClose.onclick = function () { ctaClosed = true; render(); };
+    cta.appendChild(ctaText);
+    cta.appendChild(ctaButton);
+    cta.appendChild(ctaClose);
+    document.body.appendChild(cta);
+    Arcade.on(function (type) {
+      if (type === "over") {
+        ctaClosed = false;
+        ctaText.textContent = fmt(Arcade.adapter.score()) + " points. Put it on the scoreboard: a bot replays your run to check it.";
+      }
+      // The link is built when the run ends, so the click can open it at once (a pop-up must open inside the click).
+      if (type === "over" && recordable()) {
+        var p = { promise: submitLink(record(), harness), value: null };
+        p.promise.then(function (v) { p.value = v; });
+        pending = p;
+      }
+      render();
     });
     setInterval(render, 300);
     if (Arcade.bench && Arcade.adapter) {

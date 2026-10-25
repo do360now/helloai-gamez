@@ -6,6 +6,7 @@
 // and only with a better one.
 import { readdir, readFile, writeFile, mkdir } from "node:fs/promises";
 import path from "node:path";
+import { inflateRawSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -39,10 +40,17 @@ function stripFence(s) {
   return m ? m[1] : s;
 }
 
+// The game's Submit button sends a long run as "deflate:<base64url>" (raw deflate of the JSON) to fit in a URL.
+export function unpackRun(text) {
+  const t = String(text).trim();
+  if (!t.startsWith("deflate:")) return t;
+  return inflateRawSync(Buffer.from(t.slice(8), "base64url"), { maxOutputLength: 1 << 20 }).toString("utf8");
+}
+
 const FIELDS = { run: "Run JSON", name: "Display name", label: "Run label", kind: "Who played", model: "Model",
   harness: "How it was played", notes: "Notes", disclosure: "Disclosure (Night Shift only)" };
 const KINDS = { "human": "human", "an llm": "llm", "an agent": "agent" };
-const MAX_ACTIONS = 5000;
+const MAX_ACTIONS = 20000;   // a real-time run logs every key press and gravity step
 
 // Ranked like the scoreboard: score, then the benchmark's tiebreak stat (lower wins).
 function better(a, b, tiebreak) {
@@ -62,13 +70,13 @@ export function buildSubmission(issue, benchmarks, existing, today) {
   const get = (k) => f[FIELDS[k]] || "";
 
   let raw;
-  try { raw = JSON.parse(stripFence(get("run"))); } catch (e) { return fail("Run JSON is not valid JSON: " + e.message); }
+  try { raw = JSON.parse(unpackRun(stripFence(get("run")))); } catch (e) { return fail("Run JSON is not valid JSON: " + e.message); }
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fail("Run JSON must be the object from arcade.run() or the downloaded file");
   const bench = benchmarks.find((b) => b.game === raw.game && b.bench === raw.bench);
   if (!bench) return fail(`no benchmark ${raw.game}/${raw.bench}`);
   if (raw.protocol !== "arcade/0.1") return fail('protocol must be "arcade/0.1"');
   if (raw.seed !== bench.seed) return fail(`seed ${raw.seed} is not the benchmark seed ${bench.seed}`);
-  if (raw.mode !== "turn") return fail("only turn-based runs can be replayed (play with ?agent=1)");
+  if (raw.mode !== "turn" && raw.mode !== "realtime") return fail('mode must be "turn" or "realtime"');
   if (!Array.isArray(raw.actions) || !raw.actions.length || raw.actions.length > MAX_ACTIONS ||
     !raw.actions.every((a) => typeof a === "string" && a.length <= 200)) return fail(`actions must be 1 to ${MAX_ACTIONS} strings`);
   if (!Number.isInteger(raw.score) || raw.score < 0) return fail("score must be a whole number");

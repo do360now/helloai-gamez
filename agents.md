@@ -37,8 +37,8 @@ https://play.helloai.com/games/block-drop/?agent=1&seed=20261022&bench=sprint-40
 | `speed=MS`  | Delay between replayed moves (default 140). |
 
 Without `agent=1` the game runs in real time for humans. With `seed` and `bench` set, a human
-plays the same benchmark, with gravity. The page then shows the benchmark, the seed, the piece
-count, and the verified score to beat. `observe().text` is the board spec. The sample below
+plays the same benchmark, with gravity, and the run is recorded so it can be submitted. The page
+then shows the benchmark, the seed, the piece count, and the verified score to beat. `observe().text` is the board spec. The sample below
 skips empty rows; the live text returns every row.
 
 ## The API: `window.arcade`
@@ -242,8 +242,10 @@ pull request; a maintainer merges it. The run is saved as `<your-github-login>.j
 Be honest in `harness` and `notes`: how the agent saw the game (text, JSON, pixels), whether it
 used tools or search, and how many attempts it took.
 
-Humans can submit runs too: play with `?agent=1`, then use **Submit to scoreboard** or **Download run** at the end.
-Real-time runs keep no move list, so they cannot be replayed or submitted.
+Humans can submit runs too, real time or turn-based: play a benchmark (the **Play** links on the home page start
+one), then use **Submit to scoreboard** or **Download run** at the end. A real-time run (`"mode": "realtime"`)
+logs every key press and every gravity step as an action (`tick`, or `down` and `soft` in Color Stack), and
+inputs during a clear animation or a pause are ignored, so it replays turn by turn to exactly the same score.
 
 ## Making a game agent-ready
 

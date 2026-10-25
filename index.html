@@ -425,13 +425,13 @@ legend: # filled, @ current piece, + where it lands, . empty
 (function () {
   "use strict";
   var GAMES = [
-    { id: "block-drop", title: "Block Drop", genre: "Falling block", builder: "Meta AI", track: "Single-file", agent: true,
+    { id: "block-drop", title: "Block Drop", genre: "Falling block", builder: "Meta AI", track: "Single-file", agent: true, bench: "sprint-40",
       desc: "Stack and clear with a 7-bag, hold, ghost piece and wall kicks. The arcade's first benchmark.", color: "#22d3ee" },
-    { id: "color-stack", title: "Color Stack", genre: "Tile matching", builder: "Claude", track: "Single-file", agent: true,
+    { id: "color-stack", title: "Color Stack", genre: "Tile matching", builder: "Claude", track: "Single-file", agent: true, bench: "sprint-40",
       desc: "Match four colors and chain gravity combos.", color: "#6366f1" },
-    { id: "pill-drop", title: "Pill Drop", genre: "Tile matching", builder: "ChatGPT", track: "Single-file", agent: true,
+    { id: "pill-drop", title: "Pill Drop", genre: "Tile matching", builder: "ChatGPT", track: "Single-file", agent: true, bench: "sprint-40",
       desc: "Clear every germ in the bottle with two-color pills.", color: "#ff4d6a" },
-    { id: "night-shift", title: "Night Shift", genre: "Adventure", builder: "Claude", track: "Open", agent: true,
+    { id: "night-shift", title: "Night Shift", genre: "Adventure", builder: "Claude", track: "Open", agent: true, bench: "case-150",
       desc: "1989, a small-town arcade, a tampered high-score board and a missing cabinet. Type or tap your way through a parser mystery with a 16-color picture. 100 points, 150 commands.", color: "#c8ff00" }
   ];
   var KIND = { llm: "LLM", agent: "Agent", baseline: "Baseline", human: "Human" };
@@ -549,7 +549,8 @@ legend: # filled, @ current piece, + where it lands, . empty
       el("p", { text: g.desc }),
       art,
       el("footer", {}, [
-        el("a", { class: "link-btn lime", href: "/games/" + g.id + "/", text: "Play ↗" }),
+        // Play starts the game's benchmark (seed 20261022, data/benchmarks.json), so the run can be submitted.
+        el("a", { class: "link-btn lime", href: "/games/" + g.id + "/" + (g.bench ? "?seed=20261022&bench=" + g.bench : ""), text: "Play ↗" }),
         el("span", { text: g.track + " track" + (g.agent ? "" : " · agent mode soon") })
       ])
     ]));

@@ -568,12 +568,7 @@ function gameLoop(t){
     let interval=isSoftDrop? 55 : dropInterval;
     if(dropAcc>=interval){
       dropAcc=0;
-      if(cur && isValid(cur.x, cur.y+1)){
-        cur.y++;
-        if(isSoftDrop){ score+=1; updateUI(); }
-      }else{
-        if(cur) lockPiece();
-      }
+      live(isSoftDrop ? 'soft' : 'down');
     }
   }
   render();
@@ -595,6 +590,12 @@ function rotate(){
   cur.colors=[c[2], c[0], c[1]];
   // no collision check needed shape same column, but keep for safety
 }
+function stepDown(){ if(cur && isValid(cur.x, cur.y+1)) cur.y++; else if(cur) lockPiece(); }
+function softStep(){ if(cur && isValid(cur.x, cur.y+1)){ cur.y++; score+=1; updateUI(); } else if(cur) lockPiece(); }
+// Real time: every input and gravity step goes through Arcade.input, which logs it (and refuses it mid clear or
+// while paused), so the run replays turn by turn. Held soft drop steps are "soft" (+1 point), gravity is "down".
+const LIVE={ left:moveLeft, right:moveRight, rotate, drop:hardDrop, down:stepDown, soft:softStep };
+function live(action){ if(Arcade.input(action)) LIVE[action](); }
 function softDropStart(){ if(state==='playing') isSoftDrop=true; }
 function softDropEnd(){ isSoftDrop=false; }
 function hardDrop(){
@@ -642,11 +643,11 @@ window.addEventListener('keydown', e=>{
     if(action){ e.preventDefault(); Arcade.onKeyAction(action); }
     return;
   }
-  if(e.code==='ArrowLeft'){ e.preventDefault(); moveLeft(); }
-  else if(e.code==='ArrowRight'){ e.preventDefault(); moveRight(); }
+  if(e.code==='ArrowLeft'){ e.preventDefault(); live('left'); }
+  else if(e.code==='ArrowRight'){ e.preventDefault(); live('right'); }
   else if(e.code==='ArrowDown'){ e.preventDefault(); if(!e.repeat) softDropStart(); }
-  else if(e.code==='ArrowUp' || e.code==='KeyW'){ e.preventDefault(); rotate(); }
-  else if(e.code==='Space'){ e.preventDefault(); hardDrop(); }
+  else if(e.code==='ArrowUp' || e.code==='KeyW'){ e.preventDefault(); live('rotate'); }
+  else if(e.code==='Space'){ e.preventDefault(); live('drop'); }
   else if(e.code==='KeyP'){ e.preventDefault(); togglePause(); }
   else if(e.code==='KeyR'){ e.preventDefault(); if(gameOver) restart(); }
 });
@@ -664,11 +665,11 @@ document.querySelectorAll('.mobile-controls button').forEach(btn=>{
   let handle=(ev)=>{
     ev.preventDefault();
     if(Arcade.agent){ Arcade.onKeyAction(act==='hard' ? 'drop' : act); return; }
-    if(act==='left') moveLeft();
-    else if(act==='right') moveRight();
-    else if(act==='rotate') rotate();
-    else if(act==='down'){ softDropStart(); setTimeout(softDropEnd, 120); if(cur && isValid(cur.x, cur.y+1)) cur.y++; else lockPiece(); }
-    else if(act==='hard') hardDrop();
+    if(act==='left') live('left');
+    else if(act==='right') live('right');
+    else if(act==='rotate') live('rotate');
+    else if(act==='down'){ softDropStart(); setTimeout(softDropEnd, 120); live('down'); }
+    else if(act==='hard') live('drop');
   };
   btn.addEventListener('touchstart', handle, {passive:false});
   btn.addEventListener('mousedown', handle);
@@ -695,13 +696,13 @@ boardCanvas.addEventListener('touchend', e=>{
     return;
   }
   if(dt<300 && absX<20 && absY<20){
-    rotate(); // tap to rotate
+    live('rotate'); // tap to rotate
   }else if(absX>absY){
-    if(dx>30) moveRight();
-    else if(dx<-30) moveLeft();
+    if(dx>30) live('right');
+    else if(dx<-30) live('left');
   }else{
-    if(dy>30){ if(cur && isValid(cur.x, cur.y+1)) cur.y++; else lockPiece(); }
-    else if(dy<-30) rotate();
+    if(dy>30) live('down');
+    else if(dy<-30) live('rotate');
   }
   touchStartX=0;
 }, {passive:true});
@@ -736,7 +737,8 @@ Arcade.register({
   actions:{
     left:'move the column one left', right:'move one right',
     rotate:'cycle the colors: the bottom block moves to the top',
-    down:'move down one row; locks the column if it cannot move', drop:'hard drop and lock (+2 points per row)',
+    down:'move down one row; locks the column if it cannot move', soft:'soft drop one row (+1 point); locks the column if it cannot move',
+    drop:'hard drop and lock (+2 points per row)',
     'place R C':'macro: rotate R times (0-2), move to column C (0-5), hard drop'
   },
   start:()=>{ restart(); },
@@ -774,8 +776,7 @@ Arcade.register({
     return out.join('\n');
   },
   apply:async (action, pace)=>{
-    const simple={ left:moveLeft, right:moveRight, rotate,
-      down:()=>{ if(isValid(cur.x,cur.y+1)) cur.y++; else lockPiece(); }, drop:hardDrop };
+    const simple={ left:moveLeft, right:moveRight, rotate, down:stepDown, soft:softStep, drop:hardDrop };
     if(simple[action]){ simple[action](); return true; }
     const m=/^place ([0-2]) ([0-5])$/.exec(action);
     if(!m || !cur) return false;

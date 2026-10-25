@@ -97,6 +97,62 @@ export default async function (t) {
     }
   });
 
+  // Each game: keys a player might press, whether Space starts the game, and the action gravity is logged as.
+  const REALTIME = [
+    { game: "block-drop", keys: ["ArrowLeft", "ArrowRight", "ArrowUp", "z", "c", "ArrowDown"], start: true, gravity: "tick" },
+    { game: "color-stack", keys: ["ArrowLeft", "ArrowRight", "ArrowUp", "hold:ArrowDown"], start: false, gravity: "down", also: "soft" },
+    { game: "pill-drop", keys: ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"], start: false, gravity: "tick" },
+  ];
+  for (const g of REALTIME) {
+    await t.check(`realtime: ${g.game} logs inputs and gravity, replays exactly, and can be submitted`, async () => {
+      const context = await browser.newContext();
+      const page = await context.newPage();
+      const errors = [];
+      page.on("pageerror", (e) => errors.push(String(e)));
+      try {
+        await page.goto(`${t.base}/games/${g.game}/?seed=20261022&bench=sprint-40`);
+        await page.waitForFunction(() => window.arcade && window.Arcade.adapter);
+        if (g.start) await page.keyboard.press("Space");
+        let seq = 1;
+        const rnd = () => ((seq = (seq * 1103515245 + 12345) % 2147483648) / 2147483648);
+        for (let i = 0; i < 400 && !(await page.evaluate(() => window.arcade.observe().over)); i++) {
+          for (let k = Math.floor(rnd() * 4); k > 0; k--) {
+            const key = g.keys[Math.floor(rnd() * g.keys.length)];
+            if (key.startsWith("hold:")) {   // a held soft drop
+              await page.keyboard.down(key.slice(5));
+              await page.waitForTimeout(200);
+              await page.keyboard.up(key.slice(5));
+            } else await page.keyboard.press(key);
+          }
+          if (i % 9 === 0) await page.waitForTimeout(1100);   // let gravity step
+          await page.keyboard.press("Space");
+          await page.waitForTimeout(250);   // past a clear animation
+        }
+        const run = await page.evaluate(() => window.arcade.run());
+        t.assert(run.over && run.mode === "realtime", `realtime run over: ${run.mode} ${run.over}`);
+        t.assert(run.actions.includes(g.gravity) && run.actions.includes("drop"), `log has ${g.gravity} steps and drops`);
+        t.assert(!g.also || run.actions.includes(g.also), `log has ${g.also} steps`);
+        t.assert(/SUBMIT TO SCOREBOARD/.test(await bannerText(page)), "submit button shown after a realtime run");
+
+        const replay = await browser.newPage();
+        await replay.goto(`${t.base}/games/${g.game}/?agent=1&seed=20261022&bench=sprint-40`);
+        await replay.waitForFunction(() => window.arcade && window.arcade.observe().ready);
+        const got = await replay.evaluate(async (actions) => {
+          let bad = 0;
+          for (const a of actions) if (!(await window.arcade.act(a)).ok) bad++;
+          return { bad, run: window.arcade.run() };
+        }, run.actions);
+        await replay.close();
+        t.assert(got.bad === 0, `${got.bad} actions refused in replay`);
+        t.assert(got.run.score === run.score && JSON.stringify(got.run.stats) === JSON.stringify(run.stats),
+          `replay ${got.run.score} ${JSON.stringify(got.run.stats)}, played ${run.score} ${JSON.stringify(run.stats)}`);
+        t.assert(!errors.length, errors.join("; "));
+      } finally {
+        await context.close();
+      }
+    });
+  }
+
   await t.check("banner: your best N when the run is below the stored best", async () => {
     const { context, page } = await open(browser, t.base + BENCH);
     try {
