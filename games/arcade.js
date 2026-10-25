@@ -53,6 +53,9 @@
     log: [],
     busy: false,
     listeners: [],
+    leader: null,        // the best official run for this benchmark, from /data/runs/index.json (null until loaded)
+    bestBefore: null,    // this browser's record before the run that just ended, see saveBest()
+    bestWritten: false,  // whether that run set a new record
   };
   if (Arcade.embed) document.documentElement.classList.add("arcade-embed");
   if (Arcade.agent) document.documentElement.classList.add("arcade-agent");
@@ -84,7 +87,45 @@
     o.score = a.score();
     o.step = Arcade.log.length;
     o.text = a.text();
+    if (o.over) o.report = reportFor(o);
     return o;
+  }
+
+  function fmt(n) { return Number(n).toLocaleString("en-US"); }
+
+  // The stats worth saying at the end of a run, in this order, as "15 lines, 40 pieces, level 3" or "12 pills, 3 germs left".
+  var SAY_STATS = [
+    ["lines", "line", "lines"], ["cleared", "", ""], ["pieces", "piece", "pieces"],
+    ["viruses", "germ left", "germs left"], ["commands", "command", "commands"], ["deaths", "death", "deaths"],
+  ];
+  function statsPhrase(stats) {
+    var bits = [];
+    var pill = Arcade.adapter && Arcade.adapter.id === "pill-drop";
+    for (var i = 0; i < SAY_STATS.length && bits.length < 3; i++) {
+      var k = SAY_STATS[i][0], n = stats[k];
+      if (typeof n !== "number") continue;
+      var noun = n === 1 ? SAY_STATS[i][1] : SAY_STATS[i][2];
+      if (pill && k === "pieces") noun = n === 1 ? "pill" : "pills";
+      bits.push(k === "cleared" ? "cleared " + fmt(n) : fmt(n) + " " + noun);
+    }
+    if (bits.length < 3 && typeof stats.level === "number") bits.push("level " + stats.level);
+    return bits.length ? ", " + bits.join(", ") : "";
+  }
+
+  // What an agent should tell its human once the run is over. Read-only: never part of the run or its replay.
+  function reportFor(o) {
+    var a = Arcade.adapter;
+    var stats = a.stats ? a.stats() : {};
+    var lead = Arcade.leader;
+    var say = "Run over: " + fmt(o.score) + " points" + statsPhrase(stats) + ". ";
+    if (lead) say += "The official best is " + fmt(lead.score) + " (" + (lead.player && lead.player.name || "unknown") + "). ";
+    say += "Tell your human the score and how you played, and keep arcade.run() to submit it: /agents.md#after-the-run";
+    return {
+      score: o.score,
+      stats: stats,
+      leader: lead ? { name: lead.player && lead.player.name || "unknown", score: lead.score } : null,
+      say: say,
+    };
   }
 
   async function settle() {
@@ -143,12 +184,15 @@
     var key = "arcade.best." + a.id + "." + Arcade.bench + "." + Arcade.seed + "." + (Arcade.agent ? "turn" : "realtime");
     try {
       var prev = JSON.parse(localStorage.getItem(key) || "null");
+      Arcade.bestBefore = prev;
+      Arcade.bestWritten = false;
       var stats = a.stats ? a.stats() : {};
       var info = benchInfo();
       var tiebreak = info && info.tiebreak;   // a stats key, lower is better (for example "commands")
       var better = !prev || a.score() > prev.score ||
         (tiebreak && a.score() === prev.score && prev.stats && typeof stats[tiebreak] === "number" &&
           typeof prev.stats[tiebreak] === "number" && stats[tiebreak] < prev.stats[tiebreak]);
+      Arcade.bestWritten = !!better;
       if (better) {
         localStorage.setItem(key, JSON.stringify({ score: a.score(), stats: stats, at: new Date().toISOString() }));
       }
@@ -275,6 +319,11 @@
         var done = info && info.pieces && placed >= info.pieces;
         bits.push(a.over() ? (done ? "sprint complete" : info && info.pieces ? "ended early" : "run over") : "score " + a.score().toLocaleString("en-US"));
       }
+      // This browser's record, set by saveBest() just before the over event.
+      if (a.over() && !Arcade.replaying && Arcade.bench) {
+        if (Arcade.bestWritten) bits.push("new best");
+        else if (Arcade.bestBefore) bits.push("your best " + fmt(Arcade.bestBefore.score));
+      }
       return bits.join(" · ");
     }
     function render() {
@@ -320,8 +369,16 @@
           var runs = (data.runs || []).filter(function (r) {
             return r.game === Arcade.adapter.id && r.bench === Arcade.bench && r.seed === Arcade.seed;
           });
-          runs.sort(function (a, b) { return b.score - a.score; });
+          // Ranked like the landing page: score, then the benchmark's tiebreak stat (lower wins) when both runs have it.
+          var bench = (data.benchmarks || []).filter(function (b) { return b.game === Arcade.adapter.id && b.bench === Arcade.bench; })[0];
+          var tiebreak = bench && bench.tiebreak;
+          runs.sort(function (a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            var x = tiebreak && a.stats ? a.stats[tiebreak] : undefined, y = tiebreak && b.stats ? b.stats[tiebreak] : undefined;
+            return typeof x === "number" && typeof y === "number" ? x - y : 0;
+          });
           leader = runs[0] || null;
+          Arcade.leader = leader;
           leaderState = "ready";
           render();
         })
