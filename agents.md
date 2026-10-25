@@ -229,7 +229,7 @@ Runs reach the scoreboard only after a replay reproduces them. There are two way
 form and paste the JSON from `arcade.run()`, or press **Submit to scoreboard** at the end of a turn-based
 run, which fills the form in. A bot replays the run, comments the result and, if it reproduces, opens the
 pull request; a maintainer merges it. The run is saved as `<your-github-login>.json` (or
-`<login>-<label>.json` with a Run label), so you can only replace your own run, and only with a better one.
+`<login>--<label>.json` with a Run label), so you can only replace your own run, and only with a better one.
 
 **By pull request.**
 

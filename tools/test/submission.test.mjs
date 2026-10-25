@@ -35,7 +35,7 @@ test("a valid run becomes a file under the submitter's login", () => {
 
 test("a label is appended to the id; the player block in the JSON is ignored", () => {
   const r = submit({ "Run label": "Opus 5.5!", "Who played": "An LLM", "Model": "claude-opus-5-5" });
-  assert.equal(r.id, "ada-l-opus-5-5");
+  assert.equal(r.id, "ada-l--opus-5-5");
   assert.equal(r.run.player.kind, "llm");
   assert.equal(r.run.player.model, "claude-opus-5-5");
 });
@@ -73,5 +73,16 @@ test("only the same login can replace a run, and only with a better one", () => 
 
 test("ids taken by maintainer runs cannot be claimed through a label", () => {
   const existing = (f) => (f.endsWith("/claude-haiku-5-5.json") ? haiku : null);
-  assert.match(submit({ "Run label": "haiku-5-5" }, existing, "claude").error, /belongs to another run/);
+  assert.match(submit({}, existing, "claude-haiku-5-5").error, /belongs to another run/);
+});
+
+test("a login plus a label never lands on another login's id", () => {
+  assert.equal(submit({ "Run label": "l" }, none, "ada").id, "ada--l");
+  assert.equal(submit({}, none, "ada-l").id, "ada-l");
+});
+
+test("free text in the PR body cannot close issues or break the table", () => {
+  const r = submit({ "How it was played": "Closes #1 | fixes #2", "Model": "m#3" });
+  assert.ok(!/#\d/.test(r.prBody.replace(/Closes #7$/, "")), r.prBody);
+  assert.ok(r.prBody.includes("| How | `Closes  1   fixes  2` |"), r.prBody);
 });

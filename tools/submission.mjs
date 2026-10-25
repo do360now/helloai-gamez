@@ -89,7 +89,8 @@ export function buildSubmission(issue, benchmarks, existing, today) {
   }
 
   const label = slug(get("label"));
-  player.id = label ? `${login}-${label}`.slice(0, 64).replace(/-+$/, "") : login;
+  // GitHub logins never contain "--" and slug() collapses dashes, so login--label cannot be another login's id.
+  player.id = label ? `${login}--${label}` : login;
   const file = `data/runs/${bench.game}/${bench.bench}/${player.id}.json`;
   const run = { protocol: raw.protocol, game: raw.game, bench: raw.bench, seed: raw.seed, mode: raw.mode,
     actions: raw.actions, score: raw.score, over: true, stats, player, date: today };
@@ -103,13 +104,15 @@ export function buildSubmission(issue, benchmarks, existing, today) {
   }
 
   const score = run.score.toLocaleString("en-US");
+  // Free text in the PR body sits in code spans without # or |, so it cannot close issues or break the table.
+  const code = (v) => (v ? "`" + v.replace(/[#|]/g, " ") + "`" : "none");
   const commit = `runs: ${bench.title}, ${name} (${score})\n\nSubmitted by @${login} in #${issue.number}.`;
   const prBody = [
     `${name} scores **${score}** on ${bench.title}${prev ? `, replacing ${prev.score.toLocaleString("en-US")}` : ""}.`,
     "",
     `| Field | Value |`, `|---|---|`,
-    `| Player id | \`${player.id}\` |`, `| Kind | ${kind} |`, `| Model | ${player.model || "none"} |`,
-    `| How | ${player.harness || "not given"} |`, `| Moves | ${run.actions.length} |`,
+    `| Player id | \`${player.id}\` |`, `| Kind | ${kind} |`, `| Model | ${code(player.model)} |`,
+    `| How | ${code(player.harness)} |`, `| Moves | ${run.actions.length} |`,
     ...(player.disclosure ? [`| Disclosure | ${player.disclosure} |`] : []),
     "",
     `Closes #${issue.number}`,
