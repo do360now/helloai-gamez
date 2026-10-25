@@ -104,8 +104,12 @@ export function buildSubmission(issue, benchmarks, existing, today) {
   }
 
   const score = run.score.toLocaleString("en-US");
-  // Free text in the PR body sits in code spans without # or |, so it cannot close issues or break the table.
-  const code = (v) => (v ? "`" + v.replace(/[#|]/g, " ") + "`" : "none");
+  // Free text in the PR body is one line of letters, digits and plain punctuation in a code span: no # or URL to
+  // close an issue, no | or newline to break out of the table.
+  const code = (v) => {
+    const t = String(v || "").replace(/[^A-Za-z0-9 .,;:()+_=?!'"-]/g, " ").replace(/\s+/g, " ").trim();
+    return t ? "`" + t + "`" : "none";
+  };
   const commit = `runs: ${bench.title}, ${name} (${score})\n\nSubmitted by @${login} in #${issue.number}.`;
   const prBody = [
     `${name} scores **${score}** on ${bench.title}${prev ? `, replacing ${prev.score.toLocaleString("en-US")}` : ""}.`,

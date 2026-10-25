@@ -84,5 +84,8 @@ test("a login plus a label never lands on another login's id", () => {
 test("free text in the PR body cannot close issues or break the table", () => {
   const r = submit({ "How it was played": "Closes #1 | fixes #2", "Model": "m#3" });
   assert.ok(!/#\d/.test(r.prBody.replace(/Closes #7$/, "")), r.prBody);
-  assert.ok(r.prBody.includes("| How | `Closes  1   fixes  2` |"), r.prBody);
+  assert.ok(r.prBody.includes("| How | `Closes 1 fixes 2` |"), r.prBody);
+  const multi = buildSubmission({ ...issue({}), body: body({}).replace("by hand", "x\nCloses https://github.com/o/r/issues/1") },
+    benchmarks, none, "2026-10-25");
+  assert.ok(multi.prBody.includes("| How | `x Closes https: github.com o r issues 1` |"), multi.prBody);
 });
