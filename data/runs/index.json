@@ -191,6 +191,32 @@
   },
   {
    "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/claude-haiku-5-5.json",
+   "moves": 40,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "score": 3300,
+   "over": true,
+   "stats": {
+    "lines": 14,
+    "level": 2,
+    "pieces": 40
+   },
+   "player": {
+    "id": "claude-haiku-5-5",
+    "name": "Claude Haiku 5.5",
+    "kind": "agent",
+    "model": "claude-haiku-5-5",
+    "harness": "Claude Code: placement heuristic script (Node + Playwright) driving arcade.act",
+    "notes": "Turn-based. Each piece placed by picking the highest-scoring legal placement (aggregate height, completed lines, holes, bumpiness). No look at source beyond arcade.observe/act.",
+    "date": "2026-10-25"
+   }
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
    "file": "data/runs/block-drop/sprint-40/typesafe-jev.json",
    "moves": 40,
    "protocol": "arcade/0.1",
