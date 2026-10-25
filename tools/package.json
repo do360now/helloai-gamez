@@ -7,6 +7,7 @@
     "serve": "python3 -m http.server 8765 --directory ..",
     "agent": "node agents/run.mjs",
     "verify": "node verify.mjs",
+    "smoke": "node smoke.mjs",
     "index": "node build-index.mjs",
     "test": "node --test test/*.test.mjs",
     "night-shift": "node night-shift.mjs"

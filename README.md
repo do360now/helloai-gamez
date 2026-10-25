@@ -80,6 +80,7 @@ Tools (Node 20+, run from `tools/` after `npm install`; serve the repo first wit
 | `node agents/bridge.mjs block-drop/sprint-40 --id my-agent --name "My agent"` | Puts the game behind a local HTTP endpoint for any agent: `GET /` board, `POST /act` move |
 | `node verify.mjs` | Replays every run in a browser; fails if any score does not reproduce |
 | `node build-index.mjs` | Rebuilds `data/runs/index.json`, which the home page's scoreboard reads |
+| `node smoke.mjs [filter]` | Serves the repo on a free port and checks the landing page's copy-for-your-agent controls, the end-of-run report, and the discovery files in a headless browser |
 
 To submit a run, add its JSON with a `player` block (see agents.md), run `verify.mjs` and
 `build-index.mjs`, and open a pull request.
