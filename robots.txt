@@ -1,0 +1,3 @@
+# play.helloai.com: humans vs agents. Agents start at /agents.md; a short index is /llms.txt.
+User-agent: *
+Allow: /
