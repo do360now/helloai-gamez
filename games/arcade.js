@@ -119,6 +119,20 @@
     return s || "unknown";
   }
 
+  // The run-submission issue form with the run prefilled. GitHub refuses very long URLs, so a run that does
+  // not fit is copied to the clipboard instead, for pasting into the form.
+  var SUBMIT_FORM = "https://github.com/do360now/helloai-gamez/issues/new?template=run-submission.yml";
+  function submitUrl(run) {
+    var info = benchInfo();
+    var title = "Run: " + ((info && info.label) || run.game) + ", " + fmt(run.score);
+    var url = SUBMIT_FORM + "&title=" + encodeURIComponent(title) + "&harness=" + encodeURIComponent("played by hand, turn-based");
+    var json = JSON.stringify(run);
+    if (url.length + encodeURIComponent(json).length + 5 <= 8000) return url + "&run=" + encodeURIComponent(json);
+    try { navigator.clipboard.writeText(json); } catch (e) { /* the download button still works */ }
+    try { window.alert("This run is too long to fill in automatically. It is on your clipboard: paste it into Run JSON."); } catch (e) { /* blocked dialog */ }
+    return url;
+  }
+
   // What an agent should tell its human once the run is over. Read-only: never part of the run or its replay.
   function reportFor(o) {
     var a = Arcade.adapter;
@@ -366,6 +380,12 @@
           setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
         };
         bar.appendChild(b);
+        // Opens the repo's run-submission issue form with the run filled in; a bot replays it and opens the pull request.
+        var s = document.createElement("button");
+        s.textContent = "SUBMIT TO SCOREBOARD";
+        s.style.cssText = b.style.cssText;
+        s.onclick = function () { window.open(submitUrl(record()), "_blank", "noopener"); };
+        bar.appendChild(s);
       }
     });
     setInterval(render, 300);

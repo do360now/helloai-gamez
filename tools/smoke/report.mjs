@@ -79,6 +79,24 @@ export default async function (t) {
     }
   });
 
+  await t.check("banner: submit opens the issue form with the run", async () => {
+    const { context, page, errors } = await open(browser, t.base + BENCH);
+    try {
+      await playOut(page);
+      await page.evaluate(() => { window.open = (url) => { window.__opened = url; }; });
+      await page.click("#arcade-banner button:text('SUBMIT TO SCOREBOARD')");
+      const url = new URL(await page.evaluate(() => window.__opened));
+      const run = await page.evaluate(() => window.arcade.run());
+      t.assert(url.origin + url.pathname === "https://github.com/do360now/helloai-gamez/issues/new", `form url: ${url}`);
+      t.assert(url.searchParams.get("template") === "run-submission.yml", "uses the run-submission template");
+      t.assert(url.searchParams.get("run") === JSON.stringify(run), "run is prefilled exactly");
+      t.assert(url.searchParams.get("title").endsWith(fmt(run.score)), `title has the score: ${url.searchParams.get("title")}`);
+      t.assert(!errors.length, errors.join("; "));
+    } finally {
+      await context.close();
+    }
+  });
+
   await t.check("banner: your best N when the run is below the stored best", async () => {
     const { context, page } = await open(browser, t.base + BENCH);
     try {

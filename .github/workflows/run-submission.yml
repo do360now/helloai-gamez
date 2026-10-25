@@ -1,0 +1,109 @@
+# A run-submission issue (.github/ISSUE_TEMPLATE/run-submission.yml) becomes a pull request once its run replays.
+# The issue is untrusted input: it is only ever read from the event file by tools/submission.mjs, never
+# interpolated into a script, and checkout keeps no credentials until the push step.
+name: Run submission
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+concurrency:
+  group: run-submission-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  submit:
+    if: >-
+      github.event.issue.state == 'open' &&
+      contains(github.event.issue.labels.*.name, 'run-submission') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'run-submission')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ISSUE: ${{ github.event.issue.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+
+      - name: Install the replay browser
+        working-directory: tools
+        run: npm ci && npx playwright install --with-deps chromium
+
+      - name: Build the run from the issue
+        id: build
+        working-directory: tools
+        run: |
+          node submission.mjs "$GITHUB_EVENT_PATH" --out "$RUNNER_TEMP/result.json"
+          echo "ok=$(jq -r .ok "$RUNNER_TEMP/result.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Explain a rejected submission
+        if: steps.build.outputs.ok != 'true'
+        run: |
+          {
+            echo "This submission could not be read: **$(jq -r .error "$RUNNER_TEMP/result.json")**."
+            echo
+            echo "Edit the issue to fix it and the bot will try again."
+          } > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+
+      - name: Replay the run
+        id: replay
+        if: steps.build.outputs.ok == 'true'
+        working-directory: tools
+        run: |
+          python3 -m http.server 8765 --directory .. > /dev/null 2>&1 &
+          sleep 1
+          file=$(jq -r .file "$RUNNER_TEMP/result.json")
+          if node verify.mjs "../$file" > "$RUNNER_TEMP/verify.txt" 2>&1; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; fi
+          cat "$RUNNER_TEMP/verify.txt"
+
+      - name: Explain a failed replay
+        if: steps.replay.outputs.ok == 'false'
+        run: |
+          {
+            echo "The run did not reproduce when replayed, so it cannot go on the scoreboard:"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/verify.txt"
+            echo '```'
+            echo
+            echo "Paste the run exactly as \`arcade.run()\` or the download produced it, then edit the issue to retry."
+          } > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"
+
+      - name: Open the pull request
+        if: steps.replay.outputs.ok == 'true'
+        run: |
+          r="$RUNNER_TEMP/result.json"
+          file=$(jq -r .file "$r"); branch=$(jq -r .branch "$r")
+          (cd tools && node build-index.mjs)
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add "$file" data/runs/index.json
+          jq -r .commit "$r" > "$RUNNER_TEMP/commit.txt"
+          git commit -q -F "$RUNNER_TEMP/commit.txt"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$branch"
+          { jq -r .prBody "$r"; echo; echo '```'; cat "$RUNNER_TEMP/verify.txt"; echo '```'; } > "$RUNNER_TEMP/pr.md"
+          pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state open --json url -q '.[0].url')
+          if [ -n "$pr" ]; then
+            gh pr edit "$pr" --body-file "$RUNNER_TEMP/pr.md"
+          else
+            pr=$(gh pr create --repo "$GITHUB_REPOSITORY" --base "${{ github.event.repository.default_branch }}" --head "$branch" \
+              --title "$(head -n1 "$RUNNER_TEMP/commit.txt")" --body-file "$RUNNER_TEMP/pr.md")
+          fi
+          score=$(jq -r '.score' "$r")
+          printf 'Replayed: **%s** reproduces exactly. Pull request: %s\n\nA maintainer merges it onto the scoreboard.\n' \
+            "$(printf "%'d" "$score" 2>/dev/null || echo "$score")" "$pr" > "$RUNNER_TEMP/comment.md"
+          gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/comment.md"

@@ -1,0 +1,40 @@
+# Every pull request that touches runs or games must still replay every run and keep the scoreboard index current.
+name: Verify runs
+
+on:
+  pull_request:
+    paths: ["data/**", "games/**", "tools/verify.mjs", "tools/build-index.mjs"]
+  push:
+    branches: [main]
+    paths: ["data/**", "games/**"]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: tools/package-lock.json
+      - name: Install the replay browser
+        working-directory: tools
+        run: npm ci && npx playwright install --with-deps chromium
+      - name: Unit tests
+        working-directory: tools
+        run: npm test
+      - name: Replay every run
+        working-directory: tools
+        run: |
+          python3 -m http.server 8765 --directory .. > /dev/null 2>&1 &
+          sleep 1
+          node verify.mjs
+      - name: Scoreboard index is current
+        working-directory: tools
+        run: node build-index.mjs --check

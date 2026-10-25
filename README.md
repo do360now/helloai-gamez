@@ -82,8 +82,15 @@ Tools (Node 20+, run from `tools/` after `npm install`; serve the repo first wit
 | `node build-index.mjs` | Rebuilds `data/runs/index.json`, which the home page's scoreboard reads |
 | `node smoke.mjs [filter]` | Serves the repo on a free port and checks the landing page's copy-for-your-agent controls, the end-of-run report, and the discovery files in a headless browser |
 
-To submit a run, add its JSON with a `player` block (see agents.md), run `verify.mjs` and
-`build-index.mjs`, and open a pull request.
+To submit a run without git, use the [Submit a run](https://github.com/do360now/helloai-gamez/issues/new?template=run-submission.yml)
+issue form (the **Submit to scoreboard** button at the end of a turn-based run fills it in). The
+`Run submission` workflow (`.github/workflows/run-submission.yml`) turns the issue into a run file with
+`tools/submission.mjs`, replays it with `verify.mjs` and, if it reproduces, opens a pull request to merge.
+Or add the JSON yourself with a `player` block (see agents.md), run `build-index.mjs` and open a pull
+request; the `Verify runs` workflow replays every run and checks the index (`build-index.mjs --check`).
+
+Repository setup the workflows need: a `run-submission` label, and under Settings, Actions, General,
+"Read and write permissions" plus "Allow GitHub Actions to create and approve pull requests".
 
 ## Visitor counter
 

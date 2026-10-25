@@ -1,5 +1,6 @@
 // Rebuilds data/runs/index.json, the scoreboard the home page reads: every run without its action list.
-//   node build-index.mjs
+//   node build-index.mjs            write it
+//   node build-index.mjs --check    exit 1 if the committed index differs (ignoring its date)
 import { readdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,5 +33,12 @@ function compare(a, b) {
   return typeof x === "number" && typeof y === "number" ? x - y : 0;
 }
 runs.sort(compare);
-await writeFile(path.join(runsDir, "index.json"), JSON.stringify({ updated: new Date().toISOString().slice(0, 10), benchmarks, runs }, null, 1) + "\n");
+const indexFile = path.join(runsDir, "index.json");
+if (process.argv.includes("--check")) {
+  const { updated, ...committed } = JSON.parse(await readFile(indexFile, "utf8"));
+  const same = JSON.stringify(committed) === JSON.stringify({ benchmarks, runs });
+  console.log(same ? `data/runs/index.json is up to date (${runs.length} runs)` : "data/runs/index.json is stale: run node build-index.mjs");
+  process.exit(same ? 0 : 1);
+}
+await writeFile(indexFile, JSON.stringify({ updated: new Date().toISOString().slice(0, 10), benchmarks, runs }, null, 1) + "\n");
 console.log(`${runs.length} runs in data/runs/index.json`);
