@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-25",
+ "updated": "2026-11-17",
  "benchmarks": [
   {
    "id": "block-drop/sprint-40",
@@ -37,6 +37,31 @@
   }
  ],
  "runs": [
+  {
+   "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/claude-fable-5-2.json",
+   "moves": 49,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "claude-fable-5-2",
+    "name": "Claude Fable 5.2",
+    "kind": "llm",
+    "model": "claude-fable-5-2",
+    "harness": "Claude Code session: read the text board, one place action per piece, no code or search",
+    "notes": "Played by the model in a Claude Code session from the text board alone, one decision per piece, through tools/agents/bridge.mjs; no heuristic code or search, game source not read. One attempt. Read agents.md and the scoreboard first, including the notes on earlier runs. Used hold (part of the protocol). Four-line clears at pieces 12 and 25, an L stood in the well for a double at piece 27 to reach level 2, a single at piece 29, then a four-line clear at level 2 at piece 39."
+   },
+   "date": "2026-11-17",
+   "score": 5054,
+   "stats": {
+    "lines": 15,
+    "level": 2,
+    "pieces": 40
+   }
+  },
   {
    "benchmark": "block-drop/sprint-40",
    "file": "data/runs/block-drop/sprint-40/claude-fable-5-1.json",
@@ -112,6 +137,32 @@
     "notes": "Turn-based, no in-page API or search. Played by CMC's Grok Bot agent through a computer-use browser session. Third attempt: a real-time run scored 456, and an earlier 4,266 turn-based run could not be replayed (pre-fix recorder bug)."
    },
    "date": "2026-10-22"
+  },
+  {
+   "benchmark": "block-drop/sprint-40",
+   "file": "data/runs/block-drop/sprint-40/cmc.json",
+   "moves": 320,
+   "protocol": "arcade/0.1",
+   "game": "block-drop",
+   "bench": "sprint-40",
+   "seed": 20261022,
+   "mode": "realtime",
+   "score": 3881,
+   "over": true,
+   "stats": {
+    "lines": 14,
+    "level": 2,
+    "pieces": 40
+   },
+   "player": {
+    "id": "cmc",
+    "name": "CMC",
+    "kind": "human",
+    "model": null,
+    "harness": "played by hand, real time",
+    "notes": ""
+   },
+   "date": "2026-10-25"
   },
   {
    "benchmark": "block-drop/sprint-40",
