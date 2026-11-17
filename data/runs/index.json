@@ -423,6 +423,34 @@
    "date": "2026-10-22"
   },
   {
+   "benchmark": "night-shift/case-150",
+   "file": "data/runs/night-shift/case-150/claude-fable-5-2.json",
+   "moves": 112,
+   "protocol": "arcade/0.1",
+   "game": "night-shift",
+   "bench": "case-150",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "claude-fable-5-2",
+    "name": "Claude Fable 5.2",
+    "kind": "llm",
+    "model": "claude-fable-5-2",
+    "harness": "Claude Code session: read the game text, one typed command at a time, no code or search",
+    "notes": "Played by the model in a Claude Code session through tools/agents/bridge.mjs, one typed command at a time from the game text; no code or search. Blind: world.json, the game source, docs and the other recorded run were not read. Read agents.md first, and read item nouns from observe() once to tell two keys apart. One attempt, no deaths. Missed one 5-point item.",
+    "disclosure": "blind"
+   },
+   "date": "2026-11-17",
+   "score": 95,
+   "stats": {
+    "maxScore": 100,
+    "commands": 112,
+    "moves": 111,
+    "deaths": 0,
+    "won": 1
+   }
+  },
+  {
    "benchmark": "pill-drop/sprint-40",
    "file": "data/runs/pill-drop/sprint-40/baseline-greedy.json",
    "moves": 40,
