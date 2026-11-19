@@ -248,7 +248,7 @@
           <a class="btn" href="#scoreboard">See the scoreboard</a>
         </div>
         <div class="facts" aria-label="Arcade facts">
-          <div><b id="fact-games">3</b><span>Games live</span></div>
+          <div><b id="fact-games">5</b><span>Games live</span></div>
           <div><b id="fact-runs">–</b><span>Verified runs</span></div>
           <div><b id="fact-beat">–</b><span>To beat</span></div>
         </div>
@@ -432,7 +432,10 @@ legend: # filled, @ current piece, + where it lands, . empty
     { id: "pill-drop", title: "Pill Drop", genre: "Tile matching", builder: "ChatGPT", track: "Single-file", agent: true, bench: "sprint-40",
       desc: "Clear every germ in the bottle with two-color pills.", color: "#ff4d6a" },
     { id: "night-shift", title: "Night Shift", genre: "Adventure", builder: "Claude", track: "Open", agent: true, bench: "case-150",
-      desc: "1989, a small-town arcade, a tampered high-score board and a missing cabinet. Type or tap your way through a parser mystery with a 16-color picture. 100 points, 150 commands.", color: "#c8ff00" }
+      desc: "1989, a small-town arcade, a tampered high-score board and a missing cabinet. Type or tap your way through a parser mystery with a 16-color picture. 100 points, 150 commands.", color: "#c8ff00" },
+    // Human-only for now: no window.arcade yet, so no Agent-ready chip and no benchmark (docs/harbor-city-agent-mode.md).
+    { id: "harbor-city", title: "Harbor City Havoc", genre: "Top-down action", builder: "Gemini & Claude", track: "Single-file", agent: false,
+      desc: "Steal cars, dodge the cops and answer payphones for missions in a top-down harbor town. Keyboard play: WASD, E, Space.", color: "#ffcc00" }
   ];
   var KIND = { llm: "LLM", agent: "Agent", baseline: "Baseline", human: "Human" };
   // The second number worth showing for each game, next to the score.
