@@ -1,0 +1,2447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harbor City Havoc</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #111;
+  }
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const keys = {};
+  let interactPressed = false;
+  let attackPressed = false;
+  let respawnPressed = false;
+
+  window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space') e.preventDefault();
+    initAudio();
+    if (e.code === 'KeyE' && !keys['KeyE']) {
+      interactPressed = true;
+    }
+    if ((e.code === 'Space' || e.code === 'KeyF') && !keys[e.code]) {
+      attackPressed = true;
+    }
+    if (e.code === 'KeyM' && !keys['KeyM']) {
+      toggleMute();
+    }
+    if (e.code === 'KeyR' && !keys['KeyR']) {
+      respawnPressed = true;
+    }
+    keys[e.code] = true;
+  });
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+  });
+  window.addEventListener('mousedown', () => {
+    initAudio();
+    attackPressed = true;
+  });
+
+  // =========================================================================
+  // MAP
+  // =========================================================================
+  const MAP_SIZE = 64;
+  const TILE_SIZE = 48;
+  const WORLD_SIZE = MAP_SIZE * TILE_SIZE;
+  const CAMERA_ZOOM = 0.65;
+
+  const TILE = {
+    SIDEWALK: 0,
+    ROAD: 1,
+    BUILDING: 2,
+    PARK: 3,
+    WATER: 4,
+    PIER: 5
+  };
+
+  const mapGrid = new Uint8Array(MAP_SIZE * MAP_SIZE);
+  const tileMeta = new Uint8Array(MAP_SIZE * MAP_SIZE);
+
+  const BUILDING_PALETTE = [
+    { roof: '#5a626a', trim: '#434950', detail: '#6f7882' },
+    { roof: '#7c5c4f', trim: '#5e443a', detail: '#916e60' },
+    { roof: '#69665c', trim: '#4f4d45', detail: '#7e7b70' },
+    { roof: '#4e5d6c', trim: '#394552', detail: '#637587' },
+    { roof: '#736258', trim: '#574a42', detail: '#8a766b' }
+  ];
+
+  const props = [];
+  const floatingTexts = [];
+  const explosions = [];
+
+  function addScore(amount, x, y, color = '#ffe047') {
+    player.score += amount;
+    registerMayhem();
+    floatingTexts.push({
+      text: `+${amount}`,
+      x,
+      y,
+      color,
+      life: 1.0,
+      maxLife: 1.0
+    });
+  }
+
+  function spawnExplosion(x, y) {
+    explosions.push({
+      x,
+      y,
+      life: 0.7,
+      maxLife: 0.7
+    });
+  }
+
+  function tileIndex(tx, ty) {
+    return ty * MAP_SIZE + tx;
+  }
+
+  function getTile(tx, ty) {
+    if (tx < 0 || ty < 0 || tx >= MAP_SIZE || ty >= MAP_SIZE) {
+      return TILE.WATER;
+    }
+    return mapGrid[tileIndex(tx, ty)];
+  }
+
+  function getTileMeta(tx, ty) {
+    if (tx < 0 || ty < 0 || tx >= MAP_SIZE || ty >= MAP_SIZE) {
+      return 0;
+    }
+    return tileMeta[tileIndex(tx, ty)];
+  }
+
+  function setTile(tx, ty, type, meta = 0) {
+    if (tx < 0 || ty < 0 || tx >= MAP_SIZE || ty >= MAP_SIZE) return;
+    const idx = tileIndex(tx, ty);
+    mapGrid[idx] = type;
+    tileMeta[idx] = meta;
+  }
+
+  function isSolidTile(tx, ty) {
+    const t = getTile(tx, ty);
+    return t === TILE.BUILDING || t === TILE.WATER || (t === TILE.PARK && getTileMeta(tx, ty) === 1);
+  }
+
+  function hash2D(x, y) {
+    let n = (x * 374761393 + y * 668265263) ^ 0x5bf03635;
+    n = (n ^ (n >> 13)) * 1274126177;
+    return ((n ^ (n >> 16)) >>> 0);
+  }
+
+  function generateMap() {
+    for (let y = 0; y < MAP_SIZE; y++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        setTile(x, y, TILE.SIDEWALK, 0);
+      }
+    }
+
+    // Harbor water on south and east edges
+    for (let y = 0; y < MAP_SIZE; y++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        const southWater = y >= 54;
+        const eastWater = x >= 56;
+        const cove = (x >= 52 && y >= 50);
+        if (southWater || eastWater || cove) {
+          setTile(x, y, TILE.WATER, 0);
+        }
+      }
+    }
+
+    // Road grid (2-tile wide roads spaced every 9 tiles)
+    const roadLinesX = [4, 5, 14, 15, 24, 25, 34, 35, 44, 45, 52, 53];
+    const roadLinesY = [4, 5, 14, 15, 24, 25, 34, 35, 44, 45, 51, 52];
+
+    for (let y = 0; y < MAP_SIZE; y++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        if (getTile(x, y) === TILE.WATER) continue;
+        const isRoadX = roadLinesX.includes(x) && y >= 4 && y <= 52;
+        const isRoadY = roadLinesY.includes(y) && x >= 4 && x <= 53;
+        if (isRoadX || isRoadY) {
+          setTile(x, y, TILE.ROAD, 0);
+        }
+      }
+    }
+
+    // City blocks filled with buildings, leaving 1-tile sidewalk border around roads
+    for (let y = 1; y < 53; y++) {
+      for (let x = 1; x < 55; x++) {
+        if (getTile(x, y) !== TILE.SIDEWALK) continue;
+
+        let nearRoadOrWater = false;
+        for (let dy = -1; dy <= 1; dy++) {
+          for (let dx = -1; dx <= 1; dx++) {
+            const nt = getTile(x + dx, y + dy);
+            if (nt === TILE.ROAD || nt === TILE.WATER) {
+              nearRoadOrWater = true;
+            }
+          }
+        }
+        if (!nearRoadOrWater) {
+          const blockId = hash2D(Math.floor(x / 3), Math.floor(y / 3));
+          setTile(x, y, TILE.BUILDING, blockId % BUILDING_PALETTE.length);
+        }
+      }
+    }
+
+    // Central Harbor Park
+    for (let y = 16; y <= 33; y++) {
+      for (let x = 16; x <= 33; x++) {
+        if (y === 24 || y === 25 || x === 24 || x === 25) {
+          setTile(x, y, TILE.SIDEWALK, 1);
+        } else if (x === 16 || x === 33 || y === 16 || y === 33) {
+          setTile(x, y, TILE.SIDEWALK, 0);
+        } else {
+          const hasTree = (hash2D(x, y) % 5) === 0 ? 1 : 0;
+          setTile(x, y, TILE.PARK, hasTree);
+        }
+      }
+    }
+
+    // Waterfront promenade along y = 53
+    for (let x = 4; x <= 51; x++) {
+      setTile(x, 53, TILE.SIDEWALK, 0);
+    }
+
+    // Harbor piers extending south into the water
+    const pierCols = [10, 11, 22, 23, 36, 37, 46, 47];
+    for (const px of pierCols) {
+      for (let py = 54; py <= 60; py++) {
+        setTile(px, py, TILE.PIER, 0);
+      }
+    }
+
+    // East dock piers extending into east water
+    const eastPierRows = [18, 19, 38, 39];
+    for (const py of eastPierRows) {
+      for (let px = 55; px <= 61; px++) {
+        setTile(px, py, TILE.PIER, 0);
+      }
+    }
+
+    // Generate street props (hydrants, trash bins, crates) on sidewalks
+    for (let y = 3; y < 53; y++) {
+      for (let x = 3; x < 54; x++) {
+        if (getTile(x, y) !== TILE.SIDEWALK) continue;
+        const adjRoad =
+          getTile(x + 1, y) === TILE.ROAD ||
+          getTile(x - 1, y) === TILE.ROAD ||
+          getTile(x, y + 1) === TILE.ROAD ||
+          getTile(x, y - 1) === TILE.ROAD;
+        if (!adjRoad) continue;
+        if ((hash2D(x, y) % 13) === 0) {
+          const kind = hash2D(x + 7, y + 3) % 3;
+          props.push({
+            x: (x + 0.5) * TILE_SIZE,
+            y: (y + 0.5) * TILE_SIZE,
+            w: kind === 0 ? 14 : 18,
+            h: kind === 0 ? 14 : 18,
+            kind,
+            intact: true,
+            vx: 0,
+            vy: 0
+          });
+        }
+      }
+    }
+  }
+
+  generateMap();
+
+  function findNearestTileOfType(wx, wy, targetType) {
+    const startTx = Math.max(0, Math.min(MAP_SIZE - 1, Math.floor(wx / TILE_SIZE)));
+    const startTy = Math.max(0, Math.min(MAP_SIZE - 1, Math.floor(wy / TILE_SIZE)));
+    if (getTile(startTx, startTy) === targetType) {
+      return { tx: startTx, ty: startTy, x: (startTx + 0.5) * TILE_SIZE, y: (startTy + 0.5) * TILE_SIZE };
+    }
+
+    let bestDistSq = Infinity;
+    let best = null;
+    for (let r = 1; r <= 12; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const tx = startTx + dx;
+          const ty = startTy + dy;
+          if (getTile(tx, ty) === targetType) {
+            const cx = (tx + 0.5) * TILE_SIZE;
+            const cy = (ty + 0.5) * TILE_SIZE;
+            const dSq = (cx - wx) * (cx - wx) + (cy - wy) * (cy - wy);
+            if (dSq < bestDistSq) {
+              bestDistSq = dSq;
+              best = { tx, ty, x: cx, y: cy };
+            }
+          }
+        }
+      }
+      if (best) return best;
+    }
+    return { tx: startTx, ty: startTy, x: wx, y: wy };
+  }
+
+  const minimapStatic = document.createElement('canvas');
+  minimapStatic.width = MAP_SIZE;
+  minimapStatic.height = MAP_SIZE;
+  const minimapStaticCtx = minimapStatic.getContext('2d');
+
+  function bakeMinimap() {
+    for (let y = 0; y < MAP_SIZE; y++) {
+      for (let x = 0; x < MAP_SIZE; x++) {
+        const t = getTile(x, y);
+        let color = '#8d9299';
+        if (t === TILE.ROAD) color = '#2f3338';
+        else if (t === TILE.BUILDING) color = '#595f68';
+        else if (t === TILE.PARK) color = '#3c8a47';
+        else if (t === TILE.WATER) color = '#1e527a';
+        else if (t === TILE.PIER) color = '#8a6642';
+        minimapStaticCtx.fillStyle = color;
+        minimapStaticCtx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+  bakeMinimap();
+
+  function drawMap(camX, camY, viewW, viewH) {
+    const startCol = Math.max(0, Math.floor(camX / TILE_SIZE));
+    const endCol = Math.min(MAP_SIZE - 1, Math.ceil((camX + viewW) / TILE_SIZE));
+    const startRow = Math.max(0, Math.floor(camY / TILE_SIZE));
+    const endRow = Math.min(MAP_SIZE - 1, Math.ceil((camY + viewH) / TILE_SIZE));
+
+    for (let y = startRow; y <= endRow; y++) {
+      for (let x = startCol; x <= endCol; x++) {
+        const idx = tileIndex(x, y);
+        const t = mapGrid[idx];
+        const meta = tileMeta[idx];
+        const sx = Math.floor(x * TILE_SIZE - camX);
+        const sy = Math.floor(y * TILE_SIZE - camY);
+
+        if (t === TILE.SIDEWALK) {
+          ctx.fillStyle = meta === 1 ? '#b2aa9c' : '#9ca1a8';
+          ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#8b9098';
+          ctx.fillRect(sx, sy, TILE_SIZE, 2);
+          ctx.fillRect(sx, sy, 2, TILE_SIZE);
+        } else if (t === TILE.ROAD) {
+          ctx.fillStyle = '#31353b';
+          ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+
+          const rightRoad = getTile(x + 1, y) === TILE.ROAD;
+          const leftRoad = getTile(x - 1, y) === TILE.ROAD;
+          const downRoad = getTile(x, y + 1) === TILE.ROAD;
+          const upRoad = getTile(x, y - 1) === TILE.ROAD;
+
+          ctx.fillStyle = '#d8b44c';
+          if (rightRoad && !leftRoad && !(upRoad && downRoad && getTile(x + 1, y - 1) === TILE.ROAD && getTile(x + 1, y + 1) === TILE.ROAD)) {
+            ctx.fillRect(sx + TILE_SIZE - 2, sy + 8, 2, 14);
+            ctx.fillRect(sx + TILE_SIZE - 2, sy + 28, 2, 14);
+          }
+          if (downRoad && !upRoad && !(leftRoad && rightRoad && getTile(x - 1, y + 1) === TILE.ROAD && getTile(x + 1, y + 1) === TILE.ROAD)) {
+            ctx.fillRect(sx + 8, sy + TILE_SIZE - 2, 14, 2);
+            ctx.fillRect(sx + 28, sy + TILE_SIZE - 2, 14, 2);
+          }
+        } else if (t === TILE.BUILDING) {
+          const pal = BUILDING_PALETTE[meta % BUILDING_PALETTE.length];
+          ctx.fillStyle = pal.trim;
+          ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = pal.roof;
+          ctx.fillRect(sx + 4, sy + 4, TILE_SIZE - 8, TILE_SIZE - 8);
+          if ((hash2D(x, y) % 3) === 0) {
+            ctx.fillStyle = pal.detail;
+            ctx.fillRect(sx + 12, sy + 12, 14, 10);
+            ctx.fillStyle = pal.trim;
+            ctx.fillRect(sx + 15, sy + 15, 8, 4);
+          }
+        } else if (t === TILE.PARK) {
+          ctx.fillStyle = ((x + y) & 1) ? '#3c8c46' : '#378240';
+          ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+          if (meta === 1) {
+            ctx.fillStyle = '#24572a';
+            ctx.fillRect(sx + 8, sy + 10, 32, 30);
+            ctx.fillStyle = '#2f7036';
+            ctx.fillRect(sx + 10, sy + 6, 28, 28);
+            ctx.fillStyle = '#479c4f';
+            ctx.fillRect(sx + 14, sy + 10, 16, 14);
+          }
+        } else if (t === TILE.WATER) {
+          ctx.fillStyle = '#1b4f78';
+          ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#246394';
+          const waveOffset = ((x * 7 + y * 13) % 16);
+          ctx.fillRect(sx + 6 + (waveOffset % 10), sy + 14, 16, 3);
+          ctx.fillRect(sx + 18 - (waveOffset % 8), sy + 32, 14, 3);
+        } else if (t === TILE.PIER) {
+          ctx.fillStyle = '#7d5b3b';
+          ctx.fillRect(sx, sy, TILE_SIZE, TILE_SIZE);
+          ctx.fillStyle = '#63462c';
+          for (let p = 0; p < TILE_SIZE; p += 8) {
+            ctx.fillRect(sx, sy + p, TILE_SIZE, 2);
+          }
+          ctx.fillStyle = '#4a331f';
+          ctx.fillRect(sx + 2, sy + 2, 5, 5);
+          ctx.fillRect(sx + TILE_SIZE - 7, sy + TILE_SIZE - 7, 5, 5);
+        }
+      }
+    }
+
+    // Draw street props
+    for (const prop of props) {
+      const sx = prop.x - camX;
+      const sy = prop.y - camY;
+      if (sx < -30 || sy < -30 || sx > viewW + 30 || sy > viewH + 30) continue;
+
+      if (prop.intact) {
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillRect(sx - prop.w * 0.5 + 2, sy - prop.h * 0.5 + 3, prop.w, prop.h);
+        if (prop.kind === 0) {
+          ctx.fillStyle = '#d93829';
+          ctx.fillRect(sx - 7, sy - 7, 14, 14);
+          ctx.fillStyle = '#f5f5f5';
+          ctx.fillRect(sx - 3, sy - 3, 6, 6);
+        } else if (prop.kind === 1) {
+          ctx.fillStyle = '#3a424a';
+          ctx.fillRect(sx - 9, sy - 9, 18, 18);
+          ctx.fillStyle = '#5c6670';
+          ctx.fillRect(sx - 6, sy - 6, 12, 12);
+        } else {
+          ctx.fillStyle = '#9e6b3b';
+          ctx.fillRect(sx - 9, sy - 9, 18, 18);
+          ctx.fillStyle = '#7a5029';
+          ctx.fillRect(sx - 9, sy - 2, 18, 4);
+        }
+      } else {
+        ctx.fillStyle = prop.kind === 0 ? '#a82b20' : (prop.kind === 1 ? '#454d54' : '#7a5029');
+        ctx.fillRect(sx - 6, sy - 4, 12, 8);
+      }
+    }
+  }
+
+  function updateProps(dt) {
+    for (const prop of props) {
+      if (!prop.intact) {
+        prop.x += prop.vx * dt;
+        prop.y += prop.vy * dt;
+        prop.vx *= Math.max(0, 1 - 6 * dt);
+        prop.vy *= Math.max(0, 1 - 6 * dt);
+        continue;
+      }
+
+      if (player.inCar) {
+        const car = player.inCar;
+        const dx = prop.x - car.x;
+        const dy = prop.y - car.y;
+        if (dx * dx + dy * dy < 34 * 34 && Math.abs(car.speed) > 25) {
+          prop.intact = false;
+          const dist = Math.hypot(dx, dy) || 1;
+          prop.vx = (dx / dist) * 180;
+          prop.vy = (dy / dist) * 180;
+          addScore(10, prop.x, prop.y - 12, '#7ef9ff');
+          playThud(0.45);
+        }
+      } else if (player.attackTimer > 0) {
+        const ax = player.x + player.facingX * 26;
+        const ay = player.y + player.facingY * 26;
+        const dx = prop.x - ax;
+        const dy = prop.y - ay;
+        if (dx * dx + dy * dy < 28 * 28) {
+          prop.intact = false;
+          prop.vx = player.facingX * 140;
+          prop.vy = player.facingY * 140;
+          addScore(10, prop.x, prop.y - 12, '#7ef9ff');
+          playThud(0.35);
+        }
+      }
+    }
+  }
+
+  function updateEffects(dt) {
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+      const ft = floatingTexts[i];
+      ft.y -= 42 * dt;
+      ft.life -= dt;
+      if (ft.life <= 0) {
+        floatingTexts.splice(i, 1);
+      }
+    }
+    for (let i = explosions.length - 1; i >= 0; i--) {
+      explosions[i].life -= dt;
+      if (explosions[i].life <= 0) {
+        explosions.splice(i, 1);
+      }
+    }
+  }
+
+  function drawEffects(camX, camY) {
+    for (const ex of explosions) {
+      const t = 1 - ex.life / ex.maxLife;
+      const size = 30 + t * 90;
+      const sx = ex.x - camX;
+      const sy = ex.y - camY;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, 1 - t);
+      ctx.fillStyle = '#ff5722';
+      ctx.fillRect(sx - size * 0.5, sy - size * 0.5, size, size);
+      ctx.fillStyle = '#ffeb3b';
+      ctx.fillRect(sx - size * 0.3, sy - size * 0.3, size * 0.6, size * 0.6);
+      ctx.restore();
+    }
+
+    ctx.save();
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    for (const ft of floatingTexts) {
+      const alpha = Math.max(0, Math.min(1, ft.life / ft.maxLife));
+      ctx.globalAlpha = alpha;
+      const sx = ft.x - camX;
+      const sy = ft.y - camY;
+      ctx.fillStyle = '#000000';
+      ctx.fillText(ft.text, sx + 2, sy + 2);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, sx, sy);
+    }
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // PLAYER
+  // =========================================================================
+  const START_X = 24.5 * TILE_SIZE;
+  const START_Y = 24.5 * TILE_SIZE;
+
+  const player = {
+    x: START_X,
+    y: START_Y,
+    w: 32,
+    h: 32,
+    speed: 220,
+    facingX: 0,
+    facingY: 1,
+    inCar: null,
+    score: 0,
+    attackTimer: 0,
+    attackCooldown: 0,
+    health: 3,
+    hitCooldown: 0,
+    status: 'playing'
+  };
+
+  const camera = {
+    x: 0,
+    y: 0
+  };
+
+  function respawnPlayer() {
+    player.x = START_X;
+    player.y = START_Y;
+    player.inCar = null;
+    player.health = 3;
+    player.hitCooldown = 0;
+    player.attackTimer = 0;
+    player.attackCooldown = 0;
+    player.status = 'playing';
+
+    wantedLevel = 0;
+    noMayhemTimer = 0;
+    bustedTimer = 0;
+    police.length = 0;
+    policeOfficers.length = 0;
+    updateCamera();
+  }
+
+  function damagePlayerOnFoot(sourceX, sourceY) {
+    if (player.inCar || player.status !== 'playing' || player.hitCooldown > 0) return;
+    player.health -= 1;
+    player.hitCooldown = 0.85;
+    playThud(0.8);
+
+    const dx = player.x - sourceX;
+    const dy = player.y - sourceY;
+    const len = Math.hypot(dx, dy) || 1;
+    const pushX = player.x + (dx / len) * 24;
+    const pushY = player.y + (dy / len) * 24;
+    if (!collidesWithWorld(pushX, pushY, player.w, player.h)) {
+      player.x = pushX;
+      player.y = pushY;
+    }
+
+    if (player.health <= 0) {
+      player.health = 0;
+      player.status = 'wasted';
+    }
+  }
+
+  function collidesWithWorld(cx, cy, w, h) {
+    const halfW = w * 0.5;
+    const halfH = h * 0.5;
+    const left = cx - halfW;
+    const right = cx + halfW;
+    const top = cy - halfH;
+    const bottom = cy + halfH;
+
+    if (left < 0 || top < 0 || right > WORLD_SIZE || bottom > WORLD_SIZE) {
+      return true;
+    }
+
+    const minTx = Math.floor(left / TILE_SIZE);
+    const maxTx = Math.floor((right - 0.001) / TILE_SIZE);
+    const minTy = Math.floor(top / TILE_SIZE);
+    const maxTy = Math.floor((bottom - 0.001) / TILE_SIZE);
+
+    for (let ty = minTy; ty <= maxTy; ty++) {
+      for (let tx = minTx; tx <= maxTx; tx++) {
+        if (isSolidTile(tx, ty)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  function updateCamera() {
+    const viewW = canvas.width / CAMERA_ZOOM;
+    const viewH = canvas.height / CAMERA_ZOOM;
+    const focusX = player.inCar ? player.inCar.x : player.x;
+    const focusY = player.inCar ? player.inCar.y : player.y;
+
+    const targetCamX = focusX - viewW * 0.5;
+    const targetCamY = focusY - viewH * 0.5;
+
+    if (viewW >= WORLD_SIZE) {
+      camera.x = (WORLD_SIZE - viewW) * 0.5;
+    } else {
+      camera.x = Math.max(0, Math.min(WORLD_SIZE - viewW, targetCamX));
+    }
+
+    if (viewH >= WORLD_SIZE) {
+      camera.y = (WORLD_SIZE - viewH) * 0.5;
+    } else {
+      camera.y = Math.max(0, Math.min(WORLD_SIZE - viewH, targetCamY));
+    }
+  }
+
+  function tryEnterOrExitCar() {
+    if (player.inCar) {
+      const car = player.inCar;
+      const perpX = -Math.sin(car.angle);
+      const perpY = Math.cos(car.angle);
+      const fwdX = Math.cos(car.angle);
+      const fwdY = Math.sin(car.angle);
+
+      const offsets = [
+        { x: perpX * 42, y: perpY * 42 },
+        { x: -perpX * 42, y: -perpY * 42 },
+        { x: -fwdX * 56, y: -fwdY * 56 },
+        { x: fwdX * 56, y: fwdY * 56 }
+      ];
+
+      for (const off of offsets) {
+        const ex = car.x + off.x;
+        const ey = car.y + off.y;
+        if (!collidesWithWorld(ex, ey, player.w, player.h)) {
+          player.x = ex;
+          player.y = ey;
+          player.inCar = null;
+          bustedTimer = 0;
+          playBeep(420, 0.08);
+          return;
+        }
+      }
+      return;
+    }
+
+    let nearestCar = null;
+    let nearestDist = 76;
+    for (const car of cars) {
+      if (car.wrecked) continue;
+      const dist = Math.hypot(car.x - player.x, car.y - player.y);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestCar = car;
+      }
+    }
+
+    if (nearestCar) {
+      player.inCar = nearestCar;
+      nearestCar.isTraffic = false;
+      player.x = nearestCar.x;
+      player.y = nearestCar.y;
+      bustedTimer = 0;
+      playBeep(640, 0.09);
+    }
+  }
+
+  function updatePlayer(dt) {
+    if (player.status !== 'playing') {
+      if (respawnPressed) {
+        respawnPressed = false;
+        respawnPlayer();
+      }
+      interactPressed = false;
+      attackPressed = false;
+      return;
+    }
+    respawnPressed = false;
+
+    if (player.attackTimer > 0) player.attackTimer = Math.max(0, player.attackTimer - dt);
+    if (player.attackCooldown > 0) player.attackCooldown = Math.max(0, player.attackCooldown - dt);
+    if (player.hitCooldown > 0) player.hitCooldown = Math.max(0, player.hitCooldown - dt);
+
+    if (interactPressed) {
+      interactPressed = false;
+      tryEnterOrExitCar();
+    }
+
+    if (player.inCar) {
+      attackPressed = false;
+      player.x = player.inCar.x;
+      player.y = player.inCar.y;
+      updateCamera();
+      return;
+    }
+
+    if (attackPressed) {
+      attackPressed = false;
+      if (player.attackCooldown <= 0) {
+        player.attackTimer = 0.18;
+        player.attackCooldown = 0.35;
+        playThud(0.25);
+      }
+    }
+
+    let dx = 0;
+    let dy = 0;
+    if (keys['KeyW']) dy -= 1;
+    if (keys['KeyS']) dy += 1;
+    if (keys['KeyA']) dx -= 1;
+    if (keys['KeyD']) dx += 1;
+
+    if (dx !== 0 || dy !== 0) {
+      const len = Math.hypot(dx, dy);
+      dx /= len;
+      dy /= len;
+      player.facingX = dx;
+      player.facingY = dy;
+
+      const nextX = player.x + dx * player.speed * dt;
+      if (!collidesWithWorld(nextX, player.y, player.w, player.h)) {
+        player.x = nextX;
+      }
+
+      const nextY = player.y + dy * player.speed * dt;
+      if (!collidesWithWorld(player.x, nextY, player.w, player.h)) {
+        player.y = nextY;
+      }
+    }
+
+    updateCamera();
+  }
+
+  function drawPlayer(camX, camY) {
+    if (player.inCar) return;
+
+    const sx = Math.floor(player.x - camX);
+    const sy = Math.floor(player.y - camY);
+    const angle = Math.atan2(player.facingY, player.facingX);
+
+    ctx.save();
+    ctx.translate(sx, sy);
+    ctx.rotate(angle);
+
+    if (player.hitCooldown > 0 && Math.floor(player.hitCooldown * 16) % 2 === 0) {
+      ctx.globalAlpha = 0.5;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillRect(-16, -14, 34, 32);
+
+    // Shoulders / Torso (~70% of 48px tile = 34px)
+    ctx.fillStyle = '#e04f3e';
+    ctx.fillRect(-15, -17, 30, 34);
+
+    // Jacket collar/stripe
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-6, -15, 6, 30);
+
+    // Head
+    ctx.fillStyle = '#f2c8a2';
+    ctx.fillRect(-8, -9, 18, 18);
+
+    // Direction indicator (bright forward visor/pointer)
+    ctx.fillStyle = '#ffe047';
+    ctx.fillRect(8, -5, 10, 10);
+    ctx.fillStyle = '#1f1f1f';
+    ctx.fillRect(10, -3, 4, 6);
+
+    // Attack swing visual
+    if (player.attackTimer > 0) {
+      ctx.fillStyle = 'rgba(255, 235, 120, 0.75)';
+      ctx.fillRect(16, -12, 16, 24);
+    }
+
+    ctx.restore();
+  }
+
+  // =========================================================================
+  // CARS
+  // =========================================================================
+  const CAR_LENGTH = 72; // 1.5 tiles
+  const CAR_WIDTH = 38;  // ~0.8 tiles
+  const CAR_COLORS = [
+    '#d93829', '#2b7de9', '#f2b705', '#27ae60',
+    '#8e44ad', '#e67e22', '#16a085', '#ecf0f1',
+    '#c0392b', '#2980b9', '#d35400', '#7f8c8d'
+  ];
+
+  const cars = [];
+  let collisionSoundCooldown = 0;
+
+  function createCar(x, y, angle, color, isTraffic) {
+    return {
+      x,
+      y,
+      angle,
+      speed: isTraffic ? 140 : 0,
+      maxSpeed: 420,
+      reverseSpeed: -160,
+      color,
+      isTraffic,
+      trafficSpeed: 130 + (Math.random() * 35),
+      lastTileX: Math.floor(x / TILE_SIZE),
+      lastTileY: Math.floor(y / TILE_SIZE),
+      nearMissCooldown: 0,
+      health: 100,
+      wrecked: false,
+      stuckTimer: 0,
+      totalStuckTimer: 0,
+      reverseTimer: 0,
+      turnDir: 1,
+      blockedTimer: 0,
+      forceTurn: false
+    };
+  }
+
+  function spawnCars() {
+    // 12 parked cars spaced well apart along roads
+    const parkedSpecs = [
+      { tx: 14, ty: 18, angle: Math.PI * 0.5 },
+      { tx: 14, ty: 29, angle: Math.PI * 0.5 },
+      { tx: 20, ty: 14, angle: 0 },
+      { tx: 29, ty: 15, angle: Math.PI },
+      { tx: 34, ty: 19, angle: Math.PI * 0.5 },
+      { tx: 35, ty: 29, angle: -Math.PI * 0.5 },
+      { tx: 19, ty: 34, angle: 0 },
+      { tx: 29, ty: 35, angle: Math.PI },
+      { tx: 9, ty: 24, angle: 0 },
+      { tx: 40, ty: 25, angle: Math.PI },
+      { tx: 14, ty: 40, angle: Math.PI * 0.5 },
+      { tx: 39, ty: 44, angle: 0 }
+    ];
+
+    for (let i = 0; i < parkedSpecs.length; i++) {
+      const p = parkedSpecs[i];
+      const cx = (p.tx + 0.5) * TILE_SIZE;
+      const cy = (p.ty + 0.5) * TILE_SIZE;
+      cars.push(createCar(cx, cy, p.angle, CAR_COLORS[i % CAR_COLORS.length], false));
+    }
+
+    // 10 traffic cars well-spaced on the road grid
+    const trafficSpecs = [
+      { tx: 5, ty: 9, angle: Math.PI * 0.5 },
+      { tx: 10, ty: 4, angle: 0 },
+      { tx: 28, ty: 5, angle: Math.PI },
+      { tx: 44, ty: 9, angle: Math.PI * 0.5 },
+      { tx: 52, ty: 20, angle: Math.PI * 0.5 },
+      { tx: 48, ty: 34, angle: Math.PI },
+      { tx: 44, ty: 48, angle: -Math.PI * 0.5 },
+      { tx: 26, ty: 51, angle: 0 },
+      { tx: 15, ty: 49, angle: -Math.PI * 0.5 },
+      { tx: 4, ty: 38, angle: Math.PI * 0.5 }
+    ];
+
+    for (let i = 0; i < trafficSpecs.length; i++) {
+      const t = trafficSpecs[i];
+      const cx = (t.tx + 0.5) * TILE_SIZE;
+      const cy = (t.ty + 0.5) * TILE_SIZE;
+      cars.push(createCar(cx, cy, t.angle, CAR_COLORS[(i + 4) % CAR_COLORS.length], true));
+    }
+  }
+
+  spawnCars();
+
+  function damagePlayerCar(amount) {
+    if (!player.inCar || player.inCar.wrecked) return;
+    const car = player.inCar;
+    car.health = Math.max(0, car.health - amount);
+    if (car.health <= 0) {
+      car.wrecked = true;
+      car.speed = 0;
+      spawnExplosion(car.x, car.y);
+      playThud(1.0);
+
+      const perpX = -Math.sin(car.angle);
+      const perpY = Math.cos(car.angle);
+      const ex = car.x + perpX * 48;
+      const ey = car.y + perpY * 48;
+      if (!collidesWithWorld(ex, ey, player.w, player.h)) {
+        player.x = ex;
+        player.y = ey;
+      }
+      player.inCar = null;
+      player.status = 'wasted';
+    }
+  }
+
+  function carCollidesWithWorld(cx, cy, angle) {
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const hl = CAR_LENGTH * 0.48;
+    const hw = CAR_WIDTH * 0.46;
+
+    const points = [
+      [hl, hw], [hl, -hw], [-hl, hw], [-hl, -hw],
+      [hl, 0], [-hl, 0], [0, hw], [0, -hw]
+    ];
+
+    for (const [lx, ly] of points) {
+      const wx = cx + lx * cos - ly * sin;
+      const wy = cy + lx * sin + ly * cos;
+      if (wx < 0 || wy < 0 || wx >= WORLD_SIZE || wy >= WORLD_SIZE) {
+        return true;
+      }
+      const tx = Math.floor(wx / TILE_SIZE);
+      const ty = Math.floor(wy / TILE_SIZE);
+      if (isSolidTile(tx, ty)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function getCarCircles(car) {
+    const cos = Math.cos(car.angle);
+    const sin = Math.sin(car.angle);
+    const offset = 18;
+    return [
+      { x: car.x + cos * offset, y: car.y + sin * offset, r: 19 },
+      { x: car.x - cos * offset, y: car.y - sin * offset, r: 19 }
+    ];
+  }
+
+  function snapTrafficToNearestRoad(car) {
+    const tx = Math.floor(car.x / TILE_SIZE);
+    const ty = Math.floor(car.y / TILE_SIZE);
+    if (getTile(tx, ty) === TILE.ROAD) return;
+    const nearest = findNearestTileOfType(car.x, car.y, TILE.ROAD);
+    car.x = nearest.x;
+    car.y = nearest.y;
+    car.lastTileX = nearest.tx;
+    car.lastTileY = nearest.ty;
+    car.speed = 0;
+  }
+
+  function respawnTrafficCar(car) {
+    const allVehicles = cars.concat(police);
+    let chosen = EDGE_SPAWN_POINTS[Math.floor(Math.random() * EDGE_SPAWN_POINTS.length)];
+
+    for (let attempt = 0; attempt < EDGE_SPAWN_POINTS.length; attempt++) {
+      const sp = EDGE_SPAWN_POINTS[(attempt + Math.floor(Math.random() * EDGE_SPAWN_POINTS.length)) % EDGE_SPAWN_POINTS.length];
+      const sx = (sp.tx + 0.5) * TILE_SIZE;
+      const sy = (sp.ty + 0.5) * TILE_SIZE;
+      let clear = true;
+      for (const v of allVehicles) {
+        if (v === car) continue;
+        if (Math.hypot(v.x - sx, v.y - sy) < 120) {
+          clear = false;
+          break;
+        }
+      }
+      if (clear && Math.hypot(player.x - sx, player.y - sy) > 320) {
+        chosen = sp;
+        break;
+      }
+    }
+
+    car.x = (chosen.tx + 0.5) * TILE_SIZE;
+    car.y = (chosen.ty + 0.5) * TILE_SIZE;
+    car.angle = chosen.angle;
+    car.speed = 110;
+    car.lastTileX = -1;
+    car.lastTileY = -1;
+    car.stuckTimer = 0;
+    car.totalStuckTimer = 0;
+    car.reverseTimer = 0;
+    car.blockedTimer = 0;
+    car.forceTurn = false;
+  }
+
+  function resolveAllVehicleCollisions() {
+    const allVehicles = cars.concat(police);
+
+    for (let iter = 0; iter < 4; iter++) {
+      for (let i = 0; i < allVehicles.length; i++) {
+        for (let j = i + 1; j < allVehicles.length; j++) {
+          const a = allVehicles[i];
+          const b = allVehicles[j];
+          const dxCenter = b.x - a.x;
+          const dyCenter = b.y - a.y;
+          if (dxCenter * dxCenter + dyCenter * dyCenter > 92 * 92) continue;
+
+          const circlesA = getCarCircles(a);
+          const circlesB = getCarCircles(b);
+          let collided = false;
+
+          // Police can push past stopped/slow traffic cars
+          let weightA = 0.55;
+          let weightB = 0.55;
+          if (a.isPolice && b.isTraffic) {
+            weightA = 0.15;
+            weightB = 0.95;
+          } else if (b.isPolice && a.isTraffic) {
+            weightA = 0.95;
+            weightB = 0.15;
+          }
+
+          for (const ca of circlesA) {
+            for (const cb of circlesB) {
+              const dx = cb.x - ca.x;
+              const dy = cb.y - ca.y;
+              const distSq = dx * dx + dy * dy;
+              const minDist = ca.r + cb.r;
+
+              if (distSq < minDist * minDist) {
+                collided = true;
+                let dist = Math.sqrt(distSq);
+                let nx = 1;
+                let ny = 0;
+                if (dist > 0.001) {
+                  nx = dx / dist;
+                  ny = dy / dist;
+                } else {
+                  dist = 0;
+                }
+                const overlap = minDist - dist;
+
+                const pushAx = a.x - nx * overlap * weightA;
+                const pushAy = a.y - ny * overlap * weightA;
+                if (!carCollidesWithWorld(pushAx, pushAy, a.angle)) {
+                  a.x = pushAx;
+                  a.y = pushAy;
+                }
+
+                const pushBx = b.x + nx * overlap * weightB;
+                const pushBy = b.y + ny * overlap * weightB;
+                if (!carCollidesWithWorld(pushBx, pushBy, b.angle)) {
+                  b.x = pushBx;
+                  b.y = pushBy;
+                }
+              }
+            }
+          }
+
+          if (collided) {
+            const relSpeed = Math.abs(a.speed) + Math.abs(b.speed);
+            if (a === player.inCar || b === player.inCar) {
+              if (relSpeed > 130 && collisionSoundCooldown <= 0) {
+                const isCopHit = a.isPolice || b.isPolice;
+                const dmg = Math.round((relSpeed - 100) * (isCopHit ? 0.09 : 0.06));
+                if (dmg > 0) damagePlayerCar(dmg);
+                playThud(Math.min(1, relSpeed / 350));
+                collisionSoundCooldown = 0.28;
+              }
+            }
+
+            if (a.isPolice && b.isTraffic) {
+              a.speed *= 0.85;
+              b.speed *= 0.2;
+            } else if (b.isPolice && a.isTraffic) {
+              b.speed *= 0.85;
+              a.speed *= 0.2;
+            } else {
+              a.speed *= 0.35;
+              b.speed *= 0.35;
+            }
+            if (a.isTraffic) snapTrafficToNearestRoad(a);
+            if (b.isTraffic) snapTrafficToNearestRoad(b);
+          }
+        }
+      }
+    }
+  }
+
+  const CARDINAL_DIRS = [
+    { dx: 1, dy: 0, angle: 0 },
+    { dx: 0, dy: 1, angle: Math.PI * 0.5 },
+    { dx: -1, dy: 0, angle: Math.PI },
+    { dx: 0, dy: -1, angle: -Math.PI * 0.5 }
+  ];
+
+  function isIntersectionTile(tx, ty) {
+    const horiz = getTile(tx - 1, ty) === TILE.ROAD || getTile(tx + 1, ty) === TILE.ROAD;
+    const vert = getTile(tx, ty - 1) === TILE.ROAD || getTile(tx, ty + 1) === TILE.ROAD;
+    return horiz && vert;
+  }
+
+  function updateTrafficCar(car, dt) {
+    const prevX = car.x;
+    const prevY = car.y;
+
+    snapTrafficToNearestRoad(car);
+
+    // Unstuck reverse maneuver (0.5s reverse, then turn and pick a different road direction)
+    if (car.reverseTimer > 0) {
+      car.reverseTimer -= dt;
+      car.speed = -120;
+      const rvx = Math.cos(car.angle) * car.speed * dt;
+      const rvy = Math.sin(car.angle) * car.speed * dt;
+      if (!carCollidesWithWorld(car.x + rvx, car.y + rvy, car.angle)) {
+        car.x += rvx;
+        car.y += rvy;
+      }
+      if (car.reverseTimer <= 0) {
+        car.angle += (Math.PI * 0.5) * car.turnDir;
+        car.forceTurn = true;
+        car.lastTileX = -1;
+        car.lastTileY = -1;
+        car.speed = 90;
+      }
+      return;
+    }
+
+    const fwdX = Math.cos(car.angle);
+    const fwdY = Math.sin(car.angle);
+    const rightX = -fwdY;
+    const rightY = fwdX;
+
+    const tx = Math.floor(car.x / TILE_SIZE);
+    const ty = Math.floor(car.y / TILE_SIZE);
+    const inIntersection = isIntersectionTile(tx, ty);
+
+    // Check if police are chasing nearby
+    let policeNearby = false;
+    if (wantedLevel > 0) {
+      for (const cop of police) {
+        if (Math.hypot(cop.x - car.x, cop.y - car.y) < 220) {
+          policeNearby = true;
+          break;
+        }
+      }
+    }
+
+    // Look ahead for any car in front (keep 1 car-length spacing)
+    let minAheadDist = Infinity;
+    const allVehicles = cars.concat(police);
+    for (const other of allVehicles) {
+      if (other === car) continue;
+      const dx = other.x - car.x;
+      const dy = other.y - car.y;
+      const forwardDist = dx * fwdX + dy * fwdY;
+      const sideDist = Math.abs(dx * rightX + dy * rightY);
+      if (forwardDist > 10 && forwardDist < 160 && sideDist < 38) {
+        if (forwardDist < minAheadDist) {
+          minAheadDist = forwardDist;
+        }
+      }
+    }
+
+    const blockedAhead = minAheadDist < 118;
+    if (blockedAhead) {
+      car.blockedTimer += dt;
+      if (car.blockedTimer >= 2.0) {
+        car.forceTurn = true;
+      }
+    } else {
+      car.blockedTimer = 0;
+    }
+
+    if (policeNearby && !inIntersection) {
+      // Pull to the side of the road and stop when police chase nearby
+      car.speed = Math.max(0, car.speed - 420 * dt);
+      const sideShiftX = car.x + rightX * 14 * dt;
+      const sideShiftY = car.y + rightY * 14 * dt;
+      if (
+        getTile(Math.floor(sideShiftX / TILE_SIZE), Math.floor(sideShiftY / TILE_SIZE)) === TILE.ROAD &&
+        !carCollidesWithWorld(sideShiftX, sideShiftY, car.angle)
+      ) {
+        car.x = sideShiftX;
+        car.y = sideShiftY;
+      }
+    } else if (blockedAhead) {
+      car.speed = Math.max(0, car.speed - 520 * dt);
+    } else if (minAheadDist < 160) {
+      const target = car.trafficSpeed * 0.35;
+      car.speed += (target - car.speed) * Math.min(1, 5 * dt);
+    } else if (policeNearby && inIntersection) {
+      // Keep moving slowly out of the intersection instead of blocking it
+      const target = car.trafficSpeed * 0.65;
+      car.speed += (target - car.speed) * Math.min(1, 4 * dt);
+    } else {
+      car.speed += (car.trafficSpeed - car.speed) * Math.min(1, 4 * dt);
+    }
+
+    // Evaluate turns on entering a new tile or when forced to turn while blocked
+    const curIdx = getNearestCardinalIndex(car.angle);
+    if (tx !== car.lastTileX || ty !== car.lastTileY || (car.forceTurn && inIntersection)) {
+      car.lastTileX = tx;
+      car.lastTileY = ty;
+
+      const oppositeIdx = (curIdx + 2) % 4;
+      const validDirs = [];
+      for (let i = 0; i < 4; i++) {
+        if (i === oppositeIdx) continue;
+        const d = CARDINAL_DIRS[i];
+        if (getTile(tx + d.dx, ty + d.dy) === TILE.ROAD) {
+          validDirs.push(i);
+        }
+      }
+
+      if (validDirs.length === 0) {
+        car.angle = CARDINAL_DIRS[oppositeIdx].angle;
+        car.forceTurn = false;
+      } else if (car.forceTurn) {
+        const turns = validDirs.filter(i => i !== curIdx);
+        const pool = turns.length > 0 ? turns : validDirs;
+        const pick = pool[Math.floor(Math.random() * pool.length)];
+        car.angle = CARDINAL_DIRS[pick].angle;
+        car.x = (tx + 0.5) * TILE_SIZE;
+        car.y = (ty + 0.5) * TILE_SIZE;
+        car.forceTurn = false;
+        car.blockedTimer = 0;
+      } else if (!validDirs.includes(curIdx)) {
+        const pick = validDirs[Math.floor(Math.random() * validDirs.length)];
+        car.angle = CARDINAL_DIRS[pick].angle;
+        car.x = (tx + 0.5) * TILE_SIZE;
+        car.y = (ty + 0.5) * TILE_SIZE;
+      } else if (validDirs.length > 1 && Math.random() < 0.32) {
+        const turns = validDirs.filter(i => i !== curIdx);
+        const pick = turns[Math.floor(Math.random() * turns.length)];
+        car.angle = CARDINAL_DIRS[pick].angle;
+        car.x = (tx + 0.5) * TILE_SIZE;
+        car.y = (ty + 0.5) * TILE_SIZE;
+      }
+    }
+
+    const moveX = Math.cos(car.angle) * car.speed * dt;
+    const moveY = Math.sin(car.angle) * car.speed * dt;
+    const nx = car.x + moveX;
+    const ny = car.y + moveY;
+
+    const frontTx = Math.floor((nx + Math.cos(car.angle) * 26) / TILE_SIZE);
+    const frontTy = Math.floor((ny + Math.sin(car.angle) * 26) / TILE_SIZE);
+    const centerTx = Math.floor(nx / TILE_SIZE);
+    const centerTy = Math.floor(ny / TILE_SIZE);
+
+    if (
+      getTile(centerTx, centerTy) === TILE.ROAD &&
+      getTile(frontTx, frontTy) === TILE.ROAD &&
+      !carCollidesWithWorld(nx, ny, car.angle)
+    ) {
+      car.x = nx;
+      car.y = ny;
+      if (!policeNearby) {
+        if (Math.abs(Math.cos(car.angle)) > 0.5) {
+          car.y += ((ty + 0.5) * TILE_SIZE - car.y) * Math.min(1, 5 * dt);
+        } else {
+          car.x += ((tx + 0.5) * TILE_SIZE - car.x) * Math.min(1, 5 * dt);
+        }
+      }
+    } else if (car.speed > 5) {
+      car.angle += Math.PI;
+      car.speed = 35;
+      snapTrafficToNearestRoad(car);
+    }
+
+    // Stuck detection for traffic cars (3s reverse + turn, 8s despawn & respawn at city edge)
+    const movedDist = Math.hypot(car.x - prevX, car.y - prevY);
+    if (!policeNearby && (Math.abs(car.speed) < 18 || movedDist < 15 * dt)) {
+      car.stuckTimer += dt;
+      car.totalStuckTimer += dt;
+      if (car.totalStuckTimer >= 8.0) {
+        respawnTrafficCar(car);
+        return;
+      } else if (car.stuckTimer >= 3.0) {
+        car.stuckTimer = 0;
+        car.reverseTimer = 0.5;
+        car.turnDir = Math.random() < 0.5 ? 1 : -1;
+      }
+    } else if (movedDist >= 25 * dt) {
+      car.stuckTimer = 0;
+      car.totalStuckTimer = Math.max(0, car.totalStuckTimer - dt * 2);
+    }
+
+    if (!player.inCar && Math.abs(car.speed) > 45) {
+      const dist = Math.hypot(player.x - car.x, player.y - car.y);
+      if (dist < 36) {
+        damagePlayerOnFoot(car.x, car.y);
+      }
+    }
+  }
+
+  function updatePlayerCar(car, dt) {
+    const curTile = getTile(Math.floor(car.x / TILE_SIZE), Math.floor(car.y / TILE_SIZE));
+    const onGrass = curTile === TILE.PARK;
+    const maxAllowedSpeed = onGrass ? car.maxSpeed * 0.65 : car.maxSpeed;
+    const accel = onGrass ? 280 : 380;
+    const brakeForce = 520;
+    const handbrakeForce = 760;
+    const friction = onGrass ? 240 : 160;
+
+    if (keys['Space']) {
+      if (car.speed > 0) car.speed = Math.max(0, car.speed - handbrakeForce * dt);
+      else if (car.speed < 0) car.speed = Math.min(0, car.speed + handbrakeForce * dt);
+    } else if (keys['KeyW']) {
+      if (car.speed < maxAllowedSpeed) {
+        car.speed = Math.min(maxAllowedSpeed, car.speed + accel * dt);
+      } else {
+        car.speed = Math.max(maxAllowedSpeed, car.speed - 260 * dt);
+      }
+    } else if (keys['KeyS']) {
+      if (car.speed > 0) {
+        car.speed = Math.max(0, car.speed - brakeForce * dt);
+      } else {
+        car.speed = Math.max(car.reverseSpeed, car.speed - accel * 0.7 * dt);
+      }
+    } else {
+      if (car.speed > 0) car.speed = Math.max(0, car.speed - friction * dt);
+      else if (car.speed < 0) car.speed = Math.min(0, car.speed + friction * dt);
+    }
+
+    if (Math.abs(car.speed) > 8) {
+      const steerDir = car.speed >= 0 ? 1 : -1;
+      const turnRate = (keys['Space'] ? 3.8 : 2.8) * Math.min(1, Math.abs(car.speed) / 120);
+      let nextAngle = car.angle;
+      if (keys['KeyA']) nextAngle -= turnRate * steerDir * dt;
+      if (keys['KeyD']) nextAngle += turnRate * steerDir * dt;
+      if (!carCollidesWithWorld(car.x, car.y, nextAngle)) {
+        car.angle = nextAngle;
+      }
+    }
+
+    const vx = Math.cos(car.angle) * car.speed * dt;
+    const vy = Math.sin(car.angle) * car.speed * dt;
+
+    if (!carCollidesWithWorld(car.x + vx, car.y + vy, car.angle)) {
+      car.x += vx;
+      car.y += vy;
+    } else {
+      let moved = false;
+      if (!carCollidesWithWorld(car.x + vx, car.y, car.angle)) {
+        car.x += vx;
+        moved = true;
+      } else if (!carCollidesWithWorld(car.x, car.y + vy, car.angle)) {
+        car.y += vy;
+        moved = true;
+      }
+      const impactSpeed = Math.abs(car.speed);
+      if (impactSpeed > 130 && collisionSoundCooldown <= 0) {
+        const dmg = Math.round((impactSpeed - 110) * 0.08);
+        if (dmg > 0) damagePlayerCar(dmg);
+        playThud(Math.min(1, impactSpeed / 360));
+        collisionSoundCooldown = 0.25;
+      } else if (impactSpeed > 60 && collisionSoundCooldown <= 0) {
+        playThud(Math.min(1, impactSpeed / 360));
+        collisionSoundCooldown = 0.22;
+      }
+      car.speed = moved ? car.speed * 0.6 : -car.speed * 0.25;
+    }
+  }
+
+  function checkNearMisses(dt) {
+    for (const car of cars) {
+      if (car.nearMissCooldown > 0) {
+        car.nearMissCooldown = Math.max(0, car.nearMissCooldown - dt);
+      }
+    }
+    if (!player.inCar) return;
+    const pCar = player.inCar;
+    if (Math.abs(pCar.speed) < 220) return;
+
+    for (const car of cars) {
+      if (car === pCar || !car.isTraffic || car.nearMissCooldown > 0) continue;
+      const dist = Math.hypot(car.x - pCar.x, car.y - pCar.y);
+      if (dist > 44 && dist < 82) {
+        car.nearMissCooldown = 3.0;
+        addScore(100, pCar.x, pCar.y - 24, '#4cd964');
+      }
+    }
+  }
+
+  function updateCars(dt) {
+    if (collisionSoundCooldown > 0) {
+      collisionSoundCooldown = Math.max(0, collisionSoundCooldown - dt);
+    }
+
+    for (const car of cars) {
+      if (car.wrecked) continue;
+      if (car === player.inCar) {
+        updatePlayerCar(car, dt);
+      } else if (car.isTraffic) {
+        updateTrafficCar(car, dt);
+      } else {
+        if (Math.abs(car.speed) > 1) {
+          car.speed *= Math.max(0, 1 - 6 * dt);
+          const nx = car.x + Math.cos(car.angle) * car.speed * dt;
+          const ny = car.y + Math.sin(car.angle) * car.speed * dt;
+          if (!carCollidesWithWorld(nx, ny, car.angle)) {
+            car.x = nx;
+            car.y = ny;
+          } else {
+            car.speed = 0;
+          }
+        } else {
+          car.speed = 0;
+        }
+      }
+    }
+    resolveAllVehicleCollisions();
+    checkNearMisses(dt);
+  }
+
+  function drawCars(camX, camY) {
+    for (const car of cars) {
+      const sx = car.x - camX;
+      const sy = car.y - camY;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(car.angle);
+
+      const hl = CAR_LENGTH * 0.5;
+      const hw = CAR_WIDTH * 0.5;
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.fillRect(-hl + 4, -hw + 5, CAR_LENGTH, CAR_WIDTH);
+
+      // Car body
+      ctx.fillStyle = car.wrecked ? '#2b2b2b' : car.color;
+      ctx.fillRect(-hl, -hw, CAR_LENGTH, CAR_WIDTH);
+
+      // Body outline/trim
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-hl, -hw, CAR_LENGTH, CAR_WIDTH);
+
+      // Front windshield
+      ctx.fillStyle = car.wrecked ? '#1a1a1a' : '#263849';
+      ctx.fillRect(6, -hw + 4, 14, CAR_WIDTH - 8);
+
+      // Rear window
+      ctx.fillStyle = car.wrecked ? '#1a1a1a' : '#263849';
+      ctx.fillRect(-24, -hw + 5, 9, CAR_WIDTH - 10);
+
+      // Roof
+      ctx.fillStyle = car.wrecked ? '#383838' : 'rgba(255, 255, 255, 0.18)';
+      ctx.fillRect(-15, -hw + 5, 21, CAR_WIDTH - 10);
+
+      if (!car.wrecked) {
+        // Headlights
+        ctx.fillStyle = '#fff3b0';
+        ctx.fillRect(hl - 4, -hw + 3, 4, 7);
+        ctx.fillRect(hl - 4, hw - 10, 4, 7);
+
+        // Taillights
+        ctx.fillStyle = '#ff3b30';
+        ctx.fillRect(-hl, -hw + 3, 3, 7);
+        ctx.fillRect(-hl, hw - 10, 3, 7);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  // =========================================================================
+  // PEDS
+  // =========================================================================
+  const PED_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#a855f7', '#ec4899', '#14b8a6', '#f97316'];
+  const peds = [];
+
+  function spawnPeds() {
+    const sidewalkTiles = [];
+    for (let y = 3; y < 53; y++) {
+      for (let x = 3; x < 54; x++) {
+        if (getTile(x, y) === TILE.SIDEWALK) {
+          sidewalkTiles.push({ tx: x, ty: y });
+        }
+      }
+    }
+
+    for (let i = 0; i < 25; i++) {
+      const pick = sidewalkTiles[Math.floor(Math.random() * sidewalkTiles.length)];
+      const dir = CARDINAL_DIRS[Math.floor(Math.random() * 4)];
+      peds.push({
+        x: (pick.tx + 0.5) * TILE_SIZE,
+        y: (pick.ty + 0.5) * TILE_SIZE,
+        dx: dir.dx,
+        dy: dir.dy,
+        walkSpeed: 55 + Math.random() * 25,
+        fleeSpeed: 145,
+        color: PED_COLORS[i % PED_COLORS.length],
+        pauseTimer: Math.random() * 1.5,
+        fleeTimer: 0,
+        fleeScoreCooldown: 0,
+        lastTileX: pick.tx,
+        lastTileY: pick.ty
+      });
+    }
+  }
+
+  spawnPeds();
+
+  function updatePeds(dt) {
+    for (const ped of peds) {
+      if (ped.fleeScoreCooldown > 0) {
+        ped.fleeScoreCooldown = Math.max(0, ped.fleeScoreCooldown - dt);
+      }
+
+      let threatX = null;
+      let threatY = null;
+      let playerCausedThreat = false;
+
+      if (!player.inCar && player.attackTimer > 0) {
+        const distP = Math.hypot(ped.x - player.x, ped.y - player.y);
+        if (distP < 120) {
+          threatX = player.x;
+          threatY = player.y;
+          playerCausedThreat = true;
+        }
+      }
+
+      for (const car of cars) {
+        if (Math.abs(car.speed) < 120) continue;
+        const dx = ped.x - car.x;
+        const dy = ped.y - car.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 135) {
+          const fwdX = Math.cos(car.angle) * Math.sign(car.speed);
+          const fwdY = Math.sin(car.angle) * Math.sign(car.speed);
+          const dot = (dx * fwdX + dy * fwdY) / (dist || 1);
+          if (dot > 0.2 || dist < 65) {
+            threatX = car.x;
+            threatY = car.y;
+            if (car === player.inCar) playerCausedThreat = true;
+            break;
+          }
+        }
+      }
+
+      if (threatX !== null) {
+        if (ped.fleeTimer <= 0 && playerCausedThreat && ped.fleeScoreCooldown <= 0) {
+          addScore(50, ped.x, ped.y - 16, '#ffcc00');
+          ped.fleeScoreCooldown = 4.0;
+        }
+        ped.fleeTimer = 2.6;
+        const awayX = ped.x - threatX;
+        const awayY = ped.y - threatY;
+        const len = Math.hypot(awayX, awayY) || 1;
+        ped.dx = awayX / len;
+        ped.dy = awayY / len;
+      }
+
+      if (ped.fleeTimer > 0) {
+        ped.fleeTimer -= dt;
+        const curTx = Math.floor(ped.x / TILE_SIZE);
+        const curTy = Math.floor(ped.y / TILE_SIZE);
+
+        if (getTile(curTx, curTy) !== TILE.SIDEWALK) {
+          const nearest = findNearestTileOfType(ped.x, ped.y, TILE.SIDEWALK);
+          const sx = nearest.x - ped.x;
+          const sy = nearest.y - ped.y;
+          const slen = Math.hypot(sx, sy) || 1;
+          ped.dx = sx / slen;
+          ped.dy = sy / slen;
+        }
+
+        const nx = ped.x + ped.dx * ped.fleeSpeed * dt;
+        const ny = ped.y + ped.dy * ped.fleeSpeed * dt;
+        const ntx = Math.floor(nx / TILE_SIZE);
+        const nty = Math.floor(ny / TILE_SIZE);
+
+        if (getTile(ntx, nty) === TILE.SIDEWALK) {
+          ped.x = nx;
+          ped.y = ny;
+        } else {
+          if (getTile(Math.floor(nx / TILE_SIZE), curTy) === TILE.SIDEWALK) {
+            ped.x = nx;
+          } else if (getTile(curTx, Math.floor(ny / TILE_SIZE)) === TILE.SIDEWALK) {
+            ped.y = ny;
+          } else {
+            const nearest = findNearestTileOfType(ped.x, ped.y, TILE.SIDEWALK);
+            ped.x += (nearest.x - ped.x) * Math.min(1, 5 * dt);
+            ped.y += (nearest.y - ped.y) * Math.min(1, 5 * dt);
+          }
+        }
+        continue;
+      }
+
+      if (ped.pauseTimer > 0) {
+        ped.pauseTimer -= dt;
+        continue;
+      }
+
+      const tx = Math.floor(ped.x / TILE_SIZE);
+      const ty = Math.floor(ped.y / TILE_SIZE);
+
+      if (getTile(tx, ty) !== TILE.SIDEWALK) {
+        const nearest = findNearestTileOfType(ped.x, ped.y, TILE.SIDEWALK);
+        ped.x = nearest.x;
+        ped.y = nearest.y;
+        ped.lastTileX = nearest.tx;
+        ped.lastTileY = nearest.ty;
+      }
+
+      if (tx !== ped.lastTileX || ty !== ped.lastTileY) {
+        ped.lastTileX = tx;
+        ped.lastTileY = ty;
+
+        if (Math.random() < 0.2) {
+          ped.pauseTimer = 0.6 + Math.random() * 1.4;
+        }
+
+        const validDirs = [];
+        for (const d of CARDINAL_DIRS) {
+          if (getTile(tx + d.dx, ty + d.dy) === TILE.SIDEWALK) {
+            validDirs.push(d);
+          }
+        }
+
+        if (validDirs.length > 0) {
+          const forwardValid = validDirs.find(d => d.dx === Math.round(ped.dx) && d.dy === Math.round(ped.dy));
+          if (!forwardValid || (validDirs.length > 2 && Math.random() < 0.35)) {
+            const nonReverse = validDirs.filter(d => !(d.dx === -Math.round(ped.dx) && d.dy === -Math.round(ped.dy)));
+            const pool = nonReverse.length > 0 ? nonReverse : validDirs;
+            const pick = pool[Math.floor(Math.random() * pool.length)];
+            ped.dx = pick.dx;
+            ped.dy = pick.dy;
+          }
+        }
+      }
+
+      const nx = ped.x + ped.dx * ped.walkSpeed * dt;
+      const ny = ped.y + ped.dy * ped.walkSpeed * dt;
+      const frontTx = Math.floor((nx + ped.dx * 10) / TILE_SIZE);
+      const frontTy = Math.floor((ny + ped.dy * 10) / TILE_SIZE);
+
+      if (getTile(frontTx, frontTy) === TILE.SIDEWALK) {
+        ped.x = nx;
+        ped.y = ny;
+      } else {
+        const validDirs = CARDINAL_DIRS.filter(d => getTile(tx + d.dx, ty + d.dy) === TILE.SIDEWALK);
+        if (validDirs.length > 0) {
+          const pick = validDirs[Math.floor(Math.random() * validDirs.length)];
+          ped.dx = pick.dx;
+          ped.dy = pick.dy;
+        }
+      }
+    }
+  }
+
+  function drawPeds(camX, camY) {
+    for (const ped of peds) {
+      const sx = Math.floor(ped.x - camX);
+      const sy = Math.floor(ped.y - camY);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(sx - 9, sy - 7, 18, 18);
+
+      ctx.fillStyle = ped.color;
+      ctx.fillRect(sx - 9, sy - 9, 18, 18);
+
+      ctx.fillStyle = '#f2c8a2';
+      ctx.fillRect(sx - 5, sy - 5, 10, 10);
+
+      if (ped.fleeTimer > 0) {
+        ctx.fillStyle = '#ffeb3b';
+        ctx.fillRect(sx - 2, sy - 18, 4, 7);
+      }
+    }
+  }
+
+  // =========================================================================
+  // POLICE
+  // =========================================================================
+  const WANTED_THRESHOLDS = [0, 200, 500, 1000, 2000, 3500];
+  let wantedLevel = 0;
+  let noMayhemTimer = 0;
+  let bustedTimer = 0;
+  let sirenFlashTime = 0;
+
+  const police = [];
+  const policeOfficers = [];
+
+  const EDGE_SPAWN_POINTS = [
+    { tx: 4, ty: 5, angle: 0 },
+    { tx: 24, ty: 4, angle: Math.PI * 0.5 },
+    { tx: 44, ty: 4, angle: Math.PI * 0.5 },
+    { tx: 52, ty: 14, angle: Math.PI },
+    { tx: 52, ty: 34, angle: Math.PI },
+    { tx: 44, ty: 51, angle: -Math.PI * 0.5 },
+    { tx: 24, ty: 51, angle: -Math.PI * 0.5 },
+    { tx: 4, ty: 44, angle: 0 },
+    { tx: 4, ty: 24, angle: 0 }
+  ];
+
+  function getStarsForScore(score) {
+    if (score >= 3500) return 5;
+    if (score >= 2000) return 4;
+    if (score >= 1000) return 3;
+    if (score >= 500) return 2;
+    if (score >= 200) return 1;
+    return 0;
+  }
+
+  function registerMayhem() {
+    noMayhemTimer = 0;
+    const scoreStars = getStarsForScore(player.score);
+    if (scoreStars > wantedLevel) {
+      wantedLevel = scoreStars;
+    }
+  }
+
+  function spawnPoliceCar() {
+    let bestSpawn = EDGE_SPAWN_POINTS[0];
+    let bestDist = -1;
+    for (const sp of EDGE_SPAWN_POINTS) {
+      const sx = (sp.tx + 0.5) * TILE_SIZE;
+      const sy = (sp.ty + 0.5) * TILE_SIZE;
+      const d = Math.hypot(sx - player.x, sy - player.y);
+      if (d > 480 && d < 1700) {
+        bestSpawn = sp;
+        bestDist = d;
+        break;
+      }
+      if (d > bestDist) {
+        bestDist = d;
+        bestSpawn = sp;
+      }
+    }
+
+    police.push({
+      x: (bestSpawn.tx + 0.5) * TILE_SIZE,
+      y: (bestSpawn.ty + 0.5) * TILE_SIZE,
+      angle: bestSpawn.angle,
+      speed: 180,
+      maxSpeed: 340 + wantedLevel * 16,
+      isPolice: true,
+      hasOfficerOut: false,
+      lastTileX: -1,
+      lastTileY: -1,
+      stuckTimer: 0,
+      reverseTimer: 0,
+      turnDir: 1
+    });
+  }
+
+  function hasLineOfSight(x1, y1, x2, y2) {
+    const dist = Math.hypot(x2 - x1, y2 - y1);
+    if (dist > 620) return false;
+    const steps = Math.ceil(dist / 24);
+    for (let i = 1; i < steps; i++) {
+      const t = i / steps;
+      const wx = x1 + (x2 - x1) * t;
+      const wy = y1 + (y2 - y1) * t;
+      const tile = getTile(Math.floor(wx / TILE_SIZE), Math.floor(wy / TILE_SIZE));
+      if (tile === TILE.BUILDING) return false;
+    }
+    return true;
+  }
+
+  function getNearestCardinalIndex(angle) {
+    const fx = Math.cos(angle);
+    const fy = Math.sin(angle);
+    let bestIdx = 0;
+    let bestDot = -2;
+    for (let i = 0; i < 4; i++) {
+      const dot = fx * CARDINAL_DIRS[i].dx + fy * CARDINAL_DIRS[i].dy;
+      if (dot > bestDot) {
+        bestDot = dot;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  }
+
+  function pickBestRoadDirection(tx, ty, curIdx, targetTx, targetTy) {
+    const oppositeIdx = (curIdx + 2) % 4;
+    const validDirs = [];
+    for (let i = 0; i < 4; i++) {
+      if (i === oppositeIdx) continue;
+      const d = CARDINAL_DIRS[i];
+      if (getTile(tx + d.dx, ty + d.dy) === TILE.ROAD) {
+        validDirs.push(i);
+      }
+    }
+
+    if (validDirs.length === 0) {
+      return oppositeIdx;
+    }
+
+    let bestDir = validDirs[0];
+    let bestManhattan = Infinity;
+    for (const dirIdx of validDirs) {
+      const d = CARDINAL_DIRS[dirIdx];
+      const ntx = tx + d.dx;
+      const nty = ty + d.dy;
+      const manhattan = Math.abs(ntx - targetTx) + Math.abs(nty - targetTy);
+      if (manhattan < bestManhattan) {
+        bestManhattan = manhattan;
+        bestDir = dirIdx;
+      }
+    }
+    return bestDir;
+  }
+
+  function updatePolice(dt) {
+    sirenFlashTime += dt;
+
+    if (wantedLevel === 0) {
+      police.length = 0;
+      policeOfficers.length = 0;
+      bustedTimer = 0;
+      return;
+    }
+
+    // Match police cars to wanted stars: 1 per star, up to 5
+    const desiredCops = Math.min(5, wantedLevel);
+    while (police.length < desiredCops) {
+      spawnPoliceCar();
+    }
+    while (police.length > desiredCops) {
+      police.pop();
+    }
+
+    let anyPoliceSeesPlayer = false;
+    let copNextToStoppedCar = false;
+
+    const targetX = player.inCar ? player.inCar.x : player.x;
+    const targetY = player.inCar ? player.inCar.y : player.y;
+    const targetTx = Math.floor(targetX / TILE_SIZE);
+    const targetTy = Math.floor(targetY / TILE_SIZE);
+    const targetTile = getTile(targetTx, targetTy);
+    const playerInPark = targetTile === TILE.PARK || (targetTx >= 16 && targetTx <= 33 && targetTy >= 16 && targetTy <= 33);
+
+    for (const cop of police) {
+      const prevX = cop.x;
+      const prevY = cop.y;
+      const dx = targetX - cop.x;
+      const dy = targetY - cop.y;
+      const dist = Math.hypot(dx, dy);
+      const seesPlayer = hasLineOfSight(cop.x, cop.y, targetX, targetY);
+
+      if (seesPlayer) {
+        anyPoliceSeesPlayer = true;
+      }
+
+      // Check BUSTED condition for stopped player car
+      if (player.inCar && Math.abs(player.inCar.speed) < 10 && dist < 96) {
+        copNextToStoppedCar = true;
+      }
+
+      // Deploy officer on foot if player is on foot and nearby
+      if (!player.inCar && dist < 210 && !cop.hasOfficerOut && policeOfficers.length < desiredCops) {
+        cop.hasOfficerOut = true;
+        const perpX = -Math.sin(cop.angle);
+        const perpY = Math.cos(cop.angle);
+        const ox = cop.x + perpX * 36;
+        const oy = cop.y + perpY * 36;
+        policeOfficers.push({
+          x: !collidesWithWorld(ox, oy, 24, 24) ? ox : cop.x,
+          y: !collidesWithWorld(ox, oy, 24, 24) ? oy : cop.y,
+          speed: 175,
+          car: cop,
+          facingX: dx / (dist || 1),
+          facingY: dy / (dist || 1)
+        });
+      }
+
+      if (!player.inCar && cop.hasOfficerOut) {
+        cop.speed *= Math.max(0, 1 - 6 * dt);
+        cop.stuckTimer = 0;
+        continue;
+      }
+
+      // Unstuck reverse maneuver (0.5s reverse, then turn 90 degrees and pick new road direction)
+      if (cop.reverseTimer > 0) {
+        cop.reverseTimer -= dt;
+        cop.speed = -130;
+        const rvx = Math.cos(cop.angle) * cop.speed * dt;
+        const rvy = Math.sin(cop.angle) * cop.speed * dt;
+        if (!carCollidesWithWorld(cop.x + rvx, cop.y + rvy, cop.angle)) {
+          cop.x += rvx;
+          cop.y += rvy;
+        }
+        if (cop.reverseTimer <= 0) {
+          cop.angle += (Math.PI * 0.5) * cop.turnDir;
+          cop.lastTileX = -1;
+          cop.lastTileY = -1;
+          cop.speed = 100;
+        }
+        continue;
+      }
+
+      const copTx = Math.floor(cop.x / TILE_SIZE);
+      const copTy = Math.floor(cop.y / TILE_SIZE);
+      const copTile = getTile(copTx, copTy);
+
+      // Police can only cut across park grass if player is in park AND clear straight line with no building
+      const canCutPark = playerInPark && seesPlayer;
+
+      if (canCutPark) {
+        const desiredAngle = Math.atan2(targetY - cop.y, targetX - cop.x);
+        let angleDiff = desiredAngle - cop.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        cop.angle += Math.max(-3.4 * dt, Math.min(3.4 * dt, angleDiff));
+
+        const desiredSpeed = copTile === TILE.PARK ? cop.maxSpeed * 0.72 : cop.maxSpeed;
+        cop.speed += (desiredSpeed - cop.speed) * Math.min(1, 3.5 * dt);
+      } else if (copTile !== TILE.ROAD) {
+        // Return to nearest road tile
+        const nearestRoad = findNearestTileOfType(cop.x, cop.y, TILE.ROAD);
+        const desiredAngle = Math.atan2(nearestRoad.y - cop.y, nearestRoad.x - cop.x);
+        let angleDiff = desiredAngle - cop.angle;
+        while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+        while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+        cop.angle += Math.max(-4.0 * dt, Math.min(4.0 * dt, angleDiff));
+        cop.speed += (220 - cop.speed) * Math.min(1, 4 * dt);
+      } else {
+        // Road-grid pursuit using Manhattan distance at every intersection/tile
+        const curIdx = getNearestCardinalIndex(cop.angle);
+        if (copTx !== cop.lastTileX || copTy !== cop.lastTileY) {
+          cop.lastTileX = copTx;
+          cop.lastTileY = copTy;
+          const bestDir = pickBestRoadDirection(copTx, copTy, curIdx, targetTx, targetTy);
+          if (bestDir !== curIdx) {
+            cop.angle = CARDINAL_DIRS[bestDir].angle;
+            cop.x = (copTx + 0.5) * TILE_SIZE;
+            cop.y = (copTy + 0.5) * TILE_SIZE;
+          } else {
+            cop.angle = CARDINAL_DIRS[curIdx].angle;
+          }
+        }
+
+        // Gently keep centered on road tile lane
+        if (Math.abs(Math.cos(cop.angle)) > 0.5) {
+          cop.y += ((copTy + 0.5) * TILE_SIZE - cop.y) * Math.min(1, 6 * dt);
+        } else {
+          cop.x += ((copTx + 0.5) * TILE_SIZE - cop.x) * Math.min(1, 6 * dt);
+        }
+
+        cop.speed += (cop.maxSpeed - cop.speed) * Math.min(1, 3.5 * dt);
+      }
+
+      // Move forward with building pushback
+      const vx = Math.cos(cop.angle) * cop.speed * dt;
+      const vy = Math.sin(cop.angle) * cop.speed * dt;
+
+      if (!carCollidesWithWorld(cop.x + vx, cop.y + vy, cop.angle)) {
+        cop.x += vx;
+        cop.y += vy;
+      } else {
+        // Push police car back from building and turn it away
+        const pushBackX = cop.x - Math.cos(cop.angle) * 10;
+        const pushBackY = cop.y - Math.sin(cop.angle) * 10;
+        if (!carCollidesWithWorld(pushBackX, pushBackY, cop.angle)) {
+          cop.x = pushBackX;
+          cop.y = pushBackY;
+        }
+        const leftAng = cop.angle - Math.PI * 0.5;
+        const rightAng = cop.angle + Math.PI * 0.5;
+        if (!carCollidesWithWorld(cop.x + Math.cos(leftAng) * 20, cop.y + Math.sin(leftAng) * 20, leftAng)) {
+          cop.angle = leftAng;
+        } else {
+          cop.angle = rightAng;
+        }
+        cop.lastTileX = -1;
+        cop.lastTileY = -1;
+        cop.speed = 0;
+      }
+
+      // Stuck detection: if speed near 0 for > 2s while chasing and not in BUSTED range
+      const movedDist = Math.hypot(cop.x - prevX, cop.y - prevY);
+      if (dist >= 96 && (Math.abs(cop.speed) < 20 || movedDist < 15 * dt)) {
+        cop.stuckTimer += dt;
+        if (cop.stuckTimer >= 2.0) {
+          cop.stuckTimer = 0;
+          cop.reverseTimer = 0.5;
+          cop.turnDir = Math.random() < 0.5 ? 1 : -1;
+        }
+      } else {
+        cop.stuckTimer = 0;
+      }
+
+      // Check police car hitting player on foot
+      if (!player.inCar && Math.abs(cop.speed) > 55 && dist < 38) {
+        damagePlayerOnFoot(cop.x, cop.y);
+      }
+    }
+
+    // Update on-foot police officers
+    let officerTouchingPlayer = false;
+    for (let i = policeOfficers.length - 1; i >= 0; i--) {
+      const off = policeOfficers[i];
+      if (player.inCar) {
+        if (off.car) off.car.hasOfficerOut = false;
+        policeOfficers.splice(i, 1);
+        continue;
+      }
+
+      const dx = player.x - off.x;
+      const dy = player.y - off.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (hasLineOfSight(off.x, off.y, player.x, player.y)) {
+        anyPoliceSeesPlayer = true;
+      }
+
+      if (dist > 1) {
+        off.facingX = dx / dist;
+        off.facingY = dy / dist;
+        const nx = off.x + off.facingX * off.speed * dt;
+        const ny = off.y + off.facingY * off.speed * dt;
+        if (!collidesWithWorld(nx, off.y, 24, 24)) off.x = nx;
+        if (!collidesWithWorld(off.x, ny, 24, 24)) off.y = ny;
+      }
+
+      if (dist < 34) {
+        officerTouchingPlayer = true;
+      }
+    }
+
+    // BUSTED timers: 3s next to stopped car, or 2s touched on foot
+    if (player.inCar && copNextToStoppedCar) {
+      bustedTimer += dt;
+      if (bustedTimer >= 3.0) {
+        player.status = 'busted';
+      }
+    } else if (!player.inCar && officerTouchingPlayer) {
+      bustedTimer += dt;
+      if (bustedTimer >= 2.0) {
+        player.status = 'busted';
+      }
+    } else {
+      bustedTimer = Math.max(0, bustedTimer - dt * 1.5);
+    }
+
+    // Wanted decay: ONLY drop if no mayhem for 20 full seconds AND no police can see player
+    if (!anyPoliceSeesPlayer) {
+      noMayhemTimer += dt;
+      if (noMayhemTimer >= 20.0) {
+        wantedLevel = Math.max(0, wantedLevel - 1);
+        noMayhemTimer = 0;
+      }
+    } else {
+      noMayhemTimer = 0;
+    }
+  }
+
+  function drawPolice(camX, camY) {
+    const flashBlue = Math.floor(sirenFlashTime * 10) % 2 === 0;
+
+    for (const cop of police) {
+      const sx = cop.x - camX;
+      const sy = cop.y - camY;
+
+      ctx.save();
+      ctx.translate(sx, sy);
+      ctx.rotate(cop.angle);
+
+      const hl = CAR_LENGTH * 0.5;
+      const hw = CAR_WIDTH * 0.5;
+
+      // Shadow
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.fillRect(-hl + 4, -hw + 5, CAR_LENGTH, CAR_WIDTH);
+
+      // Black front & rear
+      ctx.fillStyle = '#181a1f';
+      ctx.fillRect(-hl, -hw, CAR_LENGTH, CAR_WIDTH);
+
+      // White middle doors/roof section
+      ctx.fillStyle = '#f2f4f8';
+      ctx.fillRect(-16, -hw, 32, CAR_WIDTH);
+
+      // Outline
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-hl, -hw, CAR_LENGTH, CAR_WIDTH);
+
+      // Front windshield
+      ctx.fillStyle = '#263849';
+      ctx.fillRect(6, -hw + 4, 13, CAR_WIDTH - 8);
+
+      // Rear window
+      ctx.fillStyle = '#263849';
+      ctx.fillRect(-24, -hw + 5, 9, CAR_WIDTH - 10);
+
+      // Flashing red/blue lightbar
+      ctx.fillStyle = flashBlue ? '#2979ff' : '#ff1744';
+      ctx.fillRect(-4, -hw + 4, 8, (CAR_WIDTH - 8) * 0.5);
+      ctx.fillStyle = flashBlue ? '#ff1744' : '#2979ff';
+      ctx.fillRect(-4, 0, 8, (CAR_WIDTH - 8) * 0.5);
+
+      // Headlights
+      ctx.fillStyle = '#fff3b0';
+      ctx.fillRect(hl - 4, -hw + 3, 4, 7);
+      ctx.fillRect(hl - 4, hw - 10, 4, 7);
+
+      ctx.restore();
+    }
+
+    // Draw on-foot police officers
+    for (const off of policeOfficers) {
+      const sx = Math.floor(off.x - camX);
+      const sy = Math.floor(off.y - camY);
+
+      ctx.fillStyle = 'rgba(0,0,0,0.35)';
+      ctx.fillRect(sx - 11, sy - 9, 22, 22);
+
+      ctx.fillStyle = '#1d3557';
+      ctx.fillRect(sx - 11, sy - 11, 22, 22);
+
+      ctx.fillStyle = '#f2c8a2';
+      ctx.fillRect(sx - 6, sy - 6, 12, 12);
+      ctx.fillStyle = '#0b1d3a';
+      ctx.fillRect(sx - 5, sy - 7, 10, 5);
+    }
+  }
+
+  // =========================================================================
+  // MISSIONS
+  // =========================================================================
+  const missions = [];
+  function updateMissions(dt) {}
+  function drawMissions(camX, camY) {}
+
+  // =========================================================================
+  // HUD
+  // =========================================================================
+  function drawHUD() {
+    const panelX = 16;
+    const panelY = 16;
+    const panelW = 355;
+    const panelH = 122;
+
+    ctx.fillStyle = 'rgba(15, 18, 22, 0.88)';
+    ctx.fillRect(panelX, panelY, panelW, panelH);
+    ctx.strokeStyle = '#d0d5dd';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+    // Score + Wanted Stars on top row
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(`SCORE: ${player.score}`, panelX + 12, panelY + 24);
+
+    // 5 Wanted Stars next to SCORE
+    const starStartX = panelX + 185;
+    ctx.font = 'bold 18px monospace';
+    for (let i = 1; i <= 5; i++) {
+      ctx.fillStyle = i <= wantedLevel ? '#ffcc00' : '#4a525d';
+      ctx.fillText('★', starStartX + (i - 1) * 22, panelY + 25);
+    }
+
+    // Status + Speed / Health bar
+    ctx.font = 'bold 15px monospace';
+    if (player.inCar) {
+      const mph = Math.round(Math.abs(player.inCar.speed) * 0.22);
+      ctx.fillStyle = '#4cd964';
+      ctx.fillText(`STATUS: IN CAR (${mph} MPH)`, panelX + 12, panelY + 48);
+
+      const hpRatio = Math.max(0, player.inCar.health / 100);
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = '#cfd6e0';
+      ctx.fillText('CAR HEALTH:', panelX + 12, panelY + 70);
+      const barX = panelX + 104;
+      const barY = panelY + 59;
+      const barW = 160;
+      const barH = 12;
+      ctx.fillStyle = '#2c313a';
+      ctx.fillRect(barX, barY, barW, barH);
+      ctx.fillStyle = hpRatio > 0.5 ? '#4cd964' : (hpRatio > 0.25 ? '#ffcc00' : '#ff3b30');
+      ctx.fillRect(barX, barY, Math.floor(barW * hpRatio), barH);
+      ctx.strokeStyle = '#9aa3b0';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barW, barH);
+    } else {
+      ctx.fillStyle = '#ffcc00';
+      ctx.fillText('STATUS: ON FOOT', panelX + 12, panelY + 48);
+
+      ctx.font = 'bold 12px monospace';
+      ctx.fillStyle = '#cfd6e0';
+      ctx.fillText(`HEALTH: ${'♥ '.repeat(player.health)}${'♡ '.repeat(Math.max(0, 3 - player.health))}`, panelX + 12, panelY + 70);
+    }
+
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#cfd6e0';
+    ctx.fillText('WASD move | E enter/exit | Space attack/brake', panelX + 12, panelY + 92);
+    ctx.fillStyle = audio.muted ? '#ff6b6b' : '#9ee6a0';
+    ctx.fillText(`M mute: ${audio.muted ? 'MUTED' : 'ON'}`, panelX + 12, panelY + 110);
+
+    // Top-right minimap
+    const mapPx = 192;
+    const pad = 16;
+    const mx = canvas.width - mapPx - pad;
+    const my = pad;
+
+    ctx.fillStyle = 'rgba(15, 18, 22, 0.85)';
+    ctx.fillRect(mx - 4, my - 4, mapPx + 8, mapPx + 8);
+
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(minimapStatic, mx, my, mapPx, mapPx);
+    ctx.imageSmoothingEnabled = true;
+
+    const scale = mapPx / WORLD_SIZE;
+    const viewW = canvas.width / CAMERA_ZOOM;
+    const viewH = canvas.height / CAMERA_ZOOM;
+
+    // Cars on minimap
+    for (const car of cars) {
+      if (car === player.inCar || car.wrecked) continue;
+      const cmx = mx + car.x * scale;
+      const cmy = my + car.y * scale;
+      ctx.fillStyle = car.color;
+      ctx.fillRect(cmx - 2, cmy - 2, 4, 4);
+    }
+
+    // Police cars on minimap (flashing blue/red)
+    const flashBlue = Math.floor(sirenFlashTime * 10) % 2 === 0;
+    for (const cop of police) {
+      const cmx = mx + cop.x * scale;
+      const cmy = my + cop.y * scale;
+      ctx.fillStyle = flashBlue ? '#2979ff' : '#ff1744';
+      ctx.fillRect(cmx - 2.5, cmy - 2.5, 5, 5);
+    }
+
+    // Camera viewport box on minimap
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(
+      mx + camera.x * scale,
+      my + camera.y * scale,
+      viewW * scale,
+      viewH * scale
+    );
+
+    // Player marker on minimap (red dot)
+    const pmx = mx + player.x * scale;
+    const pmy = my + player.y * scale;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(pmx - 3, pmy - 3, 6, 6);
+    ctx.fillStyle = '#ff3b30';
+    ctx.fillRect(pmx - 2, pmy - 2, 4, 4);
+
+    // Minimap border
+    ctx.strokeStyle = '#d0d5dd';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(mx - 1, my - 1, mapPx + 2, mapPx + 2);
+
+    // BUSTED / WASTED Overlay
+    if (player.status === 'busted' || player.status === 'wasted') {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = 'bold 64px monospace';
+      ctx.fillStyle = player.status === 'busted' ? '#2979ff' : '#ff3b30';
+      ctx.fillText(player.status === 'busted' ? 'BUSTED' : 'WASTED', canvas.width * 0.5, canvas.height * 0.46);
+
+      ctx.font = 'bold 20px monospace';
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText('Press R to Respawn', canvas.width * 0.5, canvas.height * 0.55);
+      ctx.restore();
+    }
+  }
+
+  // =========================================================================
+  // AUDIO
+  // =========================================================================
+  const audio = {
+    ctx: null,
+    muted: false,
+    engineOsc: null,
+    engineGain: null,
+    sirenOsc: null,
+    sirenGain: null
+  };
+
+  function initAudio() {
+    if (audio.ctx) {
+      if (audio.ctx.state === 'suspended') audio.ctx.resume();
+      return;
+    }
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    audio.ctx = new AudioCtx();
+
+    const osc = audio.ctx.createOscillator();
+    const gain = audio.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 55;
+    gain.gain.value = 0;
+
+    const filter = audio.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 180;
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(audio.ctx.destination);
+    osc.start();
+
+    audio.engineOsc = osc;
+    audio.engineGain = gain;
+
+    const sOsc = audio.ctx.createOscillator();
+    const sGain = audio.ctx.createGain();
+    sOsc.type = 'triangle';
+    sOsc.frequency.value = 620;
+    sGain.gain.value = 0;
+    sOsc.connect(sGain);
+    sGain.connect(audio.ctx.destination);
+    sOsc.start();
+
+    audio.sirenOsc = sOsc;
+    audio.sirenGain = sGain;
+  }
+
+  function toggleMute() {
+    audio.muted = !audio.muted;
+    if (audio.muted && audio.ctx) {
+      const now = audio.ctx.currentTime;
+      if (audio.engineGain) audio.engineGain.gain.setTargetAtTime(0, now, 0.03);
+      if (audio.sirenGain) audio.sirenGain.gain.setTargetAtTime(0, now, 0.03);
+    }
+  }
+
+  function updateAudio() {
+    if (!audio.ctx) return;
+    const now = audio.ctx.currentTime;
+
+    if (audio.engineOsc && audio.engineGain) {
+      if (audio.muted || !player.inCar || player.status !== 'playing') {
+        audio.engineGain.gain.setTargetAtTime(0, now, 0.06);
+      } else {
+        const speedRatio = Math.min(1, Math.abs(player.inCar.speed) / player.inCar.maxSpeed);
+        audio.engineOsc.frequency.setTargetAtTime(48 + speedRatio * 75, now, 0.06);
+        audio.engineGain.gain.setTargetAtTime(0.03 + speedRatio * 0.035, now, 0.06);
+      }
+    }
+
+    if (audio.sirenOsc && audio.sirenGain) {
+      if (audio.muted || wantedLevel === 0 || police.length === 0 || player.status !== 'playing') {
+        audio.sirenGain.gain.setTargetAtTime(0, now, 0.08);
+      } else {
+        const wail = 600 + Math.sin(sirenFlashTime * 6.5) * 220;
+        audio.sirenOsc.frequency.setTargetAtTime(wail, now, 0.04);
+        audio.sirenGain.gain.setTargetAtTime(0.028, now, 0.08);
+      }
+    }
+  }
+
+  function playBeep(freq = 560, duration = 0.08) {
+    if (audio.muted || !audio.ctx) return;
+    const now = audio.ctx.currentTime;
+    const osc = audio.ctx.createOscillator();
+    const gain = audio.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, now);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    osc.connect(gain);
+    gain.connect(audio.ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration);
+  }
+
+  function playThud(intensity = 0.5) {
+    if (audio.muted || !audio.ctx) return;
+    const now = audio.ctx.currentTime;
+    const osc = audio.ctx.createOscillator();
+    const gain = audio.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(115, now);
+    osc.frequency.exponentialRampToValueAtTime(38, now + 0.12);
+    gain.gain.setValueAtTime(0.14 * Math.max(0.2, Math.min(1, intensity)), now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.13);
+    osc.connect(gain);
+    gain.connect(audio.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.14);
+  }
+
+  // =========================================================================
+  // GAME LOOP
+  // =========================================================================
+  let lastTime = performance.now();
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    updatePlayer(dt);
+    if (player.status === 'playing') {
+      updateCars(dt);
+      updateProps(dt);
+      updatePeds(dt);
+      updatePolice(dt);
+      updateMissions(dt);
+    }
+    updateEffects(dt);
+    updateAudio();
+
+    ctx.fillStyle = '#111';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const viewW = canvas.width / CAMERA_ZOOM;
+    const viewH = canvas.height / CAMERA_ZOOM;
+
+    ctx.save();
+    ctx.scale(CAMERA_ZOOM, CAMERA_ZOOM);
+    drawMap(camera.x, camera.y, viewW, viewH);
+    drawMissions(camera.x, camera.y);
+    drawCars(camera.x, camera.y);
+    drawPeds(camera.x, camera.y);
+    drawPolice(camera.x, camera.y);
+    drawPlayer(camera.x, camera.y);
+    drawEffects(camera.x, camera.y);
+    ctx.restore();
+
+    drawHUD();
+
+    requestAnimationFrame(frame);
+  }
+
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
