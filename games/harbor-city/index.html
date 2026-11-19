@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Harbor City Havoc</title>
+<title>Jackcity: Harbor City Havoc</title>
 <style>
   * {
     margin: 0;
@@ -4105,18 +4105,25 @@
       const cx = canvas.width * 0.5;
       const cy = canvas.height * 0.5;
 
-      setLetterSpacing('3px');
-      ctx.font = hudFont(900, 54);
+      // Brand: JACKCITY in big yellow letters, the game name smaller underneath
+      setLetterSpacing('6px');
+      ctx.font = hudFont(900, 66);
       ctx.textAlign = 'center';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = 8;
+      ctx.lineWidth = 9;
       ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-      ctx.strokeText('HARBOR CITY HAVOC', cx, cy - 135);
-      const tg = ctx.createLinearGradient(0, cy - 180, 0, cy - 130);
+      ctx.strokeText('JACKCITY', cx, cy - 150);
+      const tg = ctx.createLinearGradient(0, cy - 202, 0, cy - 146);
       tg.addColorStop(0, '#fff3a0');
       tg.addColorStop(1, '#ffc21a');
       ctx.fillStyle = tg;
-      ctx.fillText('HARBOR CITY HAVOC', cx, cy - 135);
+      ctx.fillText('JACKCITY', cx, cy - 150);
+      setLetterSpacing('3px');
+      ctx.font = hudFont(700, 22);
+      ctx.lineWidth = 5;
+      ctx.strokeText('Harbor City Havoc', cx, cy - 113);
+      ctx.fillStyle = '#e9edf3';
+      ctx.fillText('Harbor City Havoc', cx, cy - 113);
       setLetterSpacing('0px');
 
       hudPanel(cx - 270, cy - 95, 540, 210);
@@ -4406,6 +4413,9 @@
         ctx.globalAlpha = 1;
       }
 
+      setLetterSpacing('1px');
+      hudText('Jackcity: Harbor City Havoc', cx, cy - 12, hudFont(600, 14), '#cfd6e0', 'center');
+      setLetterSpacing('0px');
       hudText(`FINAL SCORE: ${player.score}`, cx, cy + 16, hudFont(800, 24), '#ffffff', 'center');
       hudText(`BEST SCORE: ${bestScore}`, cx, cy + 52, hudFont(700, 22), '#ffe047', 'center');
       hudText('Press ENTER to Start New Game', cx, cy + 115, hudFont(800, 22), '#4cd964', 'center');

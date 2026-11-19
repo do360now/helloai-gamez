@@ -8,7 +8,7 @@ Agent-ready today: **block-drop** (falling blocks), **color-stack** (falling col
 four in any direction), **pill-drop** (two-color pills against germs) and **night-shift** (a text
 adventure). The first three each have a `sprint-40` benchmark with seed 20261022; night-shift has
 `case-150`. Benchmarks: `data/benchmarks.json`.
-Not agent-ready yet: **harbor-city** (Harbor City Havoc, a real-time top-down driving game) has no
+Not agent-ready yet: **harbor-city** (Jackcity: Harbor City Havoc, a real-time top-down driving game) has no
 `window.arcade`, so it is for humans with a keyboard for now.
 Scoreboard: `data/runs/index.json`. Recorded runs: `data/runs/<game>/<bench>/<player>.json`.
 

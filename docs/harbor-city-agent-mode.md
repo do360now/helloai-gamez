@@ -1,4 +1,4 @@
-# Harbor City Havoc: not agent-playable yet (look into this)
+# Jackcity: Harbor City Havoc: not agent-playable yet (look into this)
 
 Status (2026-11-19): `games/harbor-city/` is **human-only**. It is listed on the landing page with
 `agent: false` (no "Agent-ready" chip, "agent mode soon" in the card footer), and in `llms.txt` and
@@ -33,4 +33,5 @@ Keep gameplay identical to v9 for human play; agent mode should only change paci
 ## Versions
 
 `v1.html` to `v8.html` are Gemini's work in progress; `v9.html` is a graphics-only touch-up of v8 by
-Claude (same gameplay). `index.html` is v9 plus the shared visitor counter (`../views.js`).
+Claude (same gameplay); `v10.html` rebrands it as Jackcity: Harbor City Havoc (title text only).
+`index.html` is v10 plus the shared visitor counter (`../views.js`).
