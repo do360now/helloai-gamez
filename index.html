@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>play.helloai.com: humans vs agents</title>
-<meta name="description" content="A living arcade of LLM-built browser games where humans and AI agents play the same seeded benchmarks. Watch the agents, then try to beat them.">
-<meta name="theme-color" content="#0A0A0B">
+<title>JackCity · play.helloai.com</title>
+<meta name="description" content="Home of JackCity: download JackCity II: Neon Bay Havoc, play the original in your browser, and follow JackCity III: Iron Loop Havoc, now in production. Plus a living arcade where humans and AI agents play the same seeded benchmarks.">
+<meta name="theme-color" content="#0B0A1A">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -13,22 +13,24 @@
 <link rel="alternate" type="text/markdown" href="/agents.md" title="Agent protocol">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fragment+Mono&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=Fragment+Mono&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: dark;
-    --bg: #0a0a0b;
-    --bg-soft: #0f0f11;
-    --card: #131316;
-    --line: #222227;
-    --line-strong: #2e2e35;
-    --text: #f2f2f3;
-    --dim: #8d8d96;
-    --faint: #5b5b63;
-    --human: #c8ff00;
-    --agent: #a493ff;
-    --baseline: #7d8590;
-    --danger: #ff6b81;
+    --bg: #0b0a1a;
+    --bg-soft: #100e24;
+    --card: #15122d;
+    --line: #241f45;
+    --line-strong: #342d5e;
+    --text: #f4f2fb;
+    --dim: #9c96bd;
+    --faint: #645d8a;
+    --human: #ffd23f;
+    --agent: #4ee6ff;
+    --neon: #ff4fd8;
+    --baseline: #8a86a3;
+    --danger: #ff5c7a;
+    --display: "Chakra Petch", "Instrument Sans", system-ui, sans-serif;
     --mono: "Fragment Mono", ui-monospace, Consolas, monospace;
     --sans: "Instrument Sans", system-ui, sans-serif;
   }
@@ -38,7 +40,7 @@
   body { margin: 0; background: var(--bg); color: var(--text); font: 400 15px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
   body::before {
     content: ""; position: fixed; inset: 0; pointer-events: none; z-index: -1;
-    background-image: linear-gradient(#ffffff06 1px, transparent 1px), linear-gradient(90deg, #ffffff06 1px, transparent 1px);
+    background-image: linear-gradient(#ff4fd80a 1px, transparent 1px), linear-gradient(90deg, #4ee6ff0a 1px, transparent 1px);
     background-size: 40px 40px;
     mask-image: radial-gradient(ellipse at 50% 0%, #000 0%, transparent 70%);
   }
@@ -54,8 +56,9 @@
   .chip { display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--line-strong);
     font: 500 10px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
   .chip i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .chip.human { color: var(--human); border-color: #c8ff0040; }
-  .chip.agent, .chip.llm { color: var(--agent); border-color: #a493ff40; }
+  .chip.human { color: var(--human); border-color: #ffd23f40; }
+  .chip.agent, .chip.llm { color: var(--agent); border-color: #4ee6ff40; }
+  .chip.neon { color: var(--neon); border-color: #ff4fd850; }
   .chip.baseline { color: var(--baseline); }
   .chip.disclosure { color: var(--faint); }
   .btn { display: inline-flex; align-items: center; gap: 10px; height: 44px; padding: 0 20px; border-radius: 999px; text-decoration: none;
@@ -63,14 +66,16 @@
     cursor: pointer; transition: border-color .2s, background .2s, transform .1s; }
   .btn:hover { border-color: #ffffff40; background: #ffffff0a; }
   .btn:active { transform: scale(.98); }
-  .btn.primary { background: var(--human); color: #0a0a0b; border-color: var(--human); }
-  .btn.primary:hover { background: #d8ff4a; }
+  .btn.primary { background: var(--human); color: #0b0a1a; border-color: var(--human); box-shadow: 0 0 24px -6px var(--human); }
+  .btn.primary:hover { background: #ffe07a; }
+  .btn.neon { border-color: #ff4fd880; color: var(--text); background: #ff4fd814; }
+  .btn.neon:hover { border-color: var(--neon); background: #ff4fd826; }
   section { padding: 88px 0; border-top: 1px solid var(--line); }
   .section-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; flex-wrap: wrap; margin-bottom: 36px; }
   .section-head p { margin: 14px 0 0; }
 
   /* Top bar */
-  .top { position: sticky; top: 0; z-index: 10; background: #0a0a0bd9; backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+  .top { position: sticky; top: 0; z-index: 10; background: #0b0a1ad9; backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
   .top .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
   .brand { font: 400 15px var(--mono); text-decoration: none; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
   .brand b { width: 8px; height: 8px; border-radius: 50%; background: var(--human); box-shadow: 0 0 10px var(--human); animation: blink 2.4s infinite; }
@@ -80,28 +85,68 @@
   .nav a:hover { color: var(--text); }
   @media (max-width: 760px) { .nav { gap: 16px; } .nav a:not(.keep) { display: none; } }
 
-  /* Hero */
-  .hero { padding: 64px 0 80px; border-top: 0; }
-  .hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: center; }
-  .hero h1 { font-size: clamp(42px, 6vw, 78px); line-height: .92; margin: 22px 0 26px; }
-  .hero h1 em { font-style: normal; color: var(--human); }
-  .hero h1 span { color: var(--agent); }
-  .hero .lede { font-size: 17px; }
+  /* Hero: the latest JackCity release, set in the games' own neon type. */
+  .hero { position: relative; padding: 84px 0 88px; border-top: 0; overflow: hidden; isolation: isolate; }
+  .hero-bg { position: absolute; inset: 0; z-index: -1; background: url(/games/jackcity-neon-bay/card.jpg) center / cover no-repeat; opacity: .5; filter: saturate(1.2); }
+  .hero-bg::after { content: ""; position: absolute; inset: 0;
+    background: linear-gradient(90deg, var(--bg) 0%, #0b0a1ae6 38%, #0b0a1a80 70%, #0b0a1acc 100%), linear-gradient(180deg, transparent 55%, var(--bg) 100%); }
+  .hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; }
+  .eyebrow.neon::before { background: var(--neon); box-shadow: 0 0 12px var(--neon); }
+  .hero h1 { white-space: nowrap; font: 700 clamp(40px, 5.6vw, 80px)/.9 var(--display); letter-spacing: .04em; text-transform: uppercase; margin: 22px 0 10px;
+    color: var(--neon); text-shadow: 0 0 28px #ff4fd880, 0 0 2px #ff4fd8; }
+  .hero .sub { font: 700 clamp(17px, 2.4vw, 26px)/1.1 var(--display); letter-spacing: .32em; text-transform: uppercase; color: var(--agent);
+    text-shadow: 0 0 18px #4ee6ff70; margin: 0 0 26px; }
+  .hero .lede { font-size: 17px; color: #cfcbe4; }
   .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
-  .facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 44px; max-width: 540px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg-soft); }
+  .cta-meta { margin: 14px 0 0; font: 400 12px/1.6 var(--mono); color: var(--dim); }
+  .cta-meta b { color: var(--text); font-weight: 400; }
+  .frame { position: relative; border-radius: 18px; padding: 1px; background: linear-gradient(135deg, var(--neon), #4ee6ff80 50%, var(--human)); box-shadow: 0 30px 90px -30px #ff4fd860; }
+  .frame img { display: block; width: 100%; height: auto; aspect-ratio: 1200 / 724; object-fit: cover; border-radius: 17px; background: var(--bg-soft); }
+  .frame .tag { position: absolute; left: 14px; bottom: 14px; }
+  .frame .tag .chip { background: #0b0a1acc; backdrop-filter: blur(6px); }
+  @media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; } .hero { padding-top: 56px; } }
+
+  /* JackCity series strip */
+  .series { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .ep { border: 1px solid var(--line); border-radius: 18px; background: var(--card); overflow: hidden; display: flex; flex-direction: column; }
+  .ep .pic { position: relative; aspect-ratio: 16 / 9; background: #07061a center / cover no-repeat; border-bottom: 1px solid var(--line); }
+  .ep .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .ep .body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 10px; flex: 1; }
+  .ep .num { font: 700 12px/1 var(--display); letter-spacing: .28em; text-transform: uppercase; color: var(--dim); }
+  .ep h3 { font: 700 24px/1.05 var(--display); letter-spacing: .03em; text-transform: uppercase; }
+  .ep p { margin: 0; color: #bdb8d6; font-size: 14px; }
+  .ep .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ep footer { margin-top: auto; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ep footer span { font: 400 11px var(--mono); color: var(--dim); }
+  .ep.next { border-color: #ffd23f55; }
+  /* III has no screenshot yet: a hazard-striped "in production" panel, no stand-in art. */
+  .ep.next .pic { display: grid; place-items: center; text-align: center;
+    background: repeating-linear-gradient(-45deg, #ffd23f12 0 14px, transparent 14px 28px), radial-gradient(ellipse at 50% 60%, #2a1f55, #07061a 75%); }
+  .ep.next .pic strong { display: block; font: 700 clamp(26px, 3.4vw, 40px)/1 var(--display); letter-spacing: .12em; text-transform: uppercase;
+    color: transparent; -webkit-text-stroke: 1.5px var(--human); text-shadow: 0 0 22px #ffd23f40; }
+  .ep.next .pic em { display: inline-block; margin-top: 12px; font: 500 10px/1 var(--mono); font-style: normal; letter-spacing: .2em; text-transform: uppercase;
+    color: #0b0a1a; background: var(--human); padding: 6px 10px; border-radius: 4px; }
+  @media (max-width: 960px) { .series { grid-template-columns: 1fr 1fr; } .ep.next { grid-column: 1 / -1; } }
+  @media (max-width: 640px) { .series { grid-template-columns: 1fr; } }
+
+  /* The Lab: replay player and facts, then the scoreboard */
+  .lab-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 48px; align-items: center; margin-bottom: 48px; }
+  .lab-top h2 em { font-style: normal; color: var(--human); }
+  .lab-top h2 span { color: var(--agent); }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 32px; max-width: 540px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--bg-soft); }
   .facts div { padding: 16px 18px; border-right: 1px solid var(--line); }
   .facts div:last-child { border-right: 0; }
   .facts b { display: block; font: 400 24px/1 var(--mono); }
   .facts span { font: 500 10px/1.4 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); }
-  @media (max-width: 1060px) { .hero .wrap { grid-template-columns: 1fr; } .player { max-width: 600px; } }
+  @media (max-width: 1060px) { .lab-top { grid-template-columns: 1fr; } .player { max-width: 600px; } }
 
   /* Replay player */
-  .player { border: 1px solid var(--line-strong); border-radius: 22px; background: linear-gradient(180deg, #16161b, #0e0e11); overflow: hidden; box-shadow: 0 30px 80px -30px #000, 0 0 0 1px #ffffff05 inset; }
+  .player { border: 1px solid var(--line-strong); border-radius: 22px; background: linear-gradient(180deg, #19153a, #0f0d24); overflow: hidden; box-shadow: 0 30px 80px -30px #000, 0 0 0 1px #ffffff05 inset; }
   .player-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
   .live { font: 500 10px/1 var(--mono); letter-spacing: .14em; color: var(--danger); display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
   .live::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); animation: blink 1.2s infinite; }
   .player-body { display: grid; grid-template-columns: 336px 232px; }
-  .screen { width: 336px; height: 640px; overflow: hidden; background: #05060a; border-right: 1px solid var(--line); }
+  .screen { width: 336px; height: 640px; overflow: hidden; background: #06051a; border-right: 1px solid var(--line); }
   .screen iframe { width: 336px; height: 640px; border: 0; display: block; }
   .hud { padding: 20px 18px; display: flex; flex-direction: column; gap: 18px; min-width: 0; }
   .who { font: 400 22px/1.15 var(--mono); letter-spacing: -.03em; }
@@ -119,7 +164,7 @@
   .picker button { text-align: left; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--line);
     background: transparent; color: var(--dim); font: 400 12px/1.3 var(--mono); cursor: pointer; }
   .picker button:hover { color: var(--text); border-color: var(--line-strong); }
-  .picker button[aria-pressed="true"] { color: var(--text); border-color: var(--agent); background: #a493ff12; }
+  .picker button[aria-pressed="true"] { color: var(--text); border-color: var(--agent); background: #4ee6ff12; }
   @media (max-width: 700px) {
     .player-body { grid-template-columns: 1fr; }
     .screen { margin: 0 auto; border-right: 0; border-bottom: 1px solid var(--line); width: 100%; display: flex; justify-content: center; }
@@ -137,14 +182,14 @@
   .rows { display: flex; flex-direction: column; }
   .row { display: grid; grid-template-columns: 34px minmax(0, 1.4fr) minmax(0, 2fr) 120px 96px; gap: 16px; align-items: center; padding: 14px 24px; border-bottom: 1px solid #ffffff08; }
   .row:last-child { border-bottom: 0; }
-  .row.you { background: #c8ff000a; }
+  .row.you { background: #ffd23f0a; }
   .rank { font: 400 14px var(--mono); color: var(--faint); }
   .name { font: 500 14px/1.3 var(--sans); }
   .name small { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 5px; font: 400 11px var(--mono); color: var(--dim); }
   .name small .harness { flex-basis: 100%; color: var(--faint); }
   .bar { height: 26px; border-radius: 6px; background: #ffffff06; position: relative; overflow: hidden; }
   .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 6px; opacity: .9; }
-  .bar em { position: absolute; left: 10px; top: 0; bottom: 0; display: flex; align-items: center; font: 400 11px var(--mono); font-style: normal; color: #0a0a0b; mix-blend-mode: normal; white-space: nowrap; }
+  .bar em { position: absolute; left: 10px; top: 0; bottom: 0; display: flex; align-items: center; font: 400 11px var(--mono); font-style: normal; color: #0b0a1a; mix-blend-mode: normal; white-space: nowrap; }
   .bar em.out { color: var(--dim); }
   .score { font: 400 20px/1 var(--mono); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .score small { display: block; margin-top: 4px; font-size: 10px; color: var(--dim); letter-spacing: .06em; }
@@ -152,7 +197,7 @@
   .link-btn { font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--text); background: transparent; border: 1px solid var(--line-strong);
     border-radius: 999px; padding: 8px 12px; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .link-btn:hover { border-color: #ffffff50; }
-  .link-btn.lime { color: #0a0a0b; background: var(--human); border-color: var(--human); }
+  .link-btn.lime { color: #0b0a1a; background: var(--human); border-color: var(--human); }
   .agent-prompt { font: 400 12px/1.6 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; background: var(--bg-soft); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin: 12px 0 0; color: #b9b9c0; }
   .paste { margin: 0 0 20px; }
   .paste p { color: var(--dim); margin: 0 0 12px; }
@@ -230,9 +275,10 @@
   <div class="wrap">
     <a class="brand" href="/"><b></b>play.helloai.com</a>
     <nav class="nav" aria-label="Sections">
-      <a href="#scoreboard" class="keep">Scoreboard</a>
+      <a href="#jackcity" class="keep">JackCity</a>
+      <a href="#scoreboard" class="keep">The Lab</a>
       <a href="#arcade">Arcade</a>
-      <a href="#agents" class="keep">For agents</a>
+      <a href="#agents">For agents</a>
       <a href="#add">Add a game</a>
       <a href="https://helloai.com">helloai.com ↗</a>
     </nav>
@@ -240,24 +286,96 @@
 </header>
 
 <main>
-  <section class="hero">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-bg" aria-hidden="true"></div>
     <div class="wrap">
       <div>
-        <span class="eyebrow">Living arcade · humans and agents</span>
-        <h1>Same pieces.<br><em>You</em> or the <span>agent</span>?</h1>
-        <p class="lede">Every game here was built by an LLM. Every benchmark is a fixed seed, so you, a hand-tuned bot and a frontier model get exactly the same pieces. Watch the agents play, then try to beat them.</p>
+        <span class="eyebrow neon">Latest release · JackCity series</span>
+        <h1 id="hero-title">JackCity II</h1>
+        <p class="sub">Neon Bay Havoc</p>
+        <p class="lede">A neon-lit open-world crime sandbox built in Unreal Engine 5. Roam the city from above, on foot or behind the wheel, answer payphones for missions and keep ahead of the cops.</p>
         <div class="cta">
-          <a class="btn primary" id="play-bench" href="/games/block-drop/?seed=20261022&amp;bench=sprint-40">Play the sprint ↗</a>
-          <a class="btn" href="#scoreboard">See the scoreboard</a>
+          <a class="btn primary" href="https://do360now.itch.io/jackcity-neon-bay" target="_blank" rel="noopener noreferrer">Download for Windows ↗</a>
+          <a class="btn neon" href="/games/harbor-city/">Play JackCity I in your browser ↗</a>
         </div>
-        <div class="facts" aria-label="Arcade facts">
-          <div><b id="fact-games">6</b><span>Games live</span></div>
-          <div><b id="fact-runs">–</b><span>Verified runs</span></div>
-          <div><b id="fact-beat">–</b><span>To beat</span></div>
+        <p class="cta-meta"><b>JackCity II:</b> Windows 64-bit · 358 MB · on itch.io<br><b>JackCity I:</b> runs in the browser, needs a keyboard (WASD, E, Space)</p>
+      </div>
+      <div class="frame">
+        <img src="/games/jackcity-neon-bay/shot1.jpg" alt="JackCity II gameplay: a neon city at night seen from above, with traffic, a minimap of Neon Bay and the score panel" width="1200" height="724">
+        <div class="tag"><span class="chip neon"><i></i>In game · Neon Bay</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="jackcity">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow neon">The series</span>
+          <h2 style="margin-top:16px">Welcome to JackCity.</h2>
+          <p class="lede">Top-down crime sandboxes: steal a ride, take the payphone jobs, lose the cops. It started as a single-file browser game and grew into a 3D city. The third one is on the way.</p>
         </div>
       </div>
+      <div class="series">
+        <article class="ep next">
+          <div class="pic" aria-hidden="true"><div><strong>Iron Loop</strong><em>In production</em></div></div>
+          <div class="body">
+            <span class="num">JackCity III</span>
+            <h3>Iron Loop Havoc</h3>
+            <p>The next JackCity is already in production. More soon.</p>
+            <div class="chips"><span class="chip human"><i></i>In production</span></div>
+          </div>
+        </article>
+        <article class="ep">
+          <div class="pic"><img src="/games/jackcity-neon-bay/card.jpg" alt="JackCity II: neon-outlined rooftops and streets of Neon Bay at night" loading="lazy"></div>
+          <div class="body">
+            <span class="num">JackCity II · latest</span>
+            <h3>Neon Bay Havoc</h3>
+            <p>A 3D open-world city in Unreal Engine 5, seen from above. An original homage to late-90s top-down city games.</p>
+            <div class="chips"><span class="chip neon"><i></i>Out now</span><span class="chip">Windows</span><span class="chip">by do360now</span></div>
+            <footer>
+              <a class="link-btn lime" href="https://do360now.itch.io/jackcity-neon-bay" target="_blank" rel="noopener noreferrer">Download ↗</a>
+              <span>Windows 64-bit · 358 MB</span>
+            </footer>
+          </div>
+        </article>
+        <article class="ep">
+          <div class="pic"><img style="object-position:left center" src="/games/harbor-city/card.jpg" alt="JackCity: Harbor City Havoc title art: a police car chasing a red car along the harbor" loading="lazy"></div>
+          <div class="body">
+            <span class="num">JackCity I · the original</span>
+            <h3>Harbor City Havoc</h3>
+            <p>Where it started: a top-down harbor town to drive, steal and escape in, built by Gemini and Claude as a single HTML file.</p>
+            <div class="chips"><span class="chip agent"><i></i>Browser</span><span class="chip">Keyboard</span><span class="chip">by Gemini &amp; Claude</span></div>
+            <footer>
+              <a class="link-btn lime" href="/games/harbor-city/">Play ↗</a>
+              <span>WASD · E · Space</span>
+            </footer>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
 
-      <div class="player" aria-label="Replay player">
+  <section id="scoreboard">
+    <div class="wrap">
+      <div class="lab-top">
+        <div>
+          <span class="eyebrow">The Lab · humans and agents</span>
+          <h2 style="margin-top:16px">Same pieces.<br><em>You</em> or the <span>agent</span>?</h2>
+          <p class="lede" style="margin-top:18px">The benchmark games were built by LLMs, and every benchmark is a fixed seed, so you, a hand-tuned bot and a frontier model get exactly the same pieces. Every agent score is a recorded run you can watch and replay to check: same seed, same moves, same score. Your own best stays in this browser.</p>
+          <p class="note">JackCity agent mode is in the works: for now the JackCity games are for humans only.</p>
+          <div class="cta">
+            <a class="btn primary" href="/games/block-drop/?seed=20261022&amp;bench=sprint-40">Play the sprint ↗</a>
+            <a class="btn" href="#benches">See the scoreboard</a>
+          </div>
+          <div class="facts" aria-label="Arcade facts">
+            <div><b id="fact-games">6</b><span>Games live</span></div>
+            <div><b id="fact-runs">–</b><span>Verified runs</span></div>
+            <div><b id="fact-beat">–</b><span>To beat</span></div>
+          </div>
+        </div>
+
+      <div class="player" id="lab-player" aria-label="Replay player">
         <div class="player-head">
           <span class="live" id="live-label">Replaying</span>
           <span class="chip" id="player-bench">Block Drop · Sprint 40</span>
@@ -279,19 +397,8 @@
           </div>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section id="scoreboard">
-    <div class="wrap">
-      <div class="section-head">
-        <div>
-          <span class="eyebrow">Scoreboard</span>
-          <h2 style="margin-top:16px">Humans vs agents.</h2>
-          <p class="lede">Every agent score is a recorded run that you can watch, and that anyone can replay to check: same seed, same moves, same score. Your own best stays in this browser.</p>
-        </div>
       </div>
-      <div id="benches"></div>
+      <div id="benches" style="scroll-margin-top:80px"></div>
       <div class="ways">
         <div class="way">
           <span class="chip human"><i></i>Real time</span>
@@ -661,7 +768,7 @@ legend: # filled, @ current piece, + where it lands, . empty
       if (entry.run) {
         var r = entry.run, p = r.player;
         var watchBtn = el("button", { class: "link-btn", type: "button", text: "Watch ▸" });
-        watchBtn.onclick = function () { watch(r, bench); document.querySelector(".hero").scrollIntoView(); };
+        watchBtn.onclick = function () { watch(r, bench); $("lab-player").scrollIntoView({ block: "center" }); };
         rows.appendChild(el("div", { class: "row" }, [
           el("span", { class: "rank", text: String(i + 1).padStart(2, "0") }),
           el("div", { class: "name" }, [p.name, el("small", {}, [
