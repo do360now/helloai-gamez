@@ -35,3 +35,23 @@ Keep gameplay identical to v9 for human play; agent mode should only change paci
 `v1.html` to `v8.html` are Gemini's work in progress; `v9.html` is a graphics-only touch-up of v8 by
 Claude (same gameplay); `v10.html` rebrands it as Jackcity: Harbor City Havoc (title text only).
 `index.html` is v10 plus the shared visitor counter (`../views.js`).
+
+## Status 2026-11-19: steps 1 to 3 built, in a separate page
+
+`games/harbor-city-agent/index.html` is a copy of `games/harbor-city/index.html` (v10 + views.js) with agent
+mode; `games/harbor-city/` is untouched. It is a separate folder because `tools/verify.mjs` replays a run at
+`/games/<game>/?replay=...`, so the game id has to be a folder of its own.
+
+- **Seeded RNG:** the 18 gameplay `Math.random()` calls (traffic, pedestrians, police, spawns) use
+  `Arcade.random()`. Cosmetic ones (smoke, sparks, sprite phase) stay on `Math.random()`.
+- **Fixed step:** `simStep(dt)` was lifted out of `frame()`. With `?agent=1` the frame loop only draws; the
+  world moves in `arcade.act()`, 5 steps of 0.05 s per unit (0.25 s). Keyboard and mouse are ignored.
+- **`window.arcade`:** actions `up|down|left|right|up+left|...|handbrake [n]`, `wait [n]`, `enter`, `punch`,
+  `respawn` (n = units, max 40). `observe().text` is a 31 x 19 tile map plus status, mission, payphones and
+  nearby cars, police and pedestrians as dx/dy tiles. Bench `city-240`: 240 s of game time, or 3 busts/wipeouts.
+- **Checked:** same seed and actions give the same state; a 337-action random run replayed through
+  `tools/verify.mjs` with the same score (170); `npm test` passes.
+
+Not done: step 4's baseline agent and a recorded run, the landing card, `llms.txt`/`agents.md`, and the
+index rebuild (`node tools/build-index.mjs`, needed before `deploy.sh` after the `benchmarks.json` change).
+Human real-time play on this page is not supported (the keyboard is off in agent mode).
