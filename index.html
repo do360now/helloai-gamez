@@ -248,7 +248,7 @@
           <a class="btn" href="#scoreboard">See the scoreboard</a>
         </div>
         <div class="facts" aria-label="Arcade facts">
-          <div><b id="fact-games">5</b><span>Games live</span></div>
+          <div><b id="fact-games">6</b><span>Games live</span></div>
           <div><b id="fact-runs">–</b><span>Verified runs</span></div>
           <div><b id="fact-beat">–</b><span>To beat</span></div>
         </div>
@@ -437,7 +437,12 @@ legend: # filled, @ current piece, + where it lands, . empty
     // Jackcity: Harbor City Havoc. Human-only for now: no window.arcade yet, so no Agent-ready chip and no benchmark (docs/harbor-city-agent-mode.md).
     { id: "harbor-city", title: "Jackcity: Harbor City Havoc", genre: "Top-down action", builder: "Gemini & Claude", track: "Single-file", agent: false,
       desc: "Welcome to Jackcity. Steal cars, dodge the cops and answer payphones for missions in a top-down harbor town. Keyboard play: WASD, E, Space.", color: "#ffcc00",
-      card: "/games/harbor-city/card.jpg" }
+      card: "/games/harbor-city/card.jpg" },
+    // Download-only: an Unreal Engine 5 Windows build hosted on itch.io, so no browser Play button, no agent mode, no benchmark.
+    { id: "jackcity-neon-bay", title: "JackCityII: Neon Bay Havoc", genre: "Top-down action", builder: "do360now", track: "Open", agent: false,
+      download: "https://do360now.itch.io/jackcity-neon-bay", platform: "Windows 64-bit · 358 MB",
+      desc: "A 3D open-world crime sandbox built in Unreal Engine 5: a neon-lit city seen from above, on foot or behind the wheel. An original homage to late-90s top-down city games. Download for Windows; not playable in the browser.", color: "#ff3df2",
+      card: "/games/jackcity-neon-bay/card.jpg" }
   ];
   var KIND = { llm: "LLM", agent: "Agent", baseline: "Baseline", human: "Human" };
   // The second number worth showing for each game, next to the score.
@@ -556,8 +561,10 @@ legend: # filled, @ current piece, + where it lands, . empty
       art,
       el("footer", {}, [
         // Play starts the game's benchmark (seed 20261022, data/benchmarks.json), so the run can be submitted.
-        el("a", { class: "link-btn lime", href: "/games/" + g.id + "/" + (g.bench ? "?seed=20261022&bench=" + g.bench : ""), text: "Play ↗" }),
-        el("span", { text: g.track + " track" + (g.agent ? "" : " · agent mode soon") })
+        g.download
+          ? el("a", { class: "link-btn lime", href: g.download, target: "_blank", rel: "noopener noreferrer", text: "Download ↗" })
+          : el("a", { class: "link-btn lime", href: "/games/" + g.id + "/" + (g.bench ? "?seed=20261022&bench=" + g.bench : ""), text: "Play ↗" }),
+        el("span", { text: g.download ? g.platform + " · download only" : g.track + " track" + (g.agent ? "" : " · agent mode soon") })
       ])
     ]));
   });
