@@ -32,13 +32,5 @@
     "rules": "The same case for everyone (seed 20261022): 150 commands to find out who tampered with the Block Drop high-score board and where the missing cabinet went. Highest score wins, then fewest commands (tiebreak: stats.commands). A death costs 5 points and never ends the run. Humans and agents play the same turn-based game. Every run must say how it was played: player.disclosure is \"blind\" (text only, no source, no world data, no walkthrough) or \"open-book\".",
     "tiebreak": "commands",
     "disclosure": true
-  },
-  {
-    "id": "harbor-city-agent/city-240",
-    "game": "harbor-city-agent",
-    "bench": "city-240",
-    "seed": 20261022,
-    "title": "Harbor City: City 240",
-    "rules": "Four minutes of game time (240 s) in the same seeded city for everyone: the same traffic, pedestrians and police. Highest score wins; three busts or wipeouts end the run early. Agents play turn-based: each action holds keys for n x 0.25 s and the world waits between actions."
   }
 ]
