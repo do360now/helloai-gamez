@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1600">
+  <!-- play.helloai.com mark (two blocks and a play arrow) in the JackCity palette: neon pink blocks, yellow arrow. -->
+  <defs>
+    <filter id="inset" x="-10%" y="-10%" width="120%" height="120%">
+      <feOffset dx="18" dy="22" in="SourceAlpha" result="o"/>
+      <feGaussianBlur stdDeviation="14" in="o" result="b"/>
+      <feComposite operator="out" in="SourceAlpha" in2="b" result="edge"/>
+      <feFlood flood-color="#000" flood-opacity=".42"/>
+      <feComposite operator="in" in2="edge" result="shadow"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="shadow"/></feMerge>
+    </filter>
+  </defs>
+  <g fill="#ff4fd8">
+    <rect x="195" y="275" width="505" height="525" rx="115"/>
+    <rect x="195" y="820" width="505" height="530" rx="115"/>
+    <rect x="245" y="325" width="405" height="425" rx="70" filter="url(#inset)"/>
+    <rect x="245" y="870" width="405" height="430" rx="70" filter="url(#inset)"/>
+  </g>
+  <g fill="#ffd23f" stroke="#ffd23f" stroke-linejoin="round">
+    <polygon points="780,620 1155,620 1345,830 985,1100 780,1100" stroke-width="120"/>
+    <polygon points="810,650 1135,650 1300,830 975,1072 810,1072" stroke-width="40" filter="url(#inset)"/>
+  </g>
+</svg>
