@@ -93,7 +93,8 @@
 <script type="importmap">
 { "imports": {
   "three": "./vendor/three.module.min.js",
-  "three/addons/utils/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js"
+  "three/addons/utils/BufferGeometryUtils.js": "./vendor/BufferGeometryUtils.js",
+  "three/addons/": "./vendor/addons/"
 } }
 </script>
 </head>
@@ -126,17 +127,23 @@
     <span><kbd>E</kbd></span><span>steal car · get out · answer phone</span>
     <span><kbd>SPACE</kbd></span><span>handbrake (drift) · sprint on foot</span>
     <span><kbd>P</kbd> <kbd>M</kbd></span><span>pause · mute</span>
+    <span><kbd>Q</kbd></span><span>graphics quality: high · medium · low</span>
     <span><kbd>R</kbd></span><span>respawn after Wasted / Busted</span>
   </div>
   <button class="go" id="goBtn">PRESS ENTER</button>
   <div class="best" id="bestLine"></div>
 </div>
-<div id="pause" class="overlay" hidden>PAUSED<small>P to resume · M to mute</small></div>
+<div id="pause" class="overlay" hidden>PAUSED<small>P to resume · M to mute · Q graphics</small></div>
 <div id="nogl" class="overlay" hidden>Rustwater needs WebGL. Try a recent desktop browser.</div>
 
 <script type="module">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // =========================================================================
 // UTIL
@@ -278,7 +285,19 @@ let renderer;
 try {
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 } catch (e) { $('nogl').hidden = false; $('title').hidden = true; throw e; }
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+// ---------- Graphics quality (Q cycles; chosen once from the device, then steps down by itself if frames run slow)
+const QUALITY = {
+  low:    { pr: 1,    shadow: 0,    post: false, samples: 0, peds: 30, traffic: 12 },
+  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2 },
+  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1 },
+};
+const Q_ORDER = ['high', 'medium', 'low'];
+const coarse = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
+let qSaved = null; try { qSaved = localStorage.getItem('rustwater-quality'); } catch (e) { /* storage blocked */ }
+let quality = QUALITY[qSaved] ? qSaved : (coarse ? 'medium' : 'high');
+let qAuto = !QUALITY[qSaved];
+let QS = QUALITY[quality];
+renderer.setPixelRatio(Math.min(devicePixelRatio, QS.pr));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -294,7 +313,71 @@ const FOG_GOLD = new THREE.Color('#c2705a'), FOG_DUSK = new THREE.Color('#3a2c52
 scene.fog = new THREE.Fog(FOG_GOLD.clone(), 140, 360);
 scene.background = FOG_GOLD.clone();
 const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.5, 1400);
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); particleScale(); });
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); if (composer) composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); particleScale(); });
+
+// ---------- Post-processing: HDR bloom, then a filmic grade (vignette, split tone, grain)
+let composer = null, bloom = null, grade = null;
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uVig: { value: 0.32 }, uGrain: { value: 0.028 }, uDusk: { value: 0 } },
+  vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uVig, uGrain, uDusk; uniform vec2 uRes; varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+      vec3 shadowTint = mix(vec3(0.96, 0.98, 1.05), vec3(0.92, 0.95, 1.12), uDusk), hiTint = vec3(1.04, 1.0, 0.94);
+      c.rgb *= mix(shadowTint, hiTint, smoothstep(0.15, 0.8, l));
+      vec2 d = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
+      c.rgb *= mix(1.0, smoothstep(1.3, 0.35, length(d)), uVig);
+      float n = fract(sin(dot(floor(vUv * uRes) + fract(uTime) * 97.0, vec2(12.9898, 78.233))) * 43758.5453);
+      c.rgb += (n - 0.5) * uGrain * (1.0 - l * 0.6);
+      gl_FragColor = c;
+    }`,
+};
+function buildComposer() {
+  if (composer) { composer.renderTarget1.dispose(); composer.renderTarget2.dispose(); bloom.dispose(); composer = null; }
+  if (!QS.post) return;
+  const pr = renderer.getPixelRatio();
+  const rt = new THREE.WebGLRenderTarget(innerWidth * pr, innerHeight * pr, { type: THREE.HalfFloatType, samples: QS.samples });
+  composer = new EffectComposer(renderer, rt);
+  composer.addPass(new RenderPass(scene, camera));
+  bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.55, 1.05);
+  const bs = bloom.setSize.bind(bloom), sc = QS.bloomScale; bloom.setSize = (w, h) => bs(Math.max(64, w * sc), Math.max(64, h * sc));
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  grade = new ShaderPass(GradeShader); composer.addPass(grade);
+  composer.setSize(innerWidth, innerHeight);
+}
+function draw() {
+  if (composer) {
+    grade.uniforms.uTime.value = time; grade.uniforms.uRes.value.set(innerWidth, innerHeight);
+    composer.render();
+  } else renderer.render(scene, camera);
+  if (QS.shadowEvery > 1) renderer.shadowMap.needsUpdate = (++shadowFrame % QS.shadowEvery) === 0;
+}
+let shadowFrame = 0;
+function setQuality(q, auto) {
+  quality = q; QS = QUALITY[q]; qAuto = auto && qAuto;
+  if (!auto) { qAuto = false; try { localStorage.setItem('rustwater-quality', q); } catch (e) { /* storage blocked */ } }
+  renderer.setPixelRatio(Math.min(devicePixelRatio, QS.pr)); renderer.setSize(innerWidth, innerHeight);
+  const wantShadow = QS.shadow > 0;
+  if (sun.castShadow !== wantShadow) { sun.castShadow = wantShadow; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); }
+  if (wantShadow && sun.shadow.mapSize.x !== QS.shadow) { sun.shadow.mapSize.set(QS.shadow, QS.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  renderer.shadowMap.autoUpdate = QS.shadowEvery === 1; renderer.shadowMap.needsUpdate = true;
+  buildComposer(); particleScale();
+  if (typeof toast === 'function' && state !== 'title') toast(`Graphics: ${q}${auto ? ' (auto)' : ''}`);
+}
+// step down once frames stay slow for a few seconds of play
+const perf = { n: 0, sum: 0, settleUntil: 0, last: 0 };
+function perfWatch(now, dt) {
+  if (state !== 'play' || !qAuto || quality === 'low') { perf.settleUntil = 0; perf.sum = perf.n = 0; return; }
+  if (!perf.settleUntil) perf.settleUntil = now + 2500;
+  if (now < perf.settleUntil) { perf.last = now; return; }
+  perf.sum += now - perf.last; perf.last = now; perf.n++;
+  if (perf.sum > 4000) {
+    const avg = perf.sum / perf.n; perf.sum = perf.n = 0; perf.settleUntil = now + 2500;
+    if (avg > 26) setQuality(Q_ORDER[Q_ORDER.indexOf(quality) + 1], true);
+  }
+}
 
 // Sky environment for reflections (car paint, glass towers, river)
 {
@@ -328,7 +411,7 @@ const boomLight = new THREE.PointLight('#ff9a40', 0, 60, 1.6);
 scene.add(boomLight);
 
 // ---------- Ground texture (one baked canvas for the whole town)
-const PX = 32, GSC = 2;                 // ground canvas: 32 logical px per tile, drawn at 2x
+const PX = 32, GSC = quality === 'low' ? 1 : 2;                 // ground canvas: 32 logical px per tile, drawn at 2x
 const drand = mulberry32(1961);         // decoration RNG, separate from the map stream
 const puddles = [];
 function shadeHex(hex, amt) { const c = new THREE.Color(hex); c.offsetHSL(0, 0, amt); return '#' + c.getHexString(); }
@@ -1660,7 +1743,7 @@ function updatePeds(dt) {
     p.mesh.g.position.set(p.x, 0, p.z); p.mesh.g.rotation.set(0, p.angle, 0);
     animPerson(p.mesh, spd, p.phase);
   }
-  const want = 46;
+  const want = QS.peds;
   if (peds.length < want) { const pos = spawnPed(peds.length < 20 ? 20 : 55, 120); if (pos) newPed(pos); }
 }
 
@@ -2255,7 +2338,9 @@ addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'play') setPause(true); });
 $('goBtn').addEventListener('click', () => startGame());
 function onPress(code) {
+  if ((state === 'title' || state === 'over') && code === 'KeyQ') { setQuality(Q_ORDER[(Q_ORDER.indexOf(quality) + 1) % 3], false); return; }
   if (state === 'title' || state === 'over') { if (code === 'Enter' || code === 'Space') startGame(); return; }
+  if (code === 'KeyQ') { setQuality(Q_ORDER[(Q_ORDER.indexOf(quality) + 1) % 3], false); return; }
   if (code === 'KeyM') { A.muted = !A.muted; return; }
   if (state === 'paused') { if (code === 'KeyP' || code === 'Escape') setPause(false); return; }
   if (state === 'play') { if (code === 'KeyE') interact(); if (code === 'KeyP' || code === 'Escape') setPause(true); return; }
@@ -2340,6 +2425,7 @@ function updateSky(t) {
   scene.fog.color.copy(FOG_GOLD).lerp(FOG_DUSK, k); scene.background.copy(scene.fog.color);
   for (const m of Object.values(facadeMats)) m.emissiveIntensity = lerp(0.35, 1.35, k);
   lampHeadMat.emissiveIntensity = lerp(1.2, 3, k); poolMat.opacity = lerp(0.06, 0.5, k); beamMat.opacity = lerp(0.05, 0.45, k);
+  if (bloom) { bloom.strength = lerp(0.35, 0.75, k); grade.uniforms.uDusk.value = k; }
   for (let i = 0; i < lamps.length; i++) if (!lamps[i].down) glow.col[i * 4 + 3] = lerp(0.25, 0.75, k);
   glow.geo.attributes.pcolor.needsUpdate = true;
   personRim.value.copy(rimGold).lerp(rimDusk, k).multiplyScalar(lerp(0.55, 0.7, k));
@@ -2355,16 +2441,19 @@ function upkeep() {
     if (d > 190 || (c.wreck && c.wreckT > 25 && d > 70) || (c.kind === 'traffic' && c.idle > 8 && d > 60)) removeCar(c);
   }
   const traffic = cars.filter(c => c.kind === 'traffic').length;
-  if (traffic < 18) spawnTrafficAt(80, 170, pick(['sedan', 'sedan', 'coupe', 'van', 'pickup', 'taxi', 'sedan']));
+  if (traffic < QS.traffic) spawnTrafficAt(80, 170, pick(['sedan', 'sedan', 'coupe', 'van', 'pickup', 'taxi', 'sedan']));
 }
+
+setQuality(quality, true);
 
 // ---------- Main loop
 let last = performance.now(), time = 0, upkeepT = 0;
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (state === 'paused') { renderer.render(scene, camera); return; }
+  if (state === 'paused') { draw(); return; }
   time += dt;
+  perfWatch(now, dt);
   if (state === 'play') {
     updatePlayer(dt);
     focus.x = player.car ? player.car.x : player.x; focus.z = player.car ? player.car.z : player.z;
@@ -2435,7 +2524,7 @@ function frame(now) {
     sun.position.set(focus.x + SUN_OFF.x, SUN_OFF.y, focus.z + SUN_OFF.z); sun.target.position.set(focus.x, 0, focus.z);
   }
   updateAudio(time);
-  renderer.render(scene, camera);
+  draw();
 }
 // a few cars and walkers for the title flyover
 focus.x = WORLD / 2; focus.z = WORLD / 2;
