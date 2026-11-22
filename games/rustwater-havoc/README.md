@@ -6,7 +6,8 @@ rusted truss bridges, lit at golden hour and drifting into blue dusk. Steal cars
 payphones for five jobs, and shake the cops.
 
 Play: `/games/rustwater-havoc/`. Keyboard only, real time: WASD or arrows, E (steal car, get out,
-answer phone), Space (handbrake on the road, sprint on foot), P pause, M mute, R respawn.
+answer phone), Space (handbrake on the road, sprint on foot), P pause, M mute, R respawn,
+Q graphics quality (high, medium, low).
 Human-only: there is no `window.arcade`, no seeded benchmark and no agent mode, the same as
 `harbor-city`.
 
@@ -33,7 +34,17 @@ The folder is the source; nothing is generated. About 900 KB in all, most of it 
 | `index.html` | The whole game: map generation (seeded, so Rustwater is the same town every time), the Three.js scene, cars, pedestrians, police, missions, HUD and WebAudio sound |
 | `vendor/three.module.min.js` | Three.js r160, unmodified (MIT, see `vendor/LICENSE`) |
 | `vendor/BufferGeometryUtils.js` | Three.js r160 addon, unmodified, used to merge building geometry |
+| `vendor/addons/` | Three.js r160 post-processing addons, unmodified: EffectComposer, RenderPass, ShaderPass, MaskPass, UnrealBloomPass, OutputPass and their shaders |
 | `card.jpg` | Landing-page card, a screenshot of Ferris Green in the game |
+
+## Graphics quality
+
+High: 2048 shadows, HDR bloom, a film grade (vignette, split tone, grain), 4x MSAA.
+Medium: 1024 shadows updated every other frame, half-resolution bloom, 2x MSAA, fewer
+pedestrians and cars. Low: no shadows, no post-processing, a lighter ground texture.
+The game starts on high (medium on touch devices). If frames stay slower than about 38 fps
+for a few seconds, it steps down by itself. Pressing Q picks a level by hand, and that
+choice is kept in `localStorage`.
 
 Fonts (Bungee, Bungee Shade, IBM Plex Mono) come from Google Fonts, as on the landing page;
 the game falls back to system fonts without them.
