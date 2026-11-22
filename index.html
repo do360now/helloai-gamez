@@ -108,7 +108,7 @@
   @media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; } .hero { padding-top: 56px; } }
 
   /* JackCity series strip */
-  .series { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .series { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
   .ep { border: 1px solid var(--line); border-radius: 18px; background: var(--card); overflow: hidden; display: flex; flex-direction: column; }
   .ep .pic { position: relative; aspect-ratio: 16 / 9; background: #07061a center / cover no-repeat; border-bottom: 1px solid var(--line); }
   .ep .pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -127,7 +127,7 @@
     color: transparent; -webkit-text-stroke: 1.5px var(--human); text-shadow: 0 0 22px #ffd23f40; }
   .ep.next .pic em { display: inline-block; margin-top: 12px; font: 500 10px/1 var(--mono); font-style: normal; letter-spacing: .2em; text-transform: uppercase;
     color: #0b0a1a; background: var(--human); padding: 6px 10px; border-radius: 4px; }
-  @media (max-width: 960px) { .series { grid-template-columns: 1fr 1fr; } .ep.next { grid-column: 1 / -1; } }
+  @media (max-width: 1100px) { .series { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 640px) { .series { grid-template-columns: 1fr; } }
 
   /* The Lab: replay player and facts, then the scoreboard */
@@ -341,6 +341,19 @@
           </div>
         </article>
         <article class="ep">
+          <div class="pic"><img src="/games/rustwater-havoc/card.jpg" alt="JackCity: Rustwater Havoc: a Ferris wheel and autumn trees in a 3D mill town at golden hour" loading="lazy"></div>
+          <div class="body">
+            <span class="num">JackCity I · Rustwater, 1979</span>
+            <h3>Rustwater Havoc</h3>
+            <p>A second JackCity I city, now in 3D: a rust-belt mill town on a brown river, three rusted bridges and five payphone jobs from Old Teo. Built by Claude with Three.js.</p>
+            <div class="chips"><span class="chip agent"><i></i>Browser</span><span class="chip">Keyboard</span><span class="chip">by Claude</span></div>
+            <footer>
+              <a class="link-btn lime" href="/games/rustwater-havoc/">Play ↗</a>
+              <span>WASD · E · Space</span>
+            </footer>
+          </div>
+        </article>
+        <article class="ep">
           <div class="pic"><img style="object-position:left center" src="/games/harbor-city/card.jpg" alt="JackCity: Harbor City Havoc title art: a police car chasing a red car along the harbor" loading="lazy"></div>
           <div class="body">
             <span class="num">JackCity I · the original</span>
@@ -370,7 +383,7 @@
             <a class="btn" href="#benches">See the scoreboard</a>
           </div>
           <div class="facts" aria-label="Arcade facts">
-            <div><b id="fact-games">6</b><span>Games live</span></div>
+            <div><b id="fact-games">7</b><span>Games live</span></div>
             <div><b id="fact-runs">–</b><span>Verified runs</span></div>
             <div><b id="fact-beat">–</b><span>To beat</span></div>
           </div>
@@ -549,6 +562,10 @@ legend: # filled, @ current piece, + where it lands, . empty
     { id: "harbor-city", title: "Jackcity: Harbor City Havoc", genre: "Top-down action", builder: "Gemini & Claude", track: "Single-file", agent: false,
       desc: "Welcome to Jackcity. Steal cars, dodge the cops and answer payphones for missions in a top-down harbor town. Keyboard play: WASD, E, Space.", color: "#ffcc00",
       card: "/games/harbor-city/card.jpg" },
+    // JackCity I: Rustwater Havoc. A second JackCity I city in Three.js; human-only like harbor-city (no window.arcade, no benchmark).
+    { id: "rustwater-havoc", title: "JackCity: Rustwater Havoc", genre: "Top-down action", builder: "Claude", track: "Open", agent: false,
+      desc: "JackCity I: Rustwater, 1979. A 3D mill town on a brown river: steal cars, run five payphone jobs and shake the cops across three rusted bridges. Keyboard play: WASD, E, Space.", color: "#f2b33d",
+      card: "/games/rustwater-havoc/card.jpg" },
     // Download-only: an Unreal Engine 5 Windows build hosted on itch.io, so no browser Play button, no agent mode, no benchmark.
     { id: "jackcity-neon-bay", title: "JackCityII: Neon Bay Havoc", genre: "Top-down action", builder: "do360now", track: "Open", agent: false,
       download: "https://do360now.itch.io/jackcity-neon-bay", platform: "Windows 64-bit · 358 MB",
