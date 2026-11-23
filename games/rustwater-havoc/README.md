@@ -5,9 +5,15 @@ crime sandbox in the browser. Rustwater is a rust-belt mill town split by a brow
 rusted truss bridges, lit at golden hour and drifting into blue dusk. Steal cars, answer Old Teo's
 payphones for five jobs, and shake the cops.
 
-Play: `/games/rustwater-havoc/`. Keyboard only, real time: WASD or arrows, E (steal car, get out,
+Play: `/games/rustwater-havoc/`. Real time. Keyboard: WASD or arrows, E (steal car, get out,
 answer phone), Space (handbrake on the road, sprint on foot), P pause, M mute, R respawn,
 Q graphics quality (high, medium, low).
+
+Touch (phones and tablets, turned on by the first touch): a floating stick on the left half walks,
+or in a car steers sideways and drives with an up or down push. On the right are GAS, BRAKE
+(brake and reverse), DRIFT (sprint on foot) and E, which pulses and names the action when one is
+in reach. The II button pauses, and the pause screen has resume, sound and graphics buttons.
+After Wasted or Busted, a tap anywhere carries on.
 Human-only: there is no `window.arcade`, no seeded benchmark and no agent mode, the same as
 `harbor-city`.
 
