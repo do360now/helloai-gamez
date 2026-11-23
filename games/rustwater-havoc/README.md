@@ -29,7 +29,8 @@ Human-only: there is no `window.arcade`, no seeded benchmark and no agent mode, 
 After all five the phones keep ringing for half pay. Also in the game: a 5-star wanted level,
 Busted / Wasted with 3 lives, a $250 respray at Sal's, drift and near-miss bonuses, a mayhem
 multiplier, knock-down street lamps, cars that burn and explode, and a best score kept in
-`localStorage`.
+`localStorage`. The river flows east under the bridges, with foam at the quay walls and piers,
+barges with bow waves and wakes, a moored tug and drifting junk.
 
 ## Files (open track, no build step)
 
@@ -45,9 +46,10 @@ The folder is the source; nothing is generated. About 900 KB in all, most of it 
 
 ## Graphics quality
 
-High: 2048 shadows, HDR bloom, a film grade (vignette, split tone, grain), 4x MSAA.
-Medium: 1024 shadows updated every other frame, half-resolution bloom, 2x MSAA, fewer
-pedestrians and cars. Low: no shadows, no post-processing, a lighter ground texture.
+High: 2048 shadows, HDR bloom, a film grade (vignette, split tone, grain), 4x MSAA, and river
+reflections at half resolution (drawn only while the river is on screen).
+Medium: 1024 shadows updated every other frame, half-resolution bloom, 2x MSAA, river
+reflections at a third of the resolution every other frame, fewer pedestrians and cars. Low: no shadows, no post-processing, no river reflections, a lighter ground texture.
 The game starts on high (medium on touch devices). If frames stay slower than about 38 fps
 for a few seconds, it steps down by itself. Pressing Q picks a level by hand, and that
 choice is kept in `localStorage`.

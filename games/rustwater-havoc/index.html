@@ -242,6 +242,9 @@ const ROAD_X = [2, 10, 18, 26, 34, 42, 50];
 const ROAD_Z = [2, 10, 18, 34, 42, 50];
 const BRIDGES = [10, 26, 42];
 const RIVER0 = 24, RIVER1 = 29;
+const WATER_Y = -1.8, RIV_Z0 = RIVER0 * T, RIV_Z1 = (RIVER1 + 1) * T, RIV_CZ = (RIV_Z0 + RIV_Z1) / 2, FLOW = 1.4;   // the current runs east (+x)
+// bridge piers as [cx, cz, half-x, half-z]; they are long walls lying along the current
+const PIERS = []; for (const rx of BRIDGES) for (const pz of [RIV_CZ - 12, RIV_CZ + 12]) PIERS.push([(rx + 1) * T, pz, T - 2, 1.5]);
 const vRoadCol = new Uint8Array(MAP), hRoadRow = new Uint8Array(MAP);
 
 function district(x, z) {   // tile coords
@@ -354,8 +357,8 @@ try {
 // ---------- Graphics quality (Q cycles; chosen once from the device, then steps down by itself if frames run slow)
 const QUALITY = {
   low:    { pr: 1,    shadow: 0,    post: false, samples: 0, peds: 30, traffic: 12 },
-  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2 },
-  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1 },
+  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2, refl: 0.33, reflEvery: 2 },
+  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1, refl: 0.5, reflEvery: 1 },
 };
 const Q_ORDER = ['high', 'medium', 'low'];
 const coarse = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
@@ -414,6 +417,7 @@ function buildComposer() {
   composer.setSize(innerWidth, innerHeight);
 }
 function draw() {
+  refl.render();
   if (composer) {
     grade.uniforms.uTime.value = time; grade.uniforms.uRes.value.set(innerWidth, innerHeight);
     composer.render();
@@ -579,25 +583,13 @@ groundTex.colorSpace = THREE.SRGBColorSpace; groundTex.anisotropy = maxAniso;
   gmat.onBeforeCompile = s => { s.uniforms.grain = { value: grainTex }; s.fragmentShader = 'uniform sampler2D grain;\n' + s.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb *= 0.86 + 0.28 * texture2D(grain, vMapUv * 220.0).r;'); };
   const gm = new THREE.Mesh(new THREE.PlaneGeometry(WORLD, WORLD), gmat);
   gm.rotation.x = -Math.PI / 2; gm.position.set(WORLD / 2, 0, WORLD / 2); gm.receiveShadow = true; scene.add(gm);
-  const outer = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: '#3a2a2a', roughness: 1 }));
-  outer.rotation.x = -Math.PI / 2; outer.position.set(WORLD / 2, -0.15, WORLD / 2); scene.add(outer);
+  // the land beyond the map: a frame of four strips, leaving the map (and the river cut into it) open
+  const outerMat = new THREE.MeshStandardMaterial({ color: '#3a2a2a', roughness: 1 }), F = 2000;
+  for (const [w, d, x, z] of [[WORLD + 2 * F, F, WORLD / 2, -F / 2], [WORLD + 2 * F, F, WORLD / 2, WORLD + F / 2], [F, WORLD, -F / 2, WORLD / 2], [F, WORLD, WORLD + F / 2, WORLD / 2]]) {
+    const o = new THREE.Mesh(new THREE.PlaneGeometry(w, d), outerMat); o.rotation.x = -Math.PI / 2; o.position.set(x, -0.15, z); scene.add(o);
+  }
   const bed = new THREE.Mesh(new THREE.PlaneGeometry(WORLD, (RIVER1 - RIVER0 + 1) * T), new THREE.MeshStandardMaterial({ color: '#2c231c', roughness: 1 }));
   bed.rotation.x = -Math.PI / 2; bed.position.set(WORLD / 2, -3.2, (RIVER0 + RIVER1 + 1) / 2 * T); scene.add(bed);
-}
-
-// ---------- River
-const water = (() => {
-  const geo = new THREE.PlaneGeometry(WORLD, (RIVER1 - RIVER0 + 1) * T, 108, 12);
-  geo.rotateX(-Math.PI / 2);
-  const mat = new THREE.MeshStandardMaterial({ color: '#4d7a74', emissive: '#1d3434', roughness: 0.22, metalness: 0.3, envMapIntensity: 1.6, transparent: true, opacity: 0.88 });
-  const m = new THREE.Mesh(geo, mat); m.position.set(WORLD / 2, -1.0, (RIVER0 + RIVER1 + 1) / 2 * T); m.receiveShadow = true; scene.add(m);
-  const base = geo.attributes.position.array.slice();
-  return { m, geo, base };
-})();
-function updateWater(t) {
-  const p = water.geo.attributes.position, b = water.base;
-  for (let i = 0; i < p.count; i++) { const x = b[i * 3], z = b[i * 3 + 2]; p.array[i * 3 + 1] = Math.sin(x * 0.08 + t * 1.3) * 0.18 + Math.cos(z * 0.21 + t * 0.9 + x * 0.03) * 0.14; }
-  p.needsUpdate = true; water.geo.computeVertexNormals();
 }
 
 // ---------- Facade textures (colour, glow, bump and roughness, 8 bays x 8 floors per tile)
@@ -785,6 +777,7 @@ function onFace(geo, face, cx, cz, hw, hd, along) {
   geo.translate(cx + ox, 0, cz + oz); return geo;
 }
 const geoBuckets = {}, roofBuckets = {}, trimBuckets = {}, awningBuckets = awningMats.map(() => []);
+const wetGeos = [], siltGeos = [];
 const propGeos = [], rustGeos = [], darkGeos = [], metalGeos = [], ironGeos = [], woodGeos = [], skyGeos = [];
 const stackGeos = [];
 const stackMat = (() => {
@@ -917,7 +910,7 @@ for (const L of lots) {
 const BRIDGE_Z0 = RIVER0 * T, BRIDGE_Z1 = (RIVER1 + 1) * T;
 for (const rx of BRIDGES) {
   const x0 = rx * T, x1 = (rx + 2) * T, len = BRIDGE_Z1 - BRIDGE_Z0, cz = (BRIDGE_Z0 + BRIDGE_Z1) / 2;
-  const deck = new THREE.BoxGeometry(x1 - x0 + 1.6, 1.4, len + 2); deck.translate((x0 + x1) / 2, -0.72, cz); darkGeos.push(deck);
+  const deck = new THREE.BoxGeometry(x1 - x0 + 1.6, 0.9, len + 2); deck.translate((x0 + x1) / 2, -0.47, cz); darkGeos.push(deck);
   for (const sx of [x0 - 0.4, x1 + 0.4]) {
     const top = new THREE.BoxGeometry(0.7, 0.7, len + 2); top.translate(sx, 7.5, cz); rustGeos.push(top);
     const rail = new THREE.BoxGeometry(0.4, 0.4, len + 2); rail.translate(sx, 1.1, cz); rustGeos.push(rail);
@@ -937,7 +930,10 @@ for (const rx of BRIDGES) {
     const wall = new THREE.BoxGeometry(b - a, 3.2, 0.8); wall.translate((a + b) / 2, -1.62, zEdge + (zEdge === BRIDGE_Z0 ? 0.4 : -0.4)); propGeos.push(wall);
     const rail = new THREE.BoxGeometry(b - a - 1, 0.18, 0.18); rail.translate((a + b) / 2, 1.0, zEdge + (zEdge === BRIDGE_Z0 ? -0.4 : 0.4)); rustGeos.push(rail);
     for (let x = a + 1; x < b; x += 3) { const p = new THREE.BoxGeometry(0.2, 1.1, 0.2); p.translate(x, 0.55, zEdge + (zEdge === BRIDGE_Z0 ? -0.4 : 0.4)); rustGeos.push(p); }
+    const face = zEdge + (zEdge === BRIDGE_Z0 ? 0.83 : -0.83);
+    wetGeos.push(box(b - a, 0.7, 0.06, (a + b) / 2, WATER_Y + 0.13, face)); siltGeos.push(box(b - a, 0.32, 0.05, (a + b) / 2, WATER_Y + 0.62, face));
   }
+  for (const [px, pz, hx, hz] of PIERS) { wetGeos.push(box(hx * 2 + 0.12, 0.7, hz * 2 + 0.12, px, WATER_Y + 0.13, pz)); siltGeos.push(box(hx * 2 + 0.1, 0.3, hz * 2 + 0.1, px, WATER_Y + 0.6, pz)); }
 }
 function addMerged(geos, mat, cast = true) { if (!geos.length) return null; const m = new THREE.Mesh(mergeGeometries(geos), mat); m.castShadow = cast; m.receiveShadow = true; scene.add(m); return m; }
 for (const k in geoBuckets) addMerged(geoBuckets[k], facadeMats[k]);
@@ -945,6 +941,8 @@ for (const k in roofBuckets) addMerged(roofBuckets[k], roofMats[k]);
 for (const k in trimBuckets) addMerged(trimBuckets[k], trimMats[k]);
 awningBuckets.forEach((g, i) => addMerged(g, awningMats[i]));
 addMerged(propGeos, propMat); addMerged(rustGeos, rustMat); addMerged(darkGeos, darkMat);
+addMerged(wetGeos, new THREE.MeshStandardMaterial({ color: '#262b20', roughness: 0.3, envMapIntensity: 0.9 }), false);
+addMerged(siltGeos, new THREE.MeshStandardMaterial({ color: '#5e5442', roughness: 0.95 }), false);
 addMerged(stackGeos, stackMat); addMerged(metalGeos, metalMat); addMerged(ironGeos, ironMat); addMerged(woodGeos, woodMat); addMerged(skyGeos, skyGlassMat);
 
 // ---------- Neon signs
@@ -1153,6 +1151,226 @@ const props = [], propIMs = {};
 function circleHitsWorldStatic(x, z, r) {
   for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) if (isSolid(tileW(x + dx, z + dz))) return true;
   let hit = false; nearObst(x, z, o => { if (!hit && (x - o.x) ** 2 + (z - o.z) ** 2 < (r + o.r) ** 2) hit = true; }); return hit;
+}
+
+// ---------- River: shader water with flowing ripples, planar reflections, foam, barges and drift
+const waterNormTex = (() => {   // tileable ripple normals: integer-frequency sines summed into a height field
+  const N = 256, h = new Float32Array(N * N), wr = mulberry32(77), waves = [];
+  for (let i = 0; i < 22; i++) { const a = wr() * Math.PI * 2, f = 2 + Math.floor(wr() * (i < 6 ? 4 : 14)); waves.push([Math.round(Math.cos(a) * f * 0.6), Math.round(Math.sin(a) * f), wr() * 6.3, 1 / f]); }
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let s = 0; for (const [kx, ky, ph, am] of waves) s += Math.sin((kx * x + ky * y) / N * Math.PI * 2 + ph) * am; h[y * N + x] = s; }
+  const [c, g] = makeCanvas(N, N), img = g.createImageData(N, N);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const dx = h[y * N + (x + 1) % N] - h[y * N + (x + N - 1) % N], dy = h[((y + 1) % N) * N + x] - h[((y + N - 1) % N) * N + x];
+    const nx = -dx * 2.2, ny = -dy * 2.2, l = Math.hypot(nx, ny, 1), o = (y * N + x) * 4;
+    img.data[o] = (nx / l * 0.5 + 0.5) * 255; img.data[o + 1] = (ny / l * 0.5 + 0.5) * 255; img.data[o + 2] = (1 / l * 0.5 + 0.5) * 255; img.data[o + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = maxAniso; return t;
+})();
+const NBOAT = 2;
+const waterU = {
+  uTime: { value: 0 }, uNorm: { value: waterNormTex }, uRefl: { value: null }, uReflMat: { value: new THREE.Matrix4() }, uReflOn: { value: 0 },
+  uPiers: { value: PIERS.map(p => new THREE.Vector4(...p)) }, uBoats: { value: Array.from({ length: NBOAT }, () => new THREE.Vector4(-999, 0, 1, 1)) },
+  uBanks: { value: new THREE.Vector2(RIV_Z0 + 0.8, RIV_Z1 - 0.8) }, uWaterY: { value: WATER_Y },
+  uShallow: { value: new THREE.Color('#5a4a33') }, uDeep: { value: new THREE.Color('#2a3326') }, uFoamCol: { value: new THREE.Color('#c4b89c') },
+};
+const water = (() => {
+  const geo = new THREE.PlaneGeometry(WORLD, RIV_Z1 - RIV_Z0); geo.rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.16, metalness: 0, envMapIntensity: 0.45 });
+  mat.onBeforeCompile = s => {
+    Object.assign(s.uniforms, waterU);
+    s.vertexShader = 'varying vec3 vWP;\n' + s.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    s.fragmentShader = `uniform float uTime, uReflOn, uWaterY; uniform sampler2D uNorm, uRefl; uniform mat4 uReflMat;
+uniform vec4 uPiers[${PIERS.length}]; uniform vec4 uBoats[${NBOAT}]; uniform vec2 uBanks; uniform vec3 uShallow, uDeep, uFoamCol;
+varying vec3 vWP;
+float wH(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float wN2(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(wH(i), wH(i + vec2(1, 0)), f.x), mix(wH(i + vec2(0, 1)), wH(i + vec2(1, 1)), f.x), f.y); }
+float wBox(vec2 p, vec2 b) { vec2 d = abs(p) - b; return length(max(d, 0.0)) + min(max(d.x, d.y), 0.0); }
+vec3 wNrm; float wFoam, wBank;
+` + s.fragmentShader
+      .replace('void main() {', `void main() {
+  {
+    vec2 p = vWP.xz; float t = uTime;
+    vec3 a = texture2D(uNorm, (p - vec2(${FLOW.toFixed(2)} * t, 0.0)) * 0.042).xyz * 2.0 - 1.0;
+    vec3 b = texture2D(uNorm, (p * mat2(0.8, -0.6, 0.6, 0.8) - vec2(${(FLOW * 1.7).toFixed(2)} * t, -0.4 * t)) * 0.13).xyz * 2.0 - 1.0;
+    vec2 sl = a.xy * 0.34 + b.xy * 0.26;
+    wNrm = normalize(vec3(sl.x, 1.0, sl.y));
+    float n = wN2(p * 0.8 - vec2(t * ${FLOW.toFixed(2)}, -t * 0.2)), n2 = wN2(p * 2.6 - vec2(t * 2.2, 0.0));
+    wBank = min(p.y - uBanks.x, uBanks.y - p.y);
+    float lap = 0.5 + 0.5 * sin(t * 1.6 + p.x * 0.31 + n * 4.0);
+    float f = smoothstep(0.45 + lap * 0.7, 0.0, wBank - n * 0.45);
+    for (int i = 0; i < ${PIERS.length}; i++) {
+      vec4 pr = uPiers[i]; vec2 q = p - pr.xy; float d = wBox(q, pr.zw);
+      f = max(f, smoothstep(1.1 + 0.6 * lap, 0.0, d - n * 0.6));
+      float dx = q.x - pr.z;   // downstream tail
+      if (dx > 0.0) { float w = pr.w + 0.4 + dx * 0.1; f = max(f, smoothstep(w, w * 0.2, abs(q.y)) * exp(-dx * 0.07) * (0.35 + 0.65 * n2)); }
+      float ux = -q.x - pr.z;  // upstream pile-up
+      if (ux > -0.5 && ux < 2.5) f = max(f, smoothstep(pr.w + 1.2, pr.w * 0.5, abs(q.y)) * smoothstep(2.5, 0.0, ux) * 0.9);
+    }
+    for (int i = 0; i < ${NBOAT}; i++) {
+      vec4 bt = uBoats[i]; vec2 q = p - bt.xy; float dir = sign(bt.w);
+      f = max(f, smoothstep(0.9, 0.0, wBox(q, vec2(bt.z, 2.6)) - n * 0.5) * 0.75);
+      float be = -q.x * dir - bt.z;   // distance behind the stern
+      if (be > 0.0) {
+        float arm = abs(abs(q.y) - (2.0 + be * 0.36));
+        float v = smoothstep(1.0 + be * 0.05, 0.0, arm) * exp(-be * 0.045);
+        float prop = smoothstep(2.4, 0.0, abs(q.y)) * exp(-be * 0.06) * abs(bt.w) * 0.3;
+        f = max(f, max(v, prop) * (0.4 + 0.6 * n2));
+      }
+      float bo = q.x * dir - bt.z;    // bow wave
+      if (bo > -1.0 && bo < 2.0) f = max(f, smoothstep(3.4, 1.6, abs(q.y)) * smoothstep(2.0, 0.0, bo) * 0.7);
+    }
+    wFoam = smoothstep(0.12, 0.6, f * (0.5 + 0.8 * n2));
+    wFoam = max(wFoam, smoothstep(0.62, 0.78, wN2(vec2(p.x * 0.06 - t * 0.08, p.y * 0.45 + n * 1.4))) * 0.1);   // scum lines riding the current
+  }`)
+      .replace('#include <color_fragment>', `#include <color_fragment>
+  { float dk = smoothstep(1.5, 16.0, wBank); vec3 wc = mix(uShallow, uDeep, dk);
+    wc *= 0.55 + 0.45 * smoothstep(0.0, 2.8, wBank);   // the quay walls shade the water at their feet
+    diffuseColor.rgb = mix(wc, uFoamCol, wFoam); }`)
+      .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, 0.85, wFoam);')
+      .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n  normal = normalize((viewMatrix * vec4(normalize(mix(wNrm, vec3(0.0, 1.0, 0.0), wFoam * 0.7)), 0.0)).xyz);')
+      .replace('#include <opaque_fragment>', `if (uReflOn > 0.5) {
+    vec4 rc = uReflMat * vec4(vWP.x, uWaterY, vWP.z, 1.0);
+    vec2 ruv = rc.xy / rc.w + wNrm.xz * 0.028;
+    vec3 refl = texture2D(uRefl, ruv).rgb;
+    float cv = clamp(dot(normalize(cameraPosition - vWP), wNrm), 0.0, 1.0);
+    float fr = 0.16 + 0.6 * pow(1.0 - cv, 3.0);
+    outgoingLight = mix(outgoingLight, refl * 0.75, clamp(fr, 0.0, 0.6) * (1.0 - wFoam));
+  }
+  #include <opaque_fragment>`);
+  };
+  const m = new THREE.Mesh(geo, mat); m.position.set(WORLD / 2, WATER_Y, RIV_CZ); m.receiveShadow = true; scene.add(m);
+  return { m, mat };
+})();
+// Planar reflection: the scene mirrored in the water plane, at a fraction of the screen size
+const refl = (() => {
+  const rt = new THREE.WebGLRenderTarget(64, 64, { type: THREE.HalfFloatType });
+  const cam = new THREE.PerspectiveCamera(), frustum = new THREE.Frustum(), pm = new THREE.Matrix4();
+  const box = new THREE.Box3(new THREE.Vector3(0, WATER_Y - 1, RIV_Z0), new THREE.Vector3(WORLD, WATER_Y + 1, RIV_Z1));
+  const N = new THREE.Vector3(0, 1, 0), P = new THREE.Vector3(0, WATER_Y, 0), cp = new THREE.Vector3(), look = new THREE.Vector3(), rot = new THREE.Matrix4();
+  const plane = new THREE.Plane(), clip = new THREE.Vector4(), q = new THREE.Vector4();
+  waterU.uRefl.value = rt.texture;
+  let n = 0;
+  return { rt, render() {
+    const scale = QS.refl || 0;
+    waterU.uReflOn.value = 0;
+    if (!scale) return;
+    pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse); frustum.setFromProjectionMatrix(pm);
+    if (!frustum.intersectsBox(box)) return;
+    waterU.uReflOn.value = 1;
+    if (QS.reflEvery > 1 && (n++ % QS.reflEvery)) return;   // keep the last texture and its matrix
+    const db = renderer.getDrawingBufferSize(new THREE.Vector2());
+    const w = Math.max(64, Math.round(db.x * scale)), h = Math.max(64, Math.round(db.y * scale));
+    if (rt.width !== w || rt.height !== h) rt.setSize(w, h);
+    // mirror the camera through the plane y = WATER_Y
+    cp.setFromMatrixPosition(camera.matrixWorld);
+    rot.extractRotation(camera.matrixWorld);
+    look.set(0, 0, -1).applyMatrix4(rot).add(cp);
+    P.x = cp.x; P.z = cp.z;
+    cam.position.copy(cp); cam.position.y = 2 * WATER_Y - cp.y;
+    look.y = 2 * WATER_Y - look.y;
+    cam.up.set(0, 1, 0).applyMatrix4(rot); cam.up.y = -cam.up.y;
+    cam.lookAt(look); cam.far = camera.far; cam.updateMatrixWorld();
+    cam.projectionMatrix.copy(camera.projectionMatrix);
+    waterU.uReflMat.value.set(0.5, 0, 0, 0.5, 0, 0.5, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 0, 1).multiply(cam.projectionMatrix).multiply(cam.matrixWorldInverse);
+    // oblique near plane so nothing under the water leaks into the mirror
+    plane.setFromNormalAndCoplanarPoint(N, P).applyMatrix4(cam.matrixWorldInverse);
+    clip.set(plane.normal.x, plane.normal.y, plane.normal.z, plane.constant);
+    const e = cam.projectionMatrix.elements;
+    q.set((Math.sign(clip.x) + e[8]) / e[0], (Math.sign(clip.y) + e[9]) / e[5], -1, (1 + e[10]) / e[14]);
+    clip.multiplyScalar(2 / clip.dot(q));
+    e[2] = clip.x; e[6] = clip.y; e[10] = clip.z + 1 - 0.003; e[14] = clip.w;
+    const prevRT = renderer.getRenderTarget(), au = renderer.shadowMap.autoUpdate, nu = renderer.shadowMap.needsUpdate, ps = pUniformScale.value;
+    renderer.shadowMap.autoUpdate = false; renderer.shadowMap.needsUpdate = false; pUniformScale.value = ps * scale;
+    water.m.visible = false;
+    renderer.setRenderTarget(rt); renderer.clear(); renderer.render(scene, cam);
+    renderer.setRenderTarget(prevRT);
+    water.m.visible = true; renderer.shadowMap.autoUpdate = au; renderer.shadowMap.needsUpdate = nu; pUniformScale.value = ps;
+  } };
+})();
+// Barges: low scows (they clear the bridge decks), a moored tug, and drift riding the current
+const navLampR = new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 0.5, 0.35) }), navLampG = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 4, 1) }), navLampW = new THREE.MeshBasicMaterial({ color: new THREE.Color(5, 4, 2.6) });
+const mergeNI = parts => mergeGeometries(parts.map(g => g.index ? g.toNonIndexed() : g));
+function scowGeo(heap) {
+  const s = new THREE.Shape(); s.moveTo(-11, 0.5); s.lineTo(-9, -1.0); s.lineTo(9, -1.0); s.lineTo(11, 0.5); s.lineTo(-11, 0.5);
+  const hull = new THREE.ExtrudeGeometry(s, { depth: 5.2, bevelEnabled: false }); hull.translate(0, 0, -2.6); hull.deleteAttribute('uv'); hull.computeVertexNormals();
+  const parts = [vc(hull, '#4a2a20')];
+  for (const sz of [-1, 1]) parts.push(vc(box(22.2, 0.18, 0.28, 0, 0.58, sz * 2.52), '#7a3a24'), vc(box(22.2, 0.22, 0.06, 0, -0.08, sz * 2.63), '#1a1414'));
+  for (const sx of [-1, 1]) parts.push(vc(box(0.28, 0.18, 5.2, sx * 10.95, 0.58, 0), '#7a3a24'));
+  for (let i = -1; i <= 1; i++) { const g = new THREE.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2); g.scale(3.1, 0.34, 1.95); g.translate(i * 6.4, 0.48, 0); parts.push(vc(g, heap)); }
+  for (const sx of [-8.5, 8.5]) parts.push(vc(cyl(0.12, 0.14, 0.3, sx, 0.68, 2.2, 8), '#222'), vc(cyl(0.12, 0.14, 0.3, sx, 0.68, -2.2, 8), '#222'));
+  return mergeNI(parts);
+}
+function tugGeo() {
+  const s = new THREE.Shape(); s.moveTo(-5, -1.7); s.lineTo(2.6, -1.8); s.quadraticCurveTo(5, -1.2, 5.6, 0); s.quadraticCurveTo(5, 1.2, 2.6, 1.8); s.lineTo(-5, 1.7); s.quadraticCurveTo(-5.6, 0, -5, -1.7);
+  const hull = new THREE.ExtrudeGeometry(s, { depth: 1.5, bevelEnabled: false, curveSegments: 6 }); hull.rotateX(-Math.PI / 2); hull.translate(0, -0.95, 0); hull.deleteAttribute('uv'); hull.computeVertexNormals();
+  const slab = (sc, h, y) => { const g = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 6 }); g.rotateX(-Math.PI / 2); g.scale(sc, 1, sc * 1.03); g.translate(0, y, 0); g.deleteAttribute('uv'); g.computeVertexNormals(); return g; };
+  const parts = [vc(hull, '#1f1c1d'), vc(slab(1.025, 0.22, 0.15), '#b0302a'), vc(slab(1.0, 0.04, 0.55), '#4a4038'),
+    vc(box(4.2, 1.3, 2.6, -1.2, 1.2, 0), '#d8cbb0'), vc(box(4.3, 0.12, 2.7, -1.2, 1.9, 0), '#8a8070'),
+    vc(box(2.0, 1.1, 2.2, -0.6, 2.5, 0), '#d8cbb0'), vc(box(2.05, 0.38, 2.25, -0.6, 2.62, 0), '#232733'), vc(box(2.3, 0.12, 2.5, -0.6, 3.1, 0), '#8a8070'),
+    vc(cyl(0.34, 0.38, 1.5, -2.6, 2.6, 0, 12), '#b0302a'), vc(cyl(0.36, 0.36, 0.3, -2.6, 3.45, 0, 12), '#151313'),
+    vc(cyl(0.05, 0.05, 1.4, -0.6, 3.8, 0, 5), '#2a2a2a')];
+  for (let i = 0; i < 4; i++) for (const sz of [-1, 1]) { const tg = new THREE.TorusGeometry(0.32, 0.12, 6, 12); tg.translate(-3.6 + i * 2.1, 0.0, sz * 1.86); parts.push(vc(tg, '#111')); }
+  const fend = new THREE.TorusGeometry(0.75, 0.3, 8, 16); fend.rotateY(Math.PI / 2); fend.scale(1, 0.7, 1); fend.translate(5.45, 0.25, 0); parts.push(vc(fend, '#161414'));
+  return mergeNI(parts);
+}
+const boats = [
+  { g: new THREE.Mesh(scowGeo('#1d1a1a'), vcMat), x: 60, z: RIV_Z0 + 9, v: 3.2, ph: 0 },
+  { g: new THREE.Mesh(scowGeo('#a8875a'), vcMat), x: 380, z: RIV_CZ, v: -2.4, ph: 2 },
+];
+for (const b of boats) {
+  b.g.castShadow = b.g.receiveShadow = true; scene.add(b.g);
+  const lamp = (m, x, z) => { const l = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), m); l.position.set(x, 0.85, z); b.g.add(l); };
+  const fwd = Math.sign(b.v); lamp(navLampW, -10.6 * fwd, 0); lamp(fwd > 0 ? navLampR : navLampG, 10.5 * fwd, 2.3); lamp(fwd > 0 ? navLampG : navLampR, 10.5 * fwd, -2.3);
+}
+const tug = new THREE.Mesh(tugGeo(), vcMat); tug.castShadow = tug.receiveShadow = true;
+tug.position.set(182, WATER_Y, RIV_Z0 + 0.8 + 2.2); scene.add(tug);
+{ const l = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), navLampW); l.position.set(-0.6, 4.55, 0); tug.add(l); }
+{ // mooring lines and bollards on the quay
+  const parts = [];
+  for (const dx of [-6.5, 6.8]) {
+    parts.push(vc(cyl(0.16, 0.2, 0.5, tug.position.x + dx, 0.25, RIV_Z0 + 0.4, 8), '#2a2624'), vc(cyl(0.24, 0.24, 0.08, tug.position.x + dx, 0.5, RIV_Z0 + 0.4, 8), '#2a2624'));
+    const a = new THREE.Vector3(tug.position.x + dx, 0.4, RIV_Z0 + 0.4), b = new THREE.Vector3(tug.position.x + dx * 0.7, WATER_Y + 0.65, tug.position.z - 1.2), d = b.clone().sub(a);
+    const rope = new THREE.CylinderGeometry(0.04, 0.04, d.length(), 5); rope.translate(0, d.length() / 2, 0);
+    rope.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())); rope.translate(a.x, a.y, a.z);
+    parts.push(vc(rope, '#8a7a5a'));
+  }
+  const m = new THREE.Mesh(mergeGeometries(parts), vcMat); m.castShadow = true; scene.add(m);
+}
+const drift = [];
+{
+  const dr = mulberry32(4242), kinds = [
+    () => vc(new THREE.CylinderGeometry(0.2, 0.24, 3, 7).rotateZ(Math.PI / 2), '#5a4030'),
+    () => vc(new THREE.TorusGeometry(0.36, 0.14, 6, 12).rotateX(Math.PI / 2), '#141212'),
+    () => vc(new THREE.BoxGeometry(0.8, 0.5, 0.8), '#9a7a50'),
+    () => vc(new THREE.BoxGeometry(2.4, 0.08, 0.35), '#7a6044'),
+    () => vc(new THREE.CylinderGeometry(0.15, 0.18, 1.8, 7).rotateZ(Math.PI / 2), '#4a3628'),
+  ];
+  const lanes = [RIV_Z0 + 4, RIV_Z0 + 14, RIV_CZ - 6, RIV_CZ + 7, RIV_Z1 - 5, RIV_Z1 - 12, RIV_CZ + 16];
+  for (let i = 0; i < 9; i++) {
+    const m = new THREE.Mesh(kinds[i % kinds.length](), vcMat); m.castShadow = true; scene.add(m);
+    drift.push({ m, x: dr() * WORLD, z: lanes[i % lanes.length] + (dr() - 0.5) * 2, v: FLOW * (0.8 + dr() * 0.35), ph: dr() * 6.3, spin: (dr() - 0.5) * 0.3, a: dr() * 6.3 });
+  }
+}
+let waterLast = 0;
+function updateWater(t) {
+  const dt = Math.min(0.1, t - waterLast); waterLast = t;
+  waterU.uTime.value = t;
+  boats.forEach((b, i) => {
+    b.x += b.v * dt; if (b.x > WORLD + 40) b.x = -40; if (b.x < -40) b.x = WORLD + 40;
+    b.g.position.set(b.x, WATER_Y + Math.sin(t * 0.9 + b.ph) * 0.04, b.z);
+    b.g.rotation.set(Math.sin(t * 0.7 + b.ph) * 0.01, 0, Math.sin(t * 0.55 + b.ph) * 0.006);
+    waterU.uBoats.value[i].set(b.x, b.z, 11, b.v / 3);
+  });
+  tug.position.y = WATER_Y + Math.sin(t * 1.1) * 0.06; tug.rotation.x = Math.sin(t * 0.8) * 0.02; tug.rotation.z = Math.sin(t * 0.6 + 1) * 0.012;
+  for (const d of drift) {
+    d.x += d.v * dt; if (d.x > WORLD + 10) d.x = -10;
+    let z = d.z + Math.sin(t * 0.3 + d.ph) * 0.8;
+    for (const [px, pz, hx, hz] of PIERS) if (Math.abs(d.x - px) < hx + 3) { const o = z - pz; if (Math.abs(o) < hz + 1.2) z = pz + Math.sign(o || 1) * (hz + 1.2); }
+    d.a += d.spin * dt;
+    d.m.position.set(d.x, WATER_Y + 0.05 + Math.sin(t * 1.7 + d.ph) * 0.05, z);
+    d.m.rotation.set(Math.sin(t * 1.3 + d.ph) * 0.08, d.a, Math.sin(t * 1.1 + d.ph) * 0.08);
+  }
 }
 
 // =========================================================================
