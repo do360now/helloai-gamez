@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>JackCity: Rustwater Havoc</title>
 <meta name="description" content="JackCity I: Rustwater, 1979. A 3D top-down crime-caper in the browser: steal cars, run jobs from payphones and shake the cops in a rust-belt river town at dusk.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -89,6 +89,54 @@
     #miniwrap { width: 130px; height: 130px; }
     #mission { top: 56px; min-width: 0; }
   }
+
+  /* ---------- touch controls (body.touch is set on the first touch, or up front on coarse pointers) */
+  body.touch { touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #touch { display: none; }
+  body.touch #touch { display: block; }
+  #touch .tb, #stick, #tPause { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+  #stick { position: absolute; left: 0; bottom: 0; width: 50%; height: 72%; }
+  #stickBase { position: absolute; width: 124px; height: 124px; margin: -62px 0 0 -62px; border-radius: 50%; border: 2px solid #f5e6c855; background: radial-gradient(circle, #1a101633 0%, #1a101688 100%); box-shadow: 0 0 0 2px #0006; opacity: .55; transition: opacity .15s; }
+  #stickBase.on { opacity: 1; transition: none; }
+  #stickKnob { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px 0 0 -29px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #ffd27a, #f2b33d 55%, #a8641a); box-shadow: 0 3px 0 #0008; }
+  #touch .tb { position: absolute; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-family: 'Bungee', Impact, sans-serif; color: var(--cream); text-shadow: 0 1px 0 #000; border: 2px solid #f5e6c866; background: #1a1016aa; box-shadow: 0 4px 0 #0008; letter-spacing: 1px; text-align: center; line-height: 1.05; }
+  #touch .tb.on { background: #f2b33d; color: var(--ink); text-shadow: none; transform: translateY(2px); box-shadow: 0 2px 0 #0008; }
+  #touch .tb[hidden] { display: none; }
+  #tGas { width: 88px; height: 88px; right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); font-size: 15px; border-color: #7fe0a0aa; }
+  #tBrake { width: 66px; height: 66px; right: calc(120px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom)); font-size: 11px; border-color: #ff8c6aaa; }
+  #tHb { width: 66px; height: 66px; right: calc(31px + env(safe-area-inset-right)); bottom: calc(124px + env(safe-area-inset-bottom)); font-size: 11px; }
+  #tAct { width: 66px; height: 66px; right: calc(122px + env(safe-area-inset-right)); bottom: calc(102px + env(safe-area-inset-bottom)); font-size: 18px; border-color: #f2b33daa; }
+  #tAct.ready { border-color: #f2b33d; animation: actpulse 0.9s ease-in-out infinite; }
+  @keyframes actpulse { 50% { box-shadow: 0 4px 0 #0008, 0 0 0 7px #f2b33d55; } }
+  #tAct small { display: block; font-size: 9px; letter-spacing: 0; margin-top: 2px; max-width: 60px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #tPause { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: calc(132px + env(safe-area-inset-right)); width: 42px; height: 42px; border-radius: 50%; border: 2px solid #f5e6c866; background: #1a1016aa; color: var(--cream); font-family: 'Bungee', Impact, sans-serif; font-size: 15px; letter-spacing: 1px; }
+  body.touch #miniwrap { left: auto; bottom: auto; right: calc(10px + env(safe-area-inset-right)); top: calc(10px + env(safe-area-inset-top)); width: 112px; height: 112px; }
+  body.touch #speedo { right: calc(12px + env(safe-area-inset-right)); bottom: auto; top: calc(130px + env(safe-area-inset-top)); }
+  body.touch #speedo b { font-size: 30px; }
+  body.touch #tl { top: calc(12px + env(safe-area-inset-top)); left: calc(14px + env(safe-area-inset-left)); }
+  body.touch #hint { bottom: calc(200px + env(safe-area-inset-bottom)); }
+  body.touch #hint kbd { display: none; }
+  body.touch #bust { bottom: calc(240px + env(safe-area-inset-bottom)); }
+  body.touch #area { top: calc(132px + env(safe-area-inset-top)); font-size: 16px; }
+  #title .tkeys { display: none; }
+  body.touch #title .keys { display: none; }
+  body.touch #title .tkeys { display: grid; }
+  .pbtns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 22px; }
+  .pbtns button, #qBtn { font-family: 'Bungee', Impact, sans-serif; font-size: 14px; letter-spacing: 1px; color: var(--cream); background: #1a1016cc; border: 2px solid #f5e6c866; padding: 10px 16px; border-radius: 3px; cursor: pointer; touch-action: manipulation; }
+  .pbtns button:first-child { background: var(--mustard); color: var(--ink); border-color: var(--mustard); }
+  #qBtn { margin-top: 14px; font-size: 12px; padding: 7px 12px; }
+  body.touch #pause small { display: none; }
+  #title { overflow-y: auto; justify-content: safe center; }
+  @media (max-height: 520px) {
+    #title h1 { font-size: clamp(30px, 11vh, 64px); margin: 4px 0 2px; }
+    #title .series { font-size: 12px; letter-spacing: 6px; }
+    #title .year { font-size: 14px; }
+    #title .blurb { display: none; }
+    #title .keys { margin-top: 12px; gap: 3px 14px; font-size: 12px; }
+    #title .go { margin-top: 14px; font-size: 17px; padding: 9px 22px; }
+    #qBtn { margin-top: 10px; }
+    #title .best { margin-top: 8px; }
+  }
 </style>
 <script type="importmap">
 { "imports": {
@@ -115,6 +163,14 @@
   <div id="bust" hidden>GETTING BUSTED<div><i></i></div></div>
   <div id="speedo" hidden><b>0</b><span>MPH</span></div>
   <div id="miniwrap"><canvas id="mini" width="196" height="196"></canvas><div id="miniN">N</div></div>
+  <div id="touch">
+    <div id="stick"><div id="stickBase"><div id="stickKnob"></div></div></div>
+    <div class="tb" id="tAct">E<small></small></div>
+    <div class="tb" id="tHb">SPRINT</div>
+    <div class="tb" id="tBrake">BRAKE</div>
+    <div class="tb" id="tGas">GAS</div>
+    <button id="tPause" aria-label="Pause">II</button>
+  </div>
 </div>
 
 <div id="title" class="overlay">
@@ -130,10 +186,20 @@
     <span><kbd>Q</kbd></span><span>graphics quality: high · medium · low</span>
     <span><kbd>R</kbd></span><span>respawn after Wasted / Busted</span>
   </div>
+  <div class="keys tkeys">
+    <span><kbd>STICK</kbd></span><span>walk · steer, push up / down to drive</span>
+    <span><kbd>E</kbd></span><span>steal car · get out · answer phone</span>
+    <span><kbd>GAS</kbd> <kbd>BRAKE</kbd></span><span>accelerate · brake and reverse</span>
+    <span><kbd>DRIFT</kbd></span><span>handbrake in a car · sprint on foot</span>
+    <span><kbd>II</kbd></span><span>pause, mute and graphics</span>
+  </div>
   <button class="go" id="goBtn">PRESS ENTER</button>
+  <button id="qBtn">GRAPHICS: HIGH</button>
   <div class="best" id="bestLine"></div>
 </div>
-<div id="pause" class="overlay" hidden>PAUSED<small>P to resume · M to mute · Q graphics</small></div>
+<div id="pause" class="overlay" hidden>PAUSED<small>P to resume · M to mute · Q graphics</small>
+  <div class="pbtns"><button id="pResume">RESUME</button><button id="pMute">SOUND: ON</button><button id="pQual">GRAPHICS: HIGH</button></div>
+</div>
 <div id="nogl" class="overlay" hidden>Rustwater needs WebGL. Try a recent desktop browser.</div>
 
 <script type="module">
@@ -364,6 +430,7 @@ function setQuality(q, auto) {
   if (wantShadow && sun.shadow.mapSize.x !== QS.shadow) { sun.shadow.mapSize.set(QS.shadow, QS.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   renderer.shadowMap.autoUpdate = QS.shadowEvery === 1; renderer.shadowMap.needsUpdate = true;
   buildComposer(); particleScale();
+  syncButtons();
   if (typeof toast === 'function' && state !== 'title') toast(`Graphics: ${q}${auto ? ' (auto)' : ''}`);
 }
 // step down once frames stay slow for a few seconds of play
@@ -1914,9 +1981,15 @@ function updatePlayer(dt) {
   player.stun = Math.max(0, player.stun - dt);
   if (player.car) {
     const c = player.car;
-    const thr = (down('KeyW', 'ArrowUp') ? 1 : 0) - (down('KeyS', 'ArrowDown') ? 1 : 0);
-    const steer = (down('KeyA', 'ArrowLeft') ? 1 : 0) - (down('KeyD', 'ArrowRight') ? 1 : 0);
-    const hb = down('Space');
+    let thr = (down('KeyW', 'ArrowUp') ? 1 : 0) - (down('KeyS', 'ArrowDown') ? 1 : 0);
+    let steer = (down('KeyA', 'ArrowLeft') ? 1 : 0) - (down('KeyD', 'ArrowRight') ? 1 : 0);
+    const hb = down('Space') || TOUCH.hb;
+    if (TOUCH.on) {
+      // pedals win; otherwise the stick's vertical push is an analog throttle and its sideways push steers
+      if (!thr) thr = (TOUCH.gas ? 1 : 0) - (TOUCH.brake ? 1 : 0);
+      if (!thr && Math.abs(TOUCH.sy) > 0.3) thr = -Math.sign(TOUCH.sy) * Math.min(1, (Math.abs(TOUCH.sy) - 0.2) / 0.55);
+      if (!steer && Math.abs(TOUCH.sx) > 0.12) steer = -Math.sign(TOUCH.sx) * Math.min(1, (Math.abs(TOUCH.sx) - 0.1) / 0.6);
+    }
     stepCar(c, thr, steer, hb, dt);
     if (hb && c.drift > 6 && Math.abs(c.speed) > 12) { driftT += dt; if (Math.random() < 0.5) smoke.emit(c.x - Math.sin(c.angle) * 2, 0.4, c.z - Math.cos(c.angle) * 2, rr(-1, 1), 1, rr(-1, 1), 1.2, 1.5, 5, 0.75, 0.7, 0.68, 0.35, 1); }
     else if (driftT > 0) { if (driftT > 1) addScore(Math.floor(driftT * 15), 'Drift'); driftT = 0; }
@@ -1934,10 +2007,15 @@ function updatePlayer(dt) {
   player.mesh.g.visible = true;
   let dx = (down('KeyD', 'ArrowRight') ? 1 : 0) - (down('KeyA', 'ArrowLeft') ? 1 : 0);
   let dz = (down('KeyS', 'ArrowDown') ? 1 : 0) - (down('KeyW', 'ArrowUp') ? 1 : 0);
+  let mag = 1;
+  if (!dx && !dz && TOUCH.on) {
+    const L = Math.hypot(TOUCH.sx, TOUCH.sy);
+    if (L > 0.15) { dx = TOUCH.sx; dz = TOUCH.sy; mag = 0.35 + 0.65 * Math.min(1, (L - 0.15) / 0.55); }
+  }
   const moving = (dx || dz) && player.stun <= 0;
   if (moving) {
     const L = Math.hypot(dx, dz); dx /= L; dz /= L;
-    const sp = down('Space', 'ShiftLeft', 'ShiftRight') ? 11 : 6.5;
+    const sp = (down('Space', 'ShiftLeft', 'ShiftRight') || TOUCH.hb ? 11 : 6.5) * mag;
     const nx = player.x + dx * sp * dt, nz = player.z + dz * sp * dt;
     if (!circleHitsWorld(nx, player.z, 0.45)) player.x = nx;
     if (!circleHitsWorld(player.x, nz, 0.45)) player.z = nz;
@@ -2264,12 +2342,17 @@ function updateHud(dt, t) {
   if (c) $('speedo').firstElementChild.textContent = Math.round(Math.abs(c.speed) * 2.2);
   $('bust').hidden = bustT <= 0.05; $('bust').querySelector('i').style.width = Math.min(100, bustT / 2.2 * 100) + '%';
   // hint
-  let hint = '';
+  let hint = '', act = '';
   if (state === 'play') {
-    if (!player.car) { if (nearPhone() && !M.active) hint = '<kbd>E</kbd>Answer the phone'; else { const n = nearestCar(4.2); if (n) hint = `<kbd>E</kbd>${n.driver ? 'Steal' : 'Get in'} the ${n.type}`; } }
-    else if (Math.abs(player.car.speed) < 1) hint = '<kbd>E</kbd>Get out';
+    if (!player.car) { if (nearPhone() && !M.active) { hint = '<kbd>E</kbd>Answer the phone'; act = 'Phone'; } else { const n = nearestCar(4.2); if (n) { act = n.driver ? 'Steal' : 'Get in'; hint = `<kbd>E</kbd>${act} the ${n.type}`; } } }
+    else if (Math.abs(player.car.speed) < 1) { hint = '<kbd>E</kbd>Get out'; act = 'Get out'; }
   }
   setHud('hint', hint, 'innerHTML'); $('hint').classList.toggle('show', !!hint);
+  if (TOUCH.on) {
+    if (lastHud.act !== act) { lastHud.act = act; $('tAct').lastElementChild.textContent = act; $('tAct').classList.toggle('ready', !!act); }
+    const inCar = !!c && state === 'play';
+    if (lastHud.inCar !== inCar) { lastHud.inCar = inCar; $('tGas').hidden = $('tBrake').hidden = !inCar; $('tHb').textContent = inCar ? 'DRIFT' : 'SPRINT'; }
+  }
   // area name
   const ar = district(Math.floor(focus.x / T), Math.floor(focus.z / T));
   if (ar !== lastArea) { lastArea = ar; $('area').textContent = AREA_NAMES[ar] || ''; $('area').classList.add('show'); areaT = 2.5; }
@@ -2316,7 +2399,7 @@ function updateAudio(t) {
   const now = A.ctx.currentTime;
   const c = player.car;
   A.engGain.gain.setTargetAtTime(state === 'play' && c && !c.wreck ? 0.07 : 0, now, 0.1);
-  if (c) { A.eng.frequency.setTargetAtTime(38 + Math.abs(c.speed) * 3.2 + (down('KeyW', 'ArrowUp') ? 12 : 0), now, 0.05); A.engFilt.frequency.setTargetAtTime(300 + Math.abs(c.speed) * 30, now, 0.1); }
+  if (c) { A.eng.frequency.setTargetAtTime(38 + Math.abs(c.speed) * 3.2 + (down('KeyW', 'ArrowUp') || TOUCH.gas ? 12 : 0), now, 0.05); A.engFilt.frequency.setTargetAtTime(300 + Math.abs(c.speed) * 30, now, 0.1); }
   const sv = state === 'play' && stars() > 0 && sirenDist < 90 ? 0.05 * (1 - sirenDist / 90) : 0;
   A.sirGain.gain.setTargetAtTime(sv, now, 0.1);
   A.sir.frequency.setTargetAtTime((t % 0.9) < 0.45 ? 720 : 960, now, 0.02);
@@ -2335,18 +2418,78 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; if (state === 'play') setPause(true); });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; touchRelease(); if (state === 'play') setPause(true); });
 $('goBtn').addEventListener('click', () => startGame());
+$('qBtn').addEventListener('click', e => { e.stopPropagation(); cycleQuality(); });
+$('pResume').addEventListener('click', () => { if (state === 'paused') setPause(false); });
+$('pMute').addEventListener('click', () => { A.muted = !A.muted; syncButtons(); });
+$('pQual').addEventListener('click', () => cycleQuality());
+function cycleQuality() { setQuality(Q_ORDER[(Q_ORDER.indexOf(quality) + 1) % 3], false); }
+function syncButtons() {
+  $('qBtn').textContent = $('pQual').textContent = 'GRAPHICS: ' + quality.toUpperCase();
+  $('pMute').textContent = 'SOUND: ' + (A.muted ? 'OFF' : 'ON');
+}
+
+// ---------- Touch controls: a floating stick on the left half, pedals and buttons on the right
+const TOUCH = { on: false, sx: 0, sy: 0, gas: false, brake: false, hb: false };
+function enableTouch() {
+  if (TOUCH.on) return;
+  TOUCH.on = true; document.body.classList.add('touch'); lastHud.act = lastHud.inCar = undefined;
+  if (state === 'title') $('goBtn').textContent = 'TAP TO PLAY';
+}
+if (navigator.maxTouchPoints > 0 && matchMedia('(pointer: coarse)').matches) enableTouch();
+addEventListener('touchstart', enableTouch, { passive: true, capture: true });
+const stickEl = $('stick'), stickBase = $('stickBase'), stickKnob = $('stickKnob'), STICK_R = 52;
+const stick = { id: null, ox: 0, oy: 0, rect: null };
+function stickHome() { stickBase.style.left = 'calc(96px + env(safe-area-inset-left))'; stickBase.style.top = 'calc(100% - 96px - env(safe-area-inset-bottom))'; stickKnob.style.transform = ''; stickBase.classList.remove('on'); }
+function stickMove(e) {
+  let dx = e.clientX - stick.rect.left - stick.ox, dy = e.clientY - stick.rect.top - stick.oy;
+  const L = Math.hypot(dx, dy);
+  if (L > STICK_R) { dx *= STICK_R / L; dy *= STICK_R / L; }
+  TOUCH.sx = dx / STICK_R; TOUCH.sy = dy / STICK_R;
+  stickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+}
+function stickEnd(e) { if (e && e.pointerId !== stick.id) return; stick.id = null; TOUCH.sx = TOUCH.sy = 0; stickHome(); }
+stickEl.addEventListener('pointerdown', e => {
+  e.preventDefault(); enableTouch();
+  if (stick.id !== null) return;
+  stick.id = e.pointerId; stickEl.setPointerCapture(e.pointerId);
+  stick.rect = stickEl.getBoundingClientRect(); stick.ox = e.clientX - stick.rect.left; stick.oy = e.clientY - stick.rect.top;
+  stickBase.style.left = stick.ox + 'px'; stickBase.style.top = stick.oy + 'px'; stickBase.classList.add('on');
+  stickMove(e);
+});
+stickEl.addEventListener('pointermove', e => { if (e.pointerId === stick.id) stickMove(e); });
+for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) stickEl.addEventListener(ev, stickEnd);
+stickHome();
+function holdButton(id, key) {
+  const el = $(id); let pid = null;
+  el.addEventListener('pointerdown', e => { e.preventDefault(); pid = e.pointerId; el.setPointerCapture(pid); TOUCH[key] = true; el.classList.add('on'); });
+  const up = e => { if (e.pointerId !== pid) return; pid = null; TOUCH[key] = false; el.classList.remove('on'); };
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(ev, up);
+}
+holdButton('tGas', 'gas'); holdButton('tBrake', 'brake'); holdButton('tHb', 'hb');
+$('tAct').addEventListener('pointerdown', e => {
+  e.preventDefault(); const el = $('tAct');
+  el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 140);
+  onPress('KeyE');
+});
+$('tPause').addEventListener('click', () => { if (state === 'play') setPause(true); });
+// Wasted / Busted: a tap anywhere carries on, like R
+addEventListener('pointerdown', e => { if (TOUCH.on && state === 'dead' && e.target.id !== 'tPause') onPress('KeyR'); });
+function touchRelease() {
+  TOUCH.gas = TOUCH.brake = TOUCH.hb = false; stickEnd({ pointerId: stick.id });
+  for (const id of ['tGas', 'tBrake', 'tHb']) $(id).classList.remove('on');
+}
 function onPress(code) {
   if ((state === 'title' || state === 'over') && code === 'KeyQ') { setQuality(Q_ORDER[(Q_ORDER.indexOf(quality) + 1) % 3], false); return; }
   if (state === 'title' || state === 'over') { if (code === 'Enter' || code === 'Space') startGame(); return; }
   if (code === 'KeyQ') { setQuality(Q_ORDER[(Q_ORDER.indexOf(quality) + 1) % 3], false); return; }
-  if (code === 'KeyM') { A.muted = !A.muted; return; }
+  if (code === 'KeyM') { A.muted = !A.muted; syncButtons(); return; }
   if (state === 'paused') { if (code === 'KeyP' || code === 'Escape') setPause(false); return; }
   if (state === 'play') { if (code === 'KeyE') interact(); if (code === 'KeyP' || code === 'Escape') setPause(true); return; }
   if (state === 'dead' && code === 'KeyR' && failT > 0.8) respawn();
 }
-function setPause(p) { state = p ? 'paused' : 'play'; $('pause').hidden = !p; }
+function setPause(p) { state = p ? 'paused' : 'play'; $('pause').hidden = !p; if (p) { touchRelease(); syncButtons(); } }
 function resetWorld() {
   for (const c of [...cars]) removeCar(c);
   for (const p of peds) disposePerson(p.mesh); peds.length = 0;
@@ -2378,7 +2521,7 @@ function playerFail(kind, why) {
   if (M.active) { const m = M.active; failMission(''); }
   const penalty = Math.min(score, kind === 'busted' ? 300 : 150); score -= penalty;
   const over = lives <= 0;
-  flashBanner(kind === 'busted' ? 'BUSTED' : 'WASTED', (why ? why + ' · ' : '') + `-$${penalty}` + (over ? ' · Last life gone. Press R' : ' · Press R'), 99, kind === 'busted' ? '#5aa0ff' : '#ff5a4a');
+  flashBanner(kind === 'busted' ? 'BUSTED' : 'WASTED', (why ? why + ' · ' : '') + `-$${penalty}` + (over ? ' · Last life gone. ' : ' · ') + (TOUCH.on ? 'Tap to go on' : 'Press R'), 99, kind === 'busted' ? '#5aa0ff' : '#ff5a4a');
   sfxBeep(kind === 'busted' ? 300 : 120, 0.8, 'sawtooth', 0.15);
   if (player.car && kind === 'busted') { player.car.kind = 'parked'; player.car = null; }
 }
