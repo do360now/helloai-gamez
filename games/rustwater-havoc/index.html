@@ -34,6 +34,7 @@
   #lives { margin-top: 4px; font-size: 14px; color: #ff8c6a; letter-spacing: 2px; }
   #hpwrap { margin-top: 8px; width: 180px; height: 9px; background: #0008; border: 1px solid #fff3; border-radius: 2px; overflow: hidden; }
   #hp { height: 100%; width: 100%; background: linear-gradient(90deg, #e0442e, #f2b33d); transition: width .15s; }
+  #clock { font-size: 11px; color: #f5e6c877; margin-top: 2px; letter-spacing: 1px; }
   #hplabel { font-size: 11px; color: #f5e6c8aa; margin-top: 3px; letter-spacing: 1px; }
 
   #area { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font-family: 'Bungee', Impact, sans-serif; font-size: 22px; color: var(--cream); letter-spacing: 3px; text-shadow: 0 0 12px #ff7a3c, 0 2px 0 #000; opacity: 0; transition: opacity .6s; white-space: nowrap; }
@@ -155,6 +156,7 @@
     <div id="lives"></div>
     <div id="hpwrap"><div id="hp"></div></div>
     <div id="hplabel">ON FOOT</div>
+    <div id="clock"></div>
   </div>
   <div id="area"></div>
   <div id="mission" hidden><span id="mTitle"></span><span id="mObj"></span><span id="mTimer"></span></div>
@@ -356,9 +358,9 @@ try {
 } catch (e) { $('nogl').hidden = false; $('title').hidden = true; throw e; }
 // ---------- Graphics quality (Q cycles; chosen once from the device, then steps down by itself if frames run slow)
 const QUALITY = {
-  low:    { pr: 1,    shadow: 0,    post: false, samples: 0, peds: 30, traffic: 12 },
-  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2, refl: 0.33, reflEvery: 2 },
-  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1, refl: 0.5, reflEvery: 1 },
+  low:    { pr: 1,    shadow: 0,    post: false, samples: 0, peds: 30, traffic: 12, nightFx: false },
+  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2, refl: 0.33, reflEvery: 2, nightFx: true },
+  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1, refl: 0.5, reflEvery: 1, nightFx: true },
 };
 const Q_ORDER = ['high', 'medium', 'low'];
 const coarse = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
@@ -378,7 +380,7 @@ document.body.prepend(renderer.domElement);
 const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
 const scene = new THREE.Scene();
-const FOG_GOLD = new THREE.Color('#c2705a'), FOG_DUSK = new THREE.Color('#3a2c52');
+const FOG_GOLD = new THREE.Color('#c2705a'), FOG_DUSK = new THREE.Color('#3a2c52'), FOG_NIGHT = new THREE.Color('#060a16'), FOG_DAWN = new THREE.Color('#4d4670');
 scene.fog = new THREE.Fog(FOG_GOLD.clone(), 140, 360);
 scene.background = FOG_GOLD.clone();
 const camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.5, 1400);
@@ -387,14 +389,15 @@ addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); if
 // ---------- Post-processing: HDR bloom, then a filmic grade (vignette, split tone, grain)
 let composer = null, bloom = null, grade = null;
 const GradeShader = {
-  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uVig: { value: 0.32 }, uGrain: { value: 0.028 }, uDusk: { value: 0 } },
+  uniforms: { tDiffuse: { value: null }, uTime: { value: 0 }, uRes: { value: new THREE.Vector2(1, 1) }, uVig: { value: 0.32 }, uGrain: { value: 0.028 }, uDusk: { value: 0 }, uNight: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uVig, uGrain, uDusk; uniform vec2 uRes; varying vec2 vUv;
+  fragmentShader: `uniform sampler2D tDiffuse; uniform float uTime, uVig, uGrain, uDusk, uNight; uniform vec2 uRes; varying vec2 vUv;
     void main() {
       vec4 c = texture2D(tDiffuse, vUv);
       float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
       vec3 shadowTint = mix(vec3(0.96, 0.98, 1.05), vec3(0.92, 0.95, 1.12), uDusk), hiTint = vec3(1.04, 1.0, 0.94);
       c.rgb *= mix(shadowTint, hiTint, smoothstep(0.15, 0.8, l));
+      c.rgb += uNight * vec3(0.006, 0.011, 0.026) * (1.0 - smoothstep(0.0, 0.35, l));   // lift the blacks toward moonlit blue so the streets stay readable
       vec2 d = (vUv - 0.5) * vec2(uRes.x / uRes.y, 1.0);
       c.rgb *= mix(1.0, smoothstep(1.3, 0.35, length(d)), uVig);
       float n = fract(sin(dot(floor(vUv * uRes) + fract(uTime) * 97.0, vec2(12.9898, 78.233))) * 43758.5453);
@@ -424,14 +427,18 @@ function draw() {
   } else renderer.render(scene, camera);
   if (QS.shadowEvery > 1) renderer.shadowMap.needsUpdate = (++shadowFrame % QS.shadowEvery) === 0;
 }
-let shadowFrame = 0;
+let shadowFrame = 0, nightNoShadow = false;
+// the sun's shadow pass: off on low, and off at night (moonlight is soft). Flipping castShadow recompiles every material, so callers flip it rarely.
+function applySunShadow() {
+  const want = QS.shadow > 0 && !nightNoShadow;
+  if (sun.castShadow !== want) { sun.castShadow = want; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); }
+}
 function setQuality(q, auto) {
   quality = q; QS = QUALITY[q]; qAuto = auto && qAuto;
   if (!auto) { qAuto = false; try { localStorage.setItem('rustwater-quality', q); } catch (e) { /* storage blocked */ } }
   renderer.setPixelRatio(Math.min(devicePixelRatio, QS.pr)); renderer.setSize(innerWidth, innerHeight);
-  const wantShadow = QS.shadow > 0;
-  if (sun.castShadow !== wantShadow) { sun.castShadow = wantShadow; scene.traverse(o => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); }
-  if (wantShadow && sun.shadow.mapSize.x !== QS.shadow) { sun.shadow.mapSize.set(QS.shadow, QS.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
+  applySunShadow();
+  if (QS.shadow > 0 && sun.shadow.mapSize.x !== QS.shadow) { sun.shadow.mapSize.set(QS.shadow, QS.shadow); if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; } }
   renderer.shadowMap.autoUpdate = QS.shadowEvery === 1; renderer.shadowMap.needsUpdate = true;
   buildComposer(); particleScale();
   syncButtons();
@@ -720,6 +727,23 @@ function shopFacade() {
 }
 const facadeMats = {}; for (const k in STYLES) facadeMats[k] = facade(k);
 facadeMats.shop = shopFacade();
+// Windows light up one by one: each window cell (and building) hashes to a threshold, and uLit says how many are on.
+// A few lit windows flicker blue like a TV (uTV is 0 on low).
+const nightU = { uLit: { value: 0.2 }, uTV: { value: 0 }, uT: { value: 0 } };
+for (const m of Object.values(facadeMats)) {
+  m.onBeforeCompile = sh => {
+    Object.assign(sh.uniforms, nightU);
+    sh.vertexShader = 'varying vec3 vWP;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'varying vec3 vWP; uniform float uLit, uTV, uT;\nfloat h21(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+  { vec2 cell = floor(vEmissiveMapUv * 8.0), tid = floor(vWP.xz * 0.1 + 0.123);
+    float thr = h21(cell + tid * 13.0) * 0.75 + h21(tid * 1.7 + 3.1) * 0.25;
+    float on = step(thr, uLit);
+    float tv = step(0.93, h21(cell * 1.3 + tid * 7.0)) * uTV;
+    float fl = 0.55 + 0.45 * sin(uT * 7.0 + thr * 60.0) * sin(uT * 2.3 + thr * 17.0);
+    vec3 tvCol = vec3(0.45, 0.62, 1.0) * dot(totalEmissiveRadiance, vec3(0.33)) * 1.2 * fl;
+    totalEmissiveRadiance = mix(totalEmissiveRadiance * on, tvCol * on, tv); }`);
+  };
+}
 // tar-and-gravel roofs, tinted per style
 const roofTex = (() => {
   const [c, g] = makeCanvas(256, 256); g.fillStyle = '#bdbab4'; g.fillRect(0, 0, 256, 256);
@@ -962,7 +986,7 @@ function addSign(text, color, x, y, z, w, flicker = false) {
   const mat = new THREE.MeshBasicMaterial({ map: signTexture(text, color), transparent: true, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
   const m = new THREE.Mesh(new THREE.PlaneGeometry(w, w / 4), mat); m.position.set(x, y, z); m.rotation.x = -0.25; scene.add(m);
   const back = new THREE.Mesh(new THREE.BoxGeometry(w * 0.92, w / 4.8, 0.2), darkMat); back.position.set(x, y, z - 0.3); back.rotation.x = -0.25; scene.add(back);
-  signs.push({ mat, flicker, t: Math.random() * 10 });
+  signs.push({ mat, flicker, t: Math.random() * 10, buzz: signs.length === 3 || signs.length === 11 });
 }
 for (const s of signSpots) { const w = clamp(s.w * 0.75, 6, 14); addSign(mpick(SIGN_WORDS), mpick(NEON), s.x, s.y + w / 8 + 0.8, s.z - 1.2, w, mrand() < 0.25); }
 addSign("SAL'S GARAGE", '#4ff0ff', 46.5 * T + 5, 10.5, 7 * T - 0.6, 16);
@@ -1684,6 +1708,8 @@ const boxGeo = (w, h, d) => boxGeoCache[w + ',' + h + ',' + d] ||= new THREE.Box
 const glowTex = (draw, w = 64, h = 128) => { const [c, g] = makeCanvas(w, h); draw(g, w, h); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; };
 const beamMat = new THREE.MeshBasicMaterial({ map: glowTex((g, w, h) => { const gr = g.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,235,190,0.9)'); gr.addColorStop(1, 'rgba(255,235,190,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(w * 0.32, h); g.lineTo(0, 0); g.lineTo(w, 0); g.lineTo(w * 0.68, h); g.fill(); g.globalCompositeOperation = 'destination-in'; const s = g.createLinearGradient(0, 0, w, 0); s.addColorStop(0, 'rgba(0,0,0,0)'); s.addColorStop(0.3, '#000'); s.addColorStop(0.7, '#000'); s.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = s; g.fillRect(0, 0, w, h); }), transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
 const poolDisc = glowTex((g, w, h) => { const gr = g.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); }, 64, 64);
+const headPoolMat = new THREE.MeshBasicMaterial({ map: poolDisc, color: '#ffe2b0', transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+const headPoolGeo = new THREE.PlaneGeometry(9, 12).rotateX(-Math.PI / 2);
 const sirenPoolR = new THREE.MeshBasicMaterial({ map: poolDisc, color: '#ff2a2a', transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 });
 const sirenPoolB = sirenPoolR.clone(); sirenPoolB.color.set('#2a6aff');
 const decalMat = (draw) => new THREE.MeshStandardMaterial({ map: glowTex(draw, 256, 64), transparent: true, roughness: 0.35, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
@@ -1780,6 +1806,7 @@ function makeCar(type, color, x, z, angle, kind) {
   const bodyMesh = add(G.paint, paintMat(color)), glass = add(G.glass, glassMat, false), trim = add(G.trim, carTrimMat, false);
   const head = add(G.head, headMat, false), tail = add(G.tail, tailMat, false), brake = add(G.brake, brakeMat, false); brake.visible = false;
   const beam = add(G.beam, beamMat, false, g); beam.visible = false;
+  const hpool = new THREE.Mesh(headPoolGeo, headPoolMat); hpool.position.set(0, 0.06, G.L / 2 + 5.5); hpool.visible = false; g.add(hpool);
   const decal = G.decal ? add(G.decal, type === 'police' ? policeDecal : taxiDecal, false) : null;
   const wheels = [];
   for (const [wx, wz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const w = new THREE.Mesh(G.wheel, wheelMat); w.rotation.order = 'YXZ'; w.position.set(wx * (G.W / 2 - 0.2), WR, wz * p.wb / 2); w.castShadow = true; g.add(w); wheels.push(w); }
@@ -1797,14 +1824,14 @@ function makeCar(type, color, x, z, angle, kind) {
   }
   if (type === 'taxi') { const sg = new THREE.Mesh(boxGeo(0.8, 0.28, 0.3), taxiSignMat); sg.position.set(0, p.top + 0.17, (p.A1 + p.C1) / 2); body.add(sg); bar = null; }
   g.position.set(x, 0, z); g.rotation.y = angle; scene.add(g);
-  const car = { type, spec: s, g, body, bodyMesh, glass, trim, head, tail, brake, beam, decal, pools, wheels, bar, x, z, angle, vx: 0, vz: 0, speed: 0, health: s.hp, maxHp: s.hp, kind, driver: kind === 'traffic' || kind === 'police', wp: [], from: -1, to: -1, onFire: false, fireT: 0, wreck: false, wreckT: 0, color, stuck: 0, rev: 0, cruise: rr(11, 16), path: [], pathT: 0, lastSteer: 0, roll: 0, smokeT: 0, mission: false, horn: 0 };
+  const car = { type, spec: s, g, body, bodyMesh, glass, trim, head, tail, brake, beam, hpool, decal, pools, wheels, bar, x, z, angle, vx: 0, vz: 0, speed: 0, health: s.hp, maxHp: s.hp, kind, driver: kind === 'traffic' || kind === 'police', wp: [], from: -1, to: -1, onFire: false, fireT: 0, wreck: false, wreckT: 0, color, stuck: 0, rev: 0, cruise: rr(11, 16), path: [], pathT: 0, lastSteer: 0, roll: 0, smokeT: 0, mission: false, horn: 0 };
   cars.push(car); return car;
 }
 function removeCar(c) { scene.remove(c.g); const i = cars.indexOf(c); if (i >= 0) cars.splice(i, 1); }
 function charCar(c) {
   for (const m of [c.bodyMesh, c.glass, c.trim, c.head, c.tail]) m.material = charMat;
   for (const w of c.wheels) w.material = charMat;
-  c.brake.visible = c.beam.visible = false; if (c.decal) c.decal.visible = false; if (c.bar) c.bar.visible = false; if (c.pools) c.pools.visible = false;
+  c.brake.visible = c.beam.visible = c.hpool.visible = false; if (c.decal) c.decal.visible = false; if (c.bar) c.bar.visible = false; if (c.pools) c.pools.visible = false;
 }
 
 // ---------- Collision helpers
@@ -2555,6 +2582,7 @@ function updateHud(dt, t) {
   const c = player.car;
   const hpPct = c ? clamp(c.health / c.maxHp, 0, 1) : clamp(player.health / 100, 0, 1);
   $('hp').style.width = Math.round(hpPct * 100) + '%';
+  setHud('clock', clockText);
   setHud('hplabel', c ? (c.onFire ? 'ON FIRE!' : 'CAR ' + c.type.toUpperCase()) : 'ON FOOT');
   $('speedo').hidden = !c;
   if (c) $('speedo').firstElementChild.textContent = Math.round(Math.abs(c.speed) * 2.2);
@@ -2776,21 +2804,43 @@ function updateCamera(dt) {
   sun.position.set(focus.x + SUN_OFF.x, SUN_OFF.y, focus.z + SUN_OFF.z); sun.target.position.set(focus.x, 0, focus.z - 20);
 }
 
-// ---------- Day cycle (golden hour <-> blue dusk)
-const rimGold = new THREE.Color('#9fc0ff'), rimDusk = new THREE.Color('#b8c8ff');
-const cGold = new THREE.Color('#ffa465'), cDusk = new THREE.Color('#8a7cff'), hGold = new THREE.Color('#ffc89a'), hDusk = new THREE.Color('#6a6aa8');
+// ---------- Day cycle (golden hour -> blue dusk -> night -> dawn -> golden hour)
+// Phase p in [0, 1) over DAY_LEN seconds: 0 golden, 0.25 dusk, 0.45 to 0.7 night, 0.85 dawn. window.__phase pins it for tests.
+const DAY_LEN = 600;
+const rimGold = new THREE.Color('#9fc0ff'), rimDusk = new THREE.Color('#b8c8ff'), rimNight = new THREE.Color('#5a78c0');
+const cGold = new THREE.Color('#ffa465'), cDusk = new THREE.Color('#8a7cff'), cNight = new THREE.Color('#5f7ed0'), hGold = new THREE.Color('#ffc89a'), hDusk = new THREE.Color('#6a6aa8'), hNight = new THREE.Color('#1c2a58');
+const kfs = (p, a) => { for (let i = 1; i < a.length; i++) if (p <= a[i][0]) { const u = (p - a[i - 1][0]) / (a[i][0] - a[i - 1][0]); return a[i - 1][1] + (a[i][1] - a[i - 1][1]) * u * u * (3 - 2 * u); } return a[a.length - 1][1]; };
+const K_DUSK = [[0, 0], [0.25, 1], [0.85, 1], [1, 0]];
+const K_NIGHT = [[0, 0], [0.25, 0], [0.45, 1], [0.7, 1], [0.85, 0], [1, 0]];
+const K_LIT = [[0, 0.2], [0.12, 0.3], [0.4, 1], [0.55, 0.9], [0.8, 0.3], [0.92, 0.12], [1, 0.2]];
+let nightAmt = 0, clockText = '', envScaleDone = 1, envT = 0;
 function updateSky(t) {
-  const k = 0.5 - 0.5 * Math.cos(t / 240 * Math.PI * 2);   // 0 = golden hour, 1 = blue dusk, 4 min each way
-  sun.intensity = lerp(2.4, 0.55, k); sun.color.copy(cGold).lerp(cDusk, k);
-  hemi.intensity = lerp(0.85, 0.42, k); hemi.color.copy(hGold).lerp(hDusk, k);
-  scene.fog.color.copy(FOG_GOLD).lerp(FOG_DUSK, k); scene.background.copy(scene.fog.color);
-  for (const m of Object.values(facadeMats)) m.emissiveIntensity = lerp(0.35, 1.35, k);
-  lampHeadMat.emissiveIntensity = lerp(1.2, 3, k); poolMat.opacity = lerp(0.06, 0.5, k); beamMat.opacity = lerp(0.05, 0.45, k);
-  if (bloom) { bloom.strength = lerp(0.35, 0.75, k); grade.uniforms.uDusk.value = k; }
-  for (let i = 0; i < lamps.length; i++) if (!lamps[i].down) glow.col[i * 4 + 3] = lerp(0.25, 0.75, k);
+  const p = typeof window.__phase === 'number' ? window.__phase : (t / DAY_LEN) % 1;
+  const k = kfs(p, K_DUSK), n = kfs(p, K_NIGHT), dawn = Math.max(0, 1 - Math.abs(p - 0.85) / 0.12);
+  nightAmt = n;
+  const mins = Math.floor((18.5 + p * 12) * 60) % 1440; clockText = `${(Math.floor(mins / 60) + 11) % 12 + 1}:${String(mins % 60).padStart(2, '0')} ${mins < 720 ? 'AM' : 'PM'}`;
+  sun.intensity = lerp(lerp(2.4, 0.55, k), 0.62, n); sun.color.copy(cGold).lerp(cDusk, k).lerp(cNight, n);
+  hemi.intensity = lerp(lerp(0.85, 0.42, k), 0.5, n); hemi.color.copy(hGold).lerp(hDusk, k).lerp(hNight, n);
+  scene.fog.color.copy(FOG_GOLD).lerp(FOG_DUSK, k).lerp(FOG_NIGHT, n).lerp(FOG_DAWN, dawn * 0.7); scene.background.copy(scene.fog.color);
+  // the sun's shadow pass is dropped at night, with hysteresis (a switch recompiles every material)
+  if (!nightNoShadow && n > 0.55) { nightNoShadow = true; applySunShadow(); } else if (nightNoShadow && n < 0.4) { nightNoShadow = false; applySunShadow(); }
+  nightU.uLit.value = kfs(p, K_LIT); nightU.uTV.value = QS.nightFx ? 1 : 0; nightU.uT.value = t;
+  for (const m of Object.values(facadeMats)) m.emissiveIntensity = lerp(0.35, 1.35, k) * lerp(1, 1.12, n);
+  lampHeadMat.emissiveIntensity = lerp(lerp(1.2, 3, k), 3.6, n); poolMat.opacity = lerp(lerp(0.06, 0.5, k), 0.7, n); beamMat.opacity = lerp(lerp(0.05, 0.45, k), 0.85, n);
+  headMat.color.setRGB(2.2, 2.0, 1.5).multiplyScalar(lerp(1, 1.45, n)); tailMat.color.setRGB(0.9, 0.06, 0.05).multiplyScalar(lerp(1, 1.6, n));
+  headPoolMat.opacity = 0.5 * n;
+  if (bloom) { bloom.strength = lerp(lerp(0.35, 0.75, k), 0.8, n); grade.uniforms.uDusk.value = k; grade.uniforms.uNight.value = n; }
+  for (let i = 0; i < lamps.length; i++) if (!lamps[i].down) glow.col[i * 4 + 3] = lerp(lerp(0.25, 0.75, k), 0.9, n);
   glow.geo.attributes.pcolor.needsUpdate = true;
-  personRim.value.copy(rimGold).lerp(rimDusk, k).multiplyScalar(lerp(0.55, 0.7, k));
-  headlight.intensity = player.car && !player.car.wreck ? lerp(30, 220, k) : 0;
+  for (const s of signs) { const base = lerp(0.8, 1.35, n); s.mat.color.setScalar(s.buzz && QS.nightFx ? base * (0.8 + 0.2 * Math.sin(t * 31) * Math.sin(t * 4.3)) : base); }
+  personRim.value.copy(rimGold).lerp(rimDusk, k).lerp(rimNight, n).multiplyScalar(lerp(0.55, 0.7, k));
+  headlight.intensity = player.car && !player.car.wreck ? lerp(lerp(30, 220, k), 340, n) : 0;
+  // at night the image-based light dims, so only lamps, windows, neon and headlights carry the scene
+  const es = lerp(1, 0.35, n);
+  if (Math.abs(es - envScaleDone) > 0.01 || (envT -= 1) < 0 && es !== 1) {
+    envT = 120; scene.traverse(o => { const m = o.material; if (m) for (const x of [].concat(m)) if (x.envMapIntensity !== undefined) { if (x.userData.envBase === undefined) x.userData.envBase = x.envMapIntensity; x.envMapIntensity = x.userData.envBase * es; } });
+    envScaleDone = es;
+  }
   return k;
 }
 
@@ -2852,7 +2902,7 @@ function frame(now) {
     for (const w of c.wheels) w.rotation.x += c.speed * dt / WR;
     c.wheels[0].rotation.y = c.wheels[1].rotation.y = c.wreck ? 0.3 : lerp(c.wheels[0].rotation.y, (c.steerVis || 0) * 0.42, Math.min(1, dt * 10));
     if (c.bar) c.bar.visible = c.kind === 'police' && !c.wreck;
-    if (!c.wreck) { c.brake.visible = !!c.braking; c.beam.visible = c.driver || c === player.car; if (c.pools) c.pools.visible = !!c.siren; }
+    if (!c.wreck) { c.brake.visible = !!c.braking; c.beam.visible = c.driver || c === player.car; c.hpool.visible = QS.nightFx && nightAmt > 0.12 && c.beam.visible; if (c.pools) c.pools.visible = !!c.siren; }
   }
   const flash = Math.sin(time * 18) > 0;
   sirenR.color.setRGB(flash ? 3 : 0.3, 0.05, 0.05); sirenB.color.setRGB(0.05, 0.2, flash ? 0.3 : 3);
