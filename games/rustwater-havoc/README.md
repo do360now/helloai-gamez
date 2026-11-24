@@ -6,13 +6,13 @@ rusted truss bridges, lit at golden hour and drifting through blue dusk into nig
 payphones for five jobs, and shake the cops.
 
 Play: `/games/rustwater-havoc/`. Real time. Keyboard: WASD or arrows, E (steal car, get out,
-answer phone), Space (handbrake on the road, sprint on foot), P pause, M mute, R respawn,
-Q graphics quality (high, medium, low).
+answer phone), Space (handbrake on the road, sprint on foot), T radio station (in a car: off, WRST 1979,
+Mill Town Blues, KTEO talk), P pause, M mute, R respawn, Q graphics quality (high, medium, low).
 
 Touch (phones and tablets, turned on by the first touch): a floating stick on the left half walks,
 or in a car steers sideways and drives with an up or down push. On the right are GAS, BRAKE
-(brake and reverse), DRIFT (sprint on foot) and E, which pulses and names the action when one is
-in reach. The II button pauses, and the pause screen has resume, sound and graphics buttons.
+(brake and reverse), DRIFT (sprint on foot), RADIO (in a car: next station) and E, which pulses and names the
+action when one is in reach. The II button pauses, and the pause screen has resume, sound and graphics buttons.
 After Wasted or Busted, a tap anywhere carries on.
 Human-only: there is no `window.arcade`, no seeded benchmark and no agent mode, the same as
 `harbor-city`.
@@ -31,6 +31,23 @@ Busted / Wasted with 3 lives, a $250 respray at Sal's, drift and near-miss bonus
 multiplier, knock-down street lamps, cars that burn and explode, and a best score kept in
 `localStorage`. The river flows east under the bridges, with foam at the quay walls and piers,
 barges with bow waves and wakes, a moored tug and drifting junk.
+
+## Cars and sound
+
+**Damage.** A hit dents the car where it landed: the body and trim near the impact are tessellated and pushed in (at most
+0.3 m from where they started), so wall hits, side swipes and car-to-car crashes each leave their own crumple. Below half
+health the glass cracks, a heavy side hit can knock a hubcap off (it bounces and rolls, at most 8 at once, gone after 6 s,
+leaving a bare rusty hub), and a wreck loses its glass. A respray at Sal's repairs all of it.
+**Skid marks.** Handbrake turns, slides and hard braking above 12 m/s leave a pair of dark marks at the rear wheels
+(one instanced draw call, a ring of 800 on high, 500 on medium, 300 on low; they fade over a minute).
+**Engines.** Every car type has its own voice: the sedan hums, the coupe rasps, the sport car screams higher, the van and
+pickup grumble, the taxi clatters and the police car is deep. Pitch climbs through four gears and drops at each shift.
+**Radio.** Three original stations, synthesized live with WebAudio (no samples): WRST 1979 (funk, a seeded step
+sequencer with bass, drums and stabs), Mill Town Blues (a slow 12-bar blues with a walking bass and a plucked lead) and
+KTEO talk (static, a station jingle, garbled "announcer" speech, time pips and tuning squeals). T or the RADIO button
+cycles them, a small line under the clock names the station, and the choice is kept in `localStorage`
+(`rustwater-radio`). It plays only in a car and fades out when you get out, sirens duck it, and M mutes it with
+everything else. Nothing is audible in the headless tests, so the sound design is untested by ear.
 
 ## Day and night
 
@@ -65,6 +82,8 @@ The folder is the source; nothing is generated. About 900 KB in all, most of it 
 | `card.jpg` | Landing-page card, a screenshot of Ferris Green in the game |
 
 ## Graphics quality
+
+Skid marks: a ring of 800 on high, 500 on medium, 300 on low. Dents, cracked glass and hubcaps are on every level.
 
 Rain: about 3000 streaks on high, 1500 on medium and 800 on low. The wet-ground mirror (a second scene pass,
 only while the ground is wet) is 40% of the screen size on high, a quarter every other frame on medium, and off on low.

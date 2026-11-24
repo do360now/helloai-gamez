@@ -9,7 +9,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 |---|---------|--------|
 | 1 | Night (and the shadow-pass cost) | done (see git log, merged 2026-11-24) |
 | 2 | Weather | done (commit ceab9c5, merged and deployed 2026-11-24) |
-| 3 | Cars and sound: damage, skid marks, engine voices, radio | not started |
+| 3 | Cars and sound: damage, skid marks, engine voices, radio | built 2026-11-24 on branch rustwater-havoc, not committed or merged yet (touch point steering not done) |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | not started |
 | 5 | More jobs: taxi fares, bridge race, cars for Sal | not started |
 | 6 | Agent mode | not started |
@@ -107,6 +107,19 @@ Weather, measured 2026-11-24 after session 2 (same camera, `shot.mjs --at 222,16
 | Rain, night (high) | 342 to 463 | 0.49M to 0.68M | no sun shadow pass at night; the range is two different views |
 | Rain, day (medium) | 165 | 0.24M | measured on a frame where both shadow and wet pass were skipped (they run every other frame); a pass frame is about 160 calls more |
 | Rain, day (low) | 142 | 0.24M | no wet mirror, no shadows |
+
+Cars and sound, measured 2026-11-24 after session 3 (same camera, `shot.mjs --at 222,163`, one frame, all passes; no skid marks on screen):
+
+| Case | Draw calls | Triangles |
+|---|---|---|
+| Clear, golden (high) | 365 | 0.62M |
+| Rain, day (high) | 550 | 0.87M |
+| Night (high) | 174 | 0.25M |
+| Clear (medium) | 353 | 0.62M |
+| Clear (low) | 146 | 0.22M |
+
+Session 3 adds at most 1 call for the skid marks (hidden until the first mark), up to 8 for loose hubcaps, and nothing per damaged car (a dent only swaps geometry).
+The rain and medium numbers move with which frame the every-other-frame passes land on, so compare them loosely.
 
 The shadow pass (a 240 m box around the player) is the biggest single cost. Nothing has been timed
 on a real GPU yet. If the user reports fps from a real device, write the numbers here.
@@ -343,6 +356,26 @@ passes.
 - The radio cycles through its stations.
 - `touch.mjs` and `flow.mjs` pass.
 - No audio errors when the page loads muted or before the first gesture.
+
+**Session 3 notes (built 2026-11-24, split as damage and skids first, then engines and radio):**
+- Damage: `dentCar(c, dx, dz, force)` (dx, dz = world direction from the car toward what it hit; called from `stepCar` wall hits and `carCollisions`,
+  debounced 120 ms per car). On the first dent a car clones its body and trim geometry (`c.dent`), keeps an `orig` attribute, and
+  `tessellateNear` splits the triangles near the impact to about 0.3 m (the body faces are huge flat triangles, so a plain vertex push showed nothing).
+  Vertices move inward, sag a little above the impact height, and are capped at `DENT_MAX = 0.3` from `orig`. The greenhouse is masked out so the glass doesn't clip.
+  The clones are disposed in `removeCar`. `repairCar` (called by Sal's respray) restores everything.
+- Glass: `glassMat` got a blank map so `crackMat` (canvas crack texture) uses the same shader, with no recompile hitch. Under 50% health `damageCar` swaps it;
+  `charCar` hides the glass of wrecks.
+- Hubcaps: `carGeo` builds `wheelBare`; `popHubcap` swaps a wheel to it and launches one of 8 pooled discs (`updateHubcaps`, 6 s life).
+- Skid marks: `skIM`, one InstancedMesh ring (`QS.skid` 800/500/300) with a per-instance alpha attribute (`aA`); `laySkids` is called from `stepCar`
+  (sliding over 4.5 m/s sideways, or handbrake/brake hard above 12 m/s), only within 110 m of the camera, not on water tiles; they fade over 60 s (`updateSkids`).
+- Engines: `CAR_TYPES[type].engine` (waveforms, detune, base pitch, filter, gain); `updateAudio` sets them when the player's car type changes, with four gears.
+- Radio: `R` and the code above `sfxBeep`. Stations are generated live with a 30 ms lookahead timer (0.7 s ahead); each has its own gain bus (`R.w` trims loudness),
+  so switching mutes what was already scheduled. T, the touch `#tRadio` button and the HUD line `#radioLine`; the choice is saved as `rustwater-radio`. Default is off.
+  Level check with an analyser on the output (headless Chromium does run the AudioContext): engine idle rms 0.027, stations add up to peak 0.2, no clipping.
+- Debug handle now also has `dentCar` and `damageCar` (tests use them).
+- Tests: `flow.mjs` and `touch.mjs` (landscape and portrait) pass; no console errors on load before the first gesture, or when pressing T before and after.
+- Not done: touch "point" steering (optional). Nothing could be judged by ear, so the stations' musical quality and the engine voices are unheard.
+- Ideas: dents don't show on the taxi and police decals or the glass; skid marks don't darken with rain; no damage sounds per hubcap landing.
 
 ---
 

@@ -35,6 +35,8 @@
   #hpwrap { margin-top: 8px; width: 180px; height: 9px; background: #0008; border: 1px solid #fff3; border-radius: 2px; overflow: hidden; }
   #hp { height: 100%; width: 100%; background: linear-gradient(90deg, #e0442e, #f2b33d); transition: width .15s; }
   #clock { font-size: 11px; color: #f5e6c877; margin-top: 2px; letter-spacing: 1px; }
+  #radioLine { font-size: 11px; color: #8cc4ff; margin-top: 2px; letter-spacing: 1px; min-height: 0; }
+  #radioLine:empty { display: none; }
   #hplabel { font-size: 11px; color: #f5e6c8aa; margin-top: 3px; letter-spacing: 1px; }
 
   #area { position: absolute; top: 22px; left: 50%; transform: translateX(-50%); font-family: 'Bungee', Impact, sans-serif; font-size: 22px; color: var(--cream); letter-spacing: 3px; text-shadow: 0 0 12px #ff7a3c, 0 2px 0 #000; opacity: 0; transition: opacity .6s; white-space: nowrap; }
@@ -106,6 +108,7 @@
   #tGas { width: 88px; height: 88px; right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); font-size: 15px; border-color: #7fe0a0aa; }
   #tBrake { width: 66px; height: 66px; right: calc(120px + env(safe-area-inset-right)); bottom: calc(16px + env(safe-area-inset-bottom)); font-size: 11px; border-color: #ff8c6aaa; }
   #tHb { width: 66px; height: 66px; right: calc(31px + env(safe-area-inset-right)); bottom: calc(124px + env(safe-area-inset-bottom)); font-size: 11px; }
+  #tRadio { width: 54px; height: 54px; right: calc(206px + env(safe-area-inset-right)); bottom: calc(116px + env(safe-area-inset-bottom)); font-size: 9px; border-color: #5aa0ffaa; }
   #tAct { width: 66px; height: 66px; right: calc(122px + env(safe-area-inset-right)); bottom: calc(102px + env(safe-area-inset-bottom)); font-size: 18px; border-color: #f2b33daa; }
   #tAct.ready { border-color: #f2b33d; animation: actpulse 0.9s ease-in-out infinite; }
   @keyframes actpulse { 50% { box-shadow: 0 4px 0 #0008, 0 0 0 7px #f2b33d55; } }
@@ -157,6 +160,7 @@
     <div id="hpwrap"><div id="hp"></div></div>
     <div id="hplabel">ON FOOT</div>
     <div id="clock"></div>
+    <div id="radioLine"></div>
   </div>
   <div id="area"></div>
   <div id="mission" hidden><span id="mTitle"></span><span id="mObj"></span><span id="mTimer"></span></div>
@@ -167,6 +171,7 @@
   <div id="miniwrap"><canvas id="mini" width="196" height="196"></canvas><div id="miniN">N</div></div>
   <div id="touch">
     <div id="stick"><div id="stickBase"><div id="stickKnob"></div></div></div>
+    <div class="tb" id="tRadio" hidden>RADIO</div>
     <div class="tb" id="tAct">E<small></small></div>
     <div class="tb" id="tHb">SPRINT</div>
     <div class="tb" id="tBrake">BRAKE</div>
@@ -185,6 +190,7 @@
     <span><kbd>E</kbd></span><span>steal car · get out · answer phone</span>
     <span><kbd>SPACE</kbd></span><span>handbrake (drift) · sprint on foot</span>
     <span><kbd>P</kbd> <kbd>M</kbd></span><span>pause · mute</span>
+    <span><kbd>T</kbd></span><span>radio station (in a car): off · WRST · Mill Town Blues · KTEO</span>
     <span><kbd>Q</kbd></span><span>graphics quality: high · medium · low</span>
     <span><kbd>R</kbd></span><span>respawn after Wasted / Busted</span>
   </div>
@@ -193,6 +199,7 @@
     <span><kbd>E</kbd></span><span>steal car · get out · answer phone</span>
     <span><kbd>GAS</kbd> <kbd>BRAKE</kbd></span><span>accelerate · brake and reverse</span>
     <span><kbd>DRIFT</kbd></span><span>handbrake in a car · sprint on foot</span>
+    <span><kbd>RADIO</kbd></span><span>change station (in a car)</span>
     <span><kbd>II</kbd></span><span>pause, mute and graphics</span>
   </div>
   <button class="go" id="goBtn">PRESS ENTER</button>
@@ -358,9 +365,9 @@ try {
 } catch (e) { $('nogl').hidden = false; $('title').hidden = true; throw e; }
 // ---------- Graphics quality (Q cycles; chosen once from the device, then steps down by itself if frames run slow)
 const QUALITY = {
-  low:    { pr: 1,    shadow: 0,    post: false, samples: 0, peds: 30, traffic: 12, nightFx: false, rain: 800, splash: 0, wetRefl: 0, wetReflEvery: 1 },
-  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2, refl: 0.33, reflEvery: 2, nightFx: true, rain: 1500, splash: 450, wetRefl: 0.25, wetReflEvery: 2 },
-  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1, refl: 0.5, reflEvery: 1, nightFx: true, rain: 3000, splash: 900, wetRefl: 0.4, wetReflEvery: 1 },
+  low:    { pr: 1,    shadow: 0,    post: false, samples: 0, peds: 30, traffic: 12, nightFx: false, skid: 300, rain: 800, splash: 0, wetRefl: 0, wetReflEvery: 1 },
+  medium: { pr: 1.25, shadow: 1024, post: true,  samples: 2, peds: 40, traffic: 15, bloomScale: 0.5, shadowEvery: 2, refl: 0.33, reflEvery: 2, nightFx: true, skid: 500, rain: 1500, splash: 450, wetRefl: 0.25, wetReflEvery: 2 },
+  high:   { pr: 2,    shadow: 2048, post: true,  samples: 4, peds: 46, traffic: 18, bloomScale: 1, shadowEvery: 1, refl: 0.5, reflEvery: 1, nightFx: true, skid: 800, rain: 3000, splash: 900, wetRefl: 0.4, wetReflEvery: 1 },
 };
 const Q_ORDER = ['high', 'medium', 'low'];
 const coarse = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 600;
@@ -1830,16 +1837,16 @@ const peds = [];
 // CARS
 // =========================================================================
 const CAR_TYPES = {
-  sedan:  { max: 36, acc: 22, turn: 2.2, body: [2.1, 0.78, 4.5, 0.72], hp: 100, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.7, A0: 0.85, A1: 0.15, C1: -1.0, C0: -1.5, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
-  coupe:  { max: 40, acc: 25, turn: 2.4, body: [2.05, 0.68, 4.3, 0.66], hp: 90, p: { belt: 0.94, hoodF: 0.88, trunk: 0.92, wb: 2.55, A0: 0.6, A1: -0.1, C1: -0.75, C0: -1.65, top: 1.36, cw: 1.72, lights: 'round', vinyl: '#2a1f1a' } },
-  sport:  { max: 50, acc: 34, turn: 2.6, body: [2.15, 0.6, 4.7, 0.6], hp: 85, p: { belt: 0.86, hoodF: 0.8, trunk: 0.88, wb: 2.7, A0: 0.45, A1: -0.45, C1: -0.95, C0: -1.6, top: 1.22, cw: 1.68, lights: 'slim', spoiler: true } },
-  van:    { max: 29, acc: 17, turn: 1.9, body: [2.25, 1.75, 4.9, 1.22], hp: 140, p: { belt: 1.1, hoodF: 1.04, trunk: 1.1, wb: 2.95, A0: 1.95, A1: 1.5, C1: -2.42, C0: -2.45, top: 2.2, cw: 2.13, wins: [[1.9, 0.85], [0.6, -0.5]], lights: 'round', band: '#e8dcc0' } },
-  pickup: { max: 33, acc: 20, turn: 2.1, body: [2.2, 0.9, 4.8, 0.8], hp: 120, p: { belt: 1.02, hoodF: 0.95, trunk: 1.02, wb: 3.0, A0: 0.75, A1: 0.32, C1: -0.5, C0: -0.58, top: 1.8, cw: 1.9, wins: [[0.75, -0.55]], lights: 'round', bed: true } },
-  taxi:   { max: 37, acc: 23, turn: 2.25, body: [2.1, 0.78, 4.5, 0.72], hp: 100, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.7, A0: 0.85, A1: 0.15, C1: -1.0, C0: -1.5, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
-  police: { max: 41, acc: 27, turn: 2.35, body: [2.1, 0.78, 4.6, 0.72], hp: 130, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.75, A0: 0.88, A1: 0.18, C1: -1.0, C0: -1.52, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
+  sedan:  { engine: { wave: 'sawtooth', wave2: 'sawtooth', det: 8, ratio: 1, base: 38, lp: 300, lpk: 28, gain: 0.07 }, max: 36, acc: 22, turn: 2.2, body: [2.1, 0.78, 4.5, 0.72], hp: 100, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.7, A0: 0.85, A1: 0.15, C1: -1.0, C0: -1.5, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
+  coupe:  { engine: { wave: 'sawtooth', wave2: 'square', det: 14, ratio: 2, base: 44, lp: 420, lpk: 40, gain: 0.065 }, max: 40, acc: 25, turn: 2.4, body: [2.05, 0.68, 4.3, 0.66], hp: 90, p: { belt: 0.94, hoodF: 0.88, trunk: 0.92, wb: 2.55, A0: 0.6, A1: -0.1, C1: -0.75, C0: -1.65, top: 1.36, cw: 1.72, lights: 'round', vinyl: '#2a1f1a' } },
+  sport:  { engine: { wave: 'sawtooth', wave2: 'sawtooth', det: 22, ratio: 1.5, base: 56, lp: 600, lpk: 55, gain: 0.07 }, max: 50, acc: 34, turn: 2.6, body: [2.15, 0.6, 4.7, 0.6], hp: 85, p: { belt: 0.86, hoodF: 0.8, trunk: 0.88, wb: 2.7, A0: 0.45, A1: -0.45, C1: -0.95, C0: -1.6, top: 1.22, cw: 1.68, lights: 'slim', spoiler: true } },
+  van:    { engine: { wave: 'triangle', wave2: 'square', det: -9, ratio: 0.5, base: 28, lp: 220, lpk: 18, gain: 0.1 }, max: 29, acc: 17, turn: 1.9, body: [2.25, 1.75, 4.9, 1.22], hp: 140, p: { belt: 1.1, hoodF: 1.04, trunk: 1.1, wb: 2.95, A0: 1.95, A1: 1.5, C1: -2.42, C0: -2.45, top: 2.2, cw: 2.13, wins: [[1.9, 0.85], [0.6, -0.5]], lights: 'round', band: '#e8dcc0' } },
+  pickup: { engine: { wave: 'square', wave2: 'sawtooth', det: 6, ratio: 0.5, base: 32, lp: 260, lpk: 22, gain: 0.085 }, max: 33, acc: 20, turn: 2.1, body: [2.2, 0.9, 4.8, 0.8], hp: 120, p: { belt: 1.02, hoodF: 0.95, trunk: 1.02, wb: 3.0, A0: 0.75, A1: 0.32, C1: -0.5, C0: -0.58, top: 1.8, cw: 1.9, wins: [[0.75, -0.55]], lights: 'round', bed: true } },
+  taxi:   { engine: { wave: 'sawtooth', wave2: 'square', det: 4, ratio: 1, base: 34, lp: 340, lpk: 30, gain: 0.065 }, max: 37, acc: 23, turn: 2.25, body: [2.1, 0.78, 4.5, 0.72], hp: 100, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.7, A0: 0.85, A1: 0.15, C1: -1.0, C0: -1.5, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
+  police: { engine: { wave: 'sawtooth', wave2: 'sawtooth', det: 5, ratio: 0.5, base: 31, lp: 380, lpk: 34, gain: 0.085 }, max: 41, acc: 27, turn: 2.35, body: [2.1, 0.78, 4.6, 0.72], hp: 130, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.75, A0: 0.88, A1: 0.18, C1: -1.0, C0: -1.52, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
 };
 const CAR_COLORS = ['#c8553d', '#e0a339', '#3c6e71', '#8c5a3c', '#d9cbb0', '#5b7b3a', '#2f4b7c', '#a33b5a', '#e7e2d4', '#6a2e2a', '#c9a26a', '#4a6a3a', '#7a8a9a'];
-const glassMat = new THREE.MeshStandardMaterial({ color: '#1a2430', roughness: 0.05, metalness: 0.85, envMapIntensity: 1.6, side: THREE.DoubleSide });
+const glassMat = new THREE.MeshStandardMaterial({ color: '#1a2430', map: null, roughness: 0.05, metalness: 0.85, envMapIntensity: 1.6, side: THREE.DoubleSide });
 const carTrimMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.75, envMapIntensity: 1.3 });
 const wheelMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4, envMapIntensity: 0.9 });
 const headMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 2.0, 1.5), toneMapped: false });
@@ -1934,7 +1941,9 @@ function carGeo(type) {
   // wheels: tyre with sidewall, chrome hubcap
   const wheel = mergeGeometries([vc(new THREE.CylinderGeometry(WR, WR, 0.3, 18), '#151515'), vc(new THREE.TorusGeometry(WR - 0.04, 0.05, 6, 18).rotateX(Math.PI / 2).translate(0, 0.14, 0), '#202020'), vc(new THREE.TorusGeometry(WR - 0.04, 0.05, 6, 18).rotateX(Math.PI / 2).translate(0, -0.14, 0), '#202020'),
     vc(new THREE.CylinderGeometry(0.22, 0.24, 0.32, 14), type === 'sport' ? '#3a3a3a' : '#c8c8c4'), vc(new THREE.CylinderGeometry(0.07, 0.07, 0.34, 8), '#8a8a86')].map(NI)).rotateZ(Math.PI / 2);
-  const g = { paint: mergeGeometries(paint.map(NI)), glass: mergeGeometries(glass), trim: mergeGeometries(trim.map(NI)), head: mergeGeometries(head.map(NI)), tail: mergeGeometries(tail.map(NI)), brake: mergeGeometries(brake.map(NI)), wheel,
+  const wheelBare = mergeGeometries([vc(new THREE.CylinderGeometry(WR, WR, 0.3, 18), '#151515'), vc(new THREE.TorusGeometry(WR - 0.04, 0.05, 6, 18).rotateX(Math.PI / 2).translate(0, 0.14, 0), '#202020'), vc(new THREE.TorusGeometry(WR - 0.04, 0.05, 6, 18).rotateX(Math.PI / 2).translate(0, -0.14, 0), '#202020'),
+    vc(new THREE.CylinderGeometry(0.2, 0.2, 0.32, 14), '#4a3a30'), vc(new THREE.CylinderGeometry(0.06, 0.06, 0.34, 6), '#2a2220')].map(NI)).rotateZ(Math.PI / 2);
+  const g = { wheelBare, paint: mergeGeometries(paint.map(NI)), glass: mergeGeometries(glass), trim: mergeGeometries(trim.map(NI)), head: mergeGeometries(head.map(NI)), tail: mergeGeometries(tail.map(NI)), brake: mergeGeometries(brake.map(NI)), wheel,
     beam: new THREE.PlaneGeometry(5.5, 13).rotateX(-Math.PI / 2).translate(0, 0.07, h + 6.4), W, L };
   if (type === 'police' || type === 'taxi') {
     const dl = type === 'police' ? 1.7 : L - 1.4, dh = type === 'police' ? 0.42 : 0.2, dy = type === 'police' ? (p.belt + yb) / 2 + 0.02 : p.belt - 0.12;
@@ -1974,11 +1983,169 @@ function makeCar(type, color, x, z, angle, kind) {
   const car = { type, spec: s, g, body, bodyMesh, glass, trim, head, tail, brake, beam, hpool, decal, pools, wheels, bar, x, z, angle, vx: 0, vz: 0, speed: 0, health: s.hp, maxHp: s.hp, kind, driver: kind === 'traffic' || kind === 'police', wp: [], from: -1, to: -1, onFire: false, fireT: 0, wreck: false, wreckT: 0, color, stuck: 0, rev: 0, cruise: rr(11, 16), path: [], pathT: 0, lastSteer: 0, roll: 0, smokeT: 0, mission: false, horn: 0 };
   cars.push(car); return car;
 }
-function removeCar(c) { scene.remove(c.g); const i = cars.indexOf(c); if (i >= 0) cars.splice(i, 1); }
+function removeCar(c) { if (c.dent) { c.dent.paint.dispose(); c.dent.trim.dispose(); } scene.remove(c.g); const i = cars.indexOf(c); if (i >= 0) cars.splice(i, 1); }
 function charCar(c) {
   for (const m of [c.bodyMesh, c.glass, c.trim, c.head, c.tail]) m.material = charMat;
+  c.glass.visible = false;   // wrecks lose their glass
   for (const w of c.wheels) w.material = charMat;
   c.brake.visible = c.beam.visible = c.hpool.visible = false; if (c.decal) c.decal.visible = false; if (c.bar) c.bar.visible = false; if (c.pools) c.pools.visible = false;
+}
+
+// ---------- Damage: dents, cracked glass, hubcaps
+// Each car shares its body geometry with its type. On the first real hit a car gets its own copy of the body and trim
+// (c.dent), and vertices near the impact are pushed inward (never more than DENT_MAX from where they started).
+const DENT_MAX = 0.3;
+const crackMat = glassMat.clone();
+crackMat.color.set('#ffffff');
+crackMat.map = glowTex((g, w, h) => {
+  g.fillStyle = '#1a2430'; g.fillRect(0, 0, w, h);
+  let sd = 7; const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+  g.strokeStyle = 'rgba(214,230,242,0.95)'; g.lineCap = 'round';
+  for (const [cx, cy, n] of [[w * 0.42, h * 0.55, 9], [w * 0.85, h * 0.2, 5]]) {
+    for (let i = 0; i < n; i++) {
+      let a = i / n * 6.283 + rnd() * 0.5, x = cx, y = cy; g.lineWidth = 2.2; g.beginPath(); g.moveTo(x, y);
+      for (let k = 0; k < 5; k++) { const l = 14 + rnd() * 26; a += (rnd() - 0.5) * 0.45; x += Math.cos(a) * l; y += Math.sin(a) * l; g.lineTo(x, y); if (rnd() < 0.3) { g.lineWidth = 1.2; } }
+      g.stroke();
+    }
+    g.lineWidth = 1.2; for (const r of [14, 30, 52]) { g.beginPath(); for (let i = 0; i <= 12; i++) { const a = i / 12 * 6.283, rr2 = r * (0.85 + rnd() * 0.3); i ? g.lineTo(cx + Math.cos(a) * rr2, cy + Math.sin(a) * rr2) : g.moveTo(cx + Math.cos(a) * rr2, cy + Math.sin(a) * rr2); } g.stroke(); }
+  }
+}, 256, 256);
+crackMat.map.wrapS = crackMat.map.wrapT = THREE.RepeatWrapping; crackMat.map.repeat.set(0.6, 0.6);
+glassMat.map = glowTex((g, w, h) => { g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); }, 4, 4);   // blank map: the cracked glass then needs no extra shader
+// Split the triangles that touch a sphere around (px, py, pz) until their edges are about 0.3 m, so a dent has something to bend.
+// Attributes (position, normal, uv and the 'orig' copy of the undented positions) are interpolated together.
+const _tri = new THREE.Triangle(), _tp = new THREE.Vector3(), _tc = new THREE.Vector3();
+function tessellateNear(geo, px, py, pz, R) {
+  _tp.set(px, py, pz);
+  const names = Object.keys(geo.attributes), sizes = names.map(n => geo.attributes[n].itemSize);
+  let src = names.map(n => geo.attributes[n].array);
+  for (let pass = 0; pass < 5; pass++) {
+    const pos = src[0], nTri = pos.length / 9, out = names.map(() => []); let split = 0;
+    for (let t = 0; t < nTri; t++) {
+      const o = t * 9; _tri.a.set(pos[o], pos[o + 1], pos[o + 2]); _tri.b.set(pos[o + 3], pos[o + 4], pos[o + 5]); _tri.c.set(pos[o + 6], pos[o + 7], pos[o + 8]);
+      const e = Math.max(_tri.a.distanceToSquared(_tri.b), _tri.b.distanceToSquared(_tri.c), _tri.c.distanceToSquared(_tri.a));
+      const doSplit = e > 0.09 && _tri.closestPointToPoint(_tp, _tc).distanceToSquared(_tp) < R * R;
+      for (let a = 0; a < names.length; a++) {
+        const sz = sizes[a], arr = src[a], v = t * 3 * sz, A = arr.subarray(v, v + sz), B = arr.subarray(v + sz, v + 2 * sz), C = arr.subarray(v + 2 * sz, v + 3 * sz), dst = out[a];
+        if (!doSplit) { for (let k = 0; k < 3 * sz; k++) dst.push(arr[v + k]); continue; }
+        const AB = [], BC = [], CA = []; for (let k = 0; k < sz; k++) { AB.push((A[k] + B[k]) / 2); BC.push((B[k] + C[k]) / 2); CA.push((C[k] + A[k]) / 2); }
+        for (const tri of [[A, AB, CA], [AB, B, BC], [CA, BC, C], [AB, BC, CA]]) for (const vtx of tri) for (let k = 0; k < sz; k++) dst.push(vtx[k]);
+      }
+      if (doSplit) split++;
+    }
+    src = out.map(a => new Float32Array(a)); if (!split) break;
+  }
+  const ng = new THREE.BufferGeometry(); names.forEach((n, i) => ng.setAttribute(n, new THREE.BufferAttribute(src[i], sizes[i])));
+  return ng;
+}
+const dentHash = i => { const v = Math.sin(i * 12.9898) * 43758.5453; return v - Math.floor(v); };
+function dentCar(c, dx, dz, force) {   // (dx, dz): world direction from the car's centre toward what it hit
+  if (c.wreck || force < 0.5) return;
+  const t0 = performance.now(); if (t0 - (c.dentAt || 0) < 120) return; c.dentAt = t0;
+  const ca = Math.cos(c.angle), sa = Math.sin(c.angle);
+  let lx = dx * ca - dz * sa, lz = dx * sa + dz * ca; const l0 = Math.hypot(lx, lz) || 1; lx /= l0; lz /= l0;
+  const Wd = c.spec.body[0], Ln = c.spec.body[2], belt = c.spec.p.belt;
+  const k = Math.min((Wd / 2) / Math.max(Math.abs(lx), 1e-3), (Ln / 2) / Math.max(Math.abs(lz), 1e-3)), px = lx * k, pz = lz * k, py = 0.6 + Math.random() * 0.15;
+  if (!c.dent) {
+    const G = carGeo(c.type); c.dent = { paint: G.paint.clone(), trim: G.trim.clone() };
+    for (const g of [c.dent.paint, c.dent.trim]) g.setAttribute('orig', new THREE.BufferAttribute(g.attributes.position.array.slice(), 3));
+  }
+  const R = 0.8 + Math.min(0.5, force * 0.02), depth = Math.min(0.25, 0.08 + force * 0.014);
+  const parts = [c.dent.paint, c.dent.trim].map(g => { const ng = tessellateNear(g, px, py, pz, R); g.dispose(); return ng; });
+  [c.dent.paint, c.dent.trim] = parts; c.bodyMesh.geometry = parts[0]; c.trim.geometry = parts[1];
+  for (const geo of parts) {
+    const a = geo.attributes.position.array, orig = geo.attributes.orig.array;
+    for (let i = 0; i < a.length; i += 3) {
+      const y = a[i + 1], wy = clamp((belt + 0.1 - y) / 0.12, 0, 1); if (wy <= 0) continue;
+      const ddx = a[i] - px, ddy = y - py, ddz = a[i + 2] - pz, d = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz); if (d >= R) continue;
+      const w = (1 - d / R) ** 2 * wy, j = dentHash(i + (c.dent.n || 0) * 7), push = depth * w;
+      a[i] -= lx * push; a[i + 2] -= lz * push; a[i + 1] += (j - 0.5) * 0.09 * w - (y > py ? push * 0.5 : 0); a[i] += (dentHash(i + 3) - 0.5) * 0.03 * w; a[i + 2] += (dentHash(i + 5) - 0.5) * 0.03 * w;
+      const ox = a[i] - orig[i], oy = a[i + 1] - orig[i + 1], oz = a[i + 2] - orig[i + 2], m = Math.sqrt(ox * ox + oy * oy + oz * oz);
+      if (m > DENT_MAX) { const f = DENT_MAX / m; a[i] = orig[i] + ox * f; a[i + 1] = orig[i + 1] + oy * f; a[i + 2] = orig[i + 2] + oz * f; }
+    }
+    geo.attributes.position.needsUpdate = true; geo.computeVertexNormals();
+  }
+  c.dent.n = (c.dent.n || 0) + 1;
+  if (force > 6 && Math.abs(lx) > 0.6 && Math.random() < 0.5) popHubcap(c, lx > 0 ? 1 : -1, lz > 0 ? 1 : -1);
+}
+function repairCar(c) {
+  if (c.dent) {
+    for (const g of [c.dent.paint, c.dent.trim]) g.attributes.position.array.set(g.attributes.orig.array);
+    for (const g of [c.dent.paint, c.dent.trim]) { g.attributes.position.needsUpdate = true; g.computeVertexNormals(); }
+  }
+  if (!c.wreck) c.glass.material = glassMat;
+  const G = carGeo(c.type); for (const w of c.wheels) if (w.userData.capOff) { w.geometry = G.wheel; w.userData.capOff = false; }
+}
+const capGeo = new THREE.CylinderGeometry(0.2, 0.24, 0.05, 14), capMat = new THREE.MeshStandardMaterial({ color: '#c8c8c4', metalness: 0.8, roughness: 0.3, envMapIntensity: 1 });
+const caps = [];
+for (let i = 0; i < 8; i++) { const g = new THREE.Group(), m = new THREE.Mesh(capGeo, capMat); m.castShadow = false; g.add(m); g.visible = false; scene.add(g); caps.push({ g, m, life: 0, vx: 0, vy: 0, vz: 0, flat: 0, y: 0 }); }
+function popHubcap(c, sx, sz) {   // sx: side of the car (+1 / -1), sz: front (+1) or rear (-1)
+  const G = carGeo(c.type); let w = c.wheels[(sz > 0 ? 0 : 2) + (sx > 0 ? 1 : 0)];
+  if (w.userData.capOff) w = c.wheels[(sz > 0 ? 2 : 0) + (sx > 0 ? 1 : 0)];
+  if (w.userData.capOff) return;
+  w.geometry = G.wheelBare; w.userData.capOff = true;
+  let cap = caps.find(k => !k.g.visible); if (!cap) cap = caps.reduce((a, b) => a.life < b.life ? a : b);
+  const ca = Math.cos(c.angle), sa = Math.sin(c.angle), lx = w.position.x, lz = w.position.z;
+  cap.g.position.set(c.x + lx * ca + lz * sa, 0.4, c.z - lx * sa + lz * ca);
+  const ox = sx * ca, oz = -sx * sa;   // the car's side, in world space
+  cap.vx = c.vx * 0.8 + ox * rr(3, 7); cap.vz = c.vz * 0.8 + oz * rr(3, 7); cap.vy = rr(3, 6); cap.flat = 0; cap.life = 6; cap.g.visible = true;
+  cap.g.rotation.y = Math.atan2(cap.vx, cap.vz); cap.m.rotation.set(0, 0, Math.PI / 2);
+  if (c === player.car) sfxBeep(1800, 0.12, 'triangle', 0.05);
+}
+function updateHubcaps(dt) {
+  for (const k of caps) {
+    if (!k.g.visible) continue;
+    k.life -= dt; if (k.life <= 0) { k.g.visible = false; continue; }
+    const p = k.g.position; k.vy -= 24 * dt; p.x += k.vx * dt; p.y += k.vy * dt; p.z += k.vz * dt;
+    if (p.y <= 0.24 && k.vy < 0) {
+      p.y = 0.24; if (-k.vy > 2) { k.vy *= -0.4; k.vx *= 0.8; k.vz *= 0.8; } else k.vy = 0;
+      const f = Math.exp(-0.9 * dt); k.vx *= f; k.vz *= f;
+    }
+    const sp = Math.hypot(k.vx, k.vz);
+    if (sp < 2.2 && p.y < 0.3) { k.flat = Math.min(1, k.flat + dt * 2.5); p.y = lerp(0.24, 0.03, k.flat); }
+    k.m.rotation.z = (Math.PI / 2) * (1 - k.flat); k.m.rotation.x = k.flat < 1 ? Math.sin(k.life * 20) * 0.35 * (1 - k.flat) : 0;
+  }
+}
+
+// ---------- Skid marks: a ring buffer of thin dark quads, one instanced draw
+const SK_MAX = 800, skAlpha = new Float32Array(SK_MAX), skBirth = new Float32Array(SK_MAX).fill(-1e9);
+const skGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2); skGeo.setAttribute('aA', new THREE.InstancedBufferAttribute(skAlpha, 1));
+const skMat = new THREE.MeshBasicMaterial({ color: '#070606', transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+skMat.onBeforeCompile = s => {
+  s.vertexShader = 'attribute float aA; varying float vSA;\n' + s.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSA = aA;');
+  s.fragmentShader = 'varying float vSA;\n' + s.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n  diffuseColor.a *= vSA;');
+};
+const skIM = new THREE.InstancedMesh(skGeo, skMat, SK_MAX); skIM.frustumCulled = false; skIM.count = 0; skIM.visible = false; skIM.renderOrder = 1; scene.add(skIM);
+let skHead = 0, skFilled = 0, skT = 0;
+const skDummy = new THREE.Object3D();
+function layMark(x, z, hd, len) {
+  const n = Math.min(SK_MAX, QS.skid), i = skHead % n; skHead = (i + 1) % n;
+  skDummy.position.set(x, 0.03, z); skDummy.rotation.set(0, hd, 0); skDummy.scale.set(0.27, 1, len); skDummy.updateMatrix();
+  skIM.setMatrixAt(i, skDummy.matrix); skIM.instanceMatrix.needsUpdate = true;
+  skBirth[i] = time; skAlpha[i] = 0.55; skFilled = Math.max(skFilled, i + 1); skIM.count = Math.min(skFilled, n); skIM.visible = true;
+  skGeo.attributes.aA.needsUpdate = true;
+}
+function laySkids(c, thr, hb) {   // called from stepCar: a pair of marks at the rear wheels while sliding or braking hard
+  const sp = Math.hypot(c.vx, c.vz);
+  const hard = (hb || (thr < 0 && c.speed > 0.5) || (thr > 0 && c.speed < -0.5)) && sp > 12;
+  if (c.wreck || c.liftY || sp < 5 || !(c.drift > 4.5 || hard) || Math.abs(c.x - focus.x) > 110 || Math.abs(c.z - focus.z) > 110) { c.sk = null; return; }
+  const ca = Math.cos(c.angle), sa = Math.sin(c.angle), wx = c.spec.body[0] / 2 - 0.2, wz = -c.spec.p.wb / 2;
+  const cur = [];
+  for (const sx of [-1, 1]) cur.push(c.x + sx * wx * ca + wz * sa, c.z - sx * wx * sa + wz * ca);
+  if (!c.sk) { c.sk = cur; return; }
+  const d = Math.hypot(cur[0] - c.sk[0], cur[1] - c.sk[1]); if (d < 0.45) return;
+  for (let k = 0; k < 4; k += 2) {
+    const ax = c.sk[k], az = c.sk[k + 1], bx = cur[k], bz = cur[k + 1];
+    if (tileAt(Math.floor(bx / T), Math.floor(bz / T)) === TILE.WATER) continue;
+    layMark((ax + bx) / 2, (az + bz) / 2, Math.atan2(bx - ax, bz - az), Math.min(2.5, d + 0.12));
+  }
+  c.sk = cur;
+}
+function updateSkids(t, dt) {
+  skT -= dt; if (skT > 0 || !skIM.visible) return; skT = 0.3;
+  const n = Math.min(SK_MAX, QS.skid); let any = false;
+  for (let i = 0; i < n; i++) { const age = t - skBirth[i]; const a = age > 60 ? 0 : 0.55 * (1 - age / 60); if (a !== skAlpha[i]) { skAlpha[i] = a; any = true; } }
+  if (any) skGeo.attributes.aA.needsUpdate = true;
 }
 
 // ---------- Collision helpers
@@ -2015,15 +2182,15 @@ function stepCar(c, thr, steer, hb, dt) {
   if (carHitsWorld(c, c.x, c.z)) c.angle = prevA;
   fx = Math.sin(c.angle); fz = Math.cos(c.angle);
   c.vx = fx * vf + fz * vl; c.vz = fz * vf - fx * vl;
-  let hit = 0;
+  let hit = 0, hvx = 0, hvz = 0;
   const nx = c.x + c.vx * dt;
-  if (carHitsWorld(c, nx, c.z)) { hit = Math.max(hit, Math.abs(c.vx)); c.vx *= -0.25; } else c.x = nx;
+  if (carHitsWorld(c, nx, c.z)) { hit = Math.max(hit, Math.abs(c.vx)); hvx = c.vx; c.vx *= -0.25; } else c.x = nx;
   const nz = c.z + c.vz * dt;
-  if (carHitsWorld(c, c.x, nz)) { hit = Math.max(hit, Math.abs(c.vz)); c.vz *= -0.25; } else c.z = nz;
+  if (carHitsWorld(c, c.x, nz)) { hit = Math.max(hit, Math.abs(c.vz)); hvz = c.vz; c.vz *= -0.25; } else c.z = nz;
   c.speed = c.vx * fx + c.vz * fz;
-  c.drift = Math.abs(vl);
+  c.drift = Math.abs(vl); laySkids(c, thr, hb);
   if (hit > 7) {
-    damageCar(c, (hit - 7) * 1.3, null);
+    damageCar(c, (hit - 7) * 1.3, null); dentCar(c, hvx, hvz, hit - 7);
     if (c === player.car) { sfxCrash(Math.min(1, hit / 30)); shake = Math.max(shake, Math.min(1.2, hit / 25)); }
     sparks(c.x + fx * 2.2, 0.8, c.z + fz * 2.2, Math.min(14, hit / 2));
   }
@@ -2076,6 +2243,7 @@ function knockProp(o, c) {
 function damageCar(c, amt, by) {
   if (c.wreck || amt <= 0) return;
   c.health -= amt;
+  if (c.health < c.maxHp * 0.5 && c.glass.material !== crackMat) c.glass.material = crackMat;
   if (c.health <= 0 && !c.onFire) { c.onFire = true; c.fireT = c === player.car ? 4 : 2.5; c.firedBy = by; if (c === player.car) flashBanner('', 'Car on fire. GET OUT!', 1.6, '#ff5a4a'); }
 }
 function explodeCar(c) {
@@ -2116,6 +2284,7 @@ function carCollisions() {
       if (imp > 5) {
         const dmg = (imp - 5) * 1.4;
         damageCar(a, dmg, b === player.car ? 'player' : null); damageCar(b, dmg, a === player.car ? 'player' : null);
+        dentCar(a, nx, nz, imp - 3); dentCar(b, -nx, -nz, imp - 3);
         const pc = a === player.car ? b : b === player.car ? a : null;
         if (pc) { sfxCrash(Math.min(1, imp / 25)); shake = Math.max(shake, Math.min(1, imp / 30)); sparks((a.x + b.x) / 2, 0.9, (a.z + b.z) / 2, 8); if (pc.type === 'police' && imp > 8) crime(0.5, true); else if (imp > 12) addScore(5, ''); }
         if (pc && pc.kind === 'traffic' && pc.driver) pc.horn = 1.2;
@@ -2664,7 +2833,7 @@ function updateRespray(dt) {
   if (score < 250) { toast('Respray costs $250'); resprayCD = 2; return; }
   score -= 250; heat = 0; evade = 0; resprayCD = 4;
   const c = player.car; const col = pick(CAR_COLORS); if (!c.mission) { c.bodyMesh.material = paintMat(col); c.color = col; }
-  c.health = c.maxHp; for (const o of cars) if (o.kind === 'police') o.kind = 'traffic', o.wp = [], o.from = nearestNode(o.x, o.z), o.to = pick(nodes[o.from].nb);
+  c.health = c.maxHp; repairCar(c); for (const o of cars) if (o.kind === 'police') o.kind = 'traffic', o.wp = [], o.from = nearestNode(o.x, o.z), o.to = pick(nodes[o.from].nb);
   sfxSpray(); flashBanner('', 'Fresh paint. New plates. Nobody knows you.', 2, '#4fd1c5');
 }
 
@@ -2730,6 +2899,7 @@ function updateHud(dt, t) {
   const hpPct = c ? clamp(c.health / c.maxHp, 0, 1) : clamp(player.health / 100, 0, 1);
   $('hp').style.width = Math.round(hpPct * 100) + '%';
   setHud('clock', clockText);
+  setHud('radioLine', c ? (R.st ? '♪ ' + R.names[R.st] : (TOUCH.on ? '' : 'T · RADIO')) : '');
   setHud('hplabel', c ? (c.onFire ? 'ON FIRE!' : 'CAR ' + c.type.toUpperCase()) : 'ON FOOT');
   $('speedo').hidden = !c;
   if (c) $('speedo').firstElementChild.textContent = Math.round(Math.abs(c.speed) * 2.2);
@@ -2744,7 +2914,7 @@ function updateHud(dt, t) {
   if (TOUCH.on) {
     if (lastHud.act !== act) { lastHud.act = act; $('tAct').lastElementChild.textContent = act; $('tAct').classList.toggle('ready', !!act); }
     const inCar = !!c && state === 'play';
-    if (lastHud.inCar !== inCar) { lastHud.inCar = inCar; $('tGas').hidden = $('tBrake').hidden = !inCar; $('tHb').textContent = inCar ? 'DRIFT' : 'SPRINT'; }
+    if (lastHud.inCar !== inCar) { lastHud.inCar = inCar; $('tGas').hidden = $('tBrake').hidden = $('tRadio').hidden = !inCar; $('tHb').textContent = inCar ? 'DRIFT' : 'SPRINT'; }
   }
   // area name
   const ar = district(Math.floor(focus.x / T), Math.floor(focus.z / T));
@@ -2758,7 +2928,7 @@ function updateHud(dt, t) {
 // =========================================================================
 // AUDIO
 // =========================================================================
-const A = { ctx: null, master: null, eng: null, engGain: null, engFilt: null, sir: null, sirGain: null, muted: false, noise: null };
+const A = { ctx: null, master: null, eng2: null, engType: '', eng: null, engGain: null, engFilt: null, sir: null, sirGain: null, muted: false, noise: null };
 let sirenDist = 1e9;
 function initAudio() {
   if (A.ctx) { A.ctx.resume(); return; }
@@ -2766,12 +2936,121 @@ function initAudio() {
     const ctx = new (window.AudioContext || window.webkitAudioContext)(); A.ctx = ctx;
     A.master = ctx.createGain(); A.master.gain.value = 0.5; A.master.connect(ctx.destination);
     A.eng = ctx.createOscillator(); A.eng.type = 'sawtooth'; A.engFilt = ctx.createBiquadFilter(); A.engFilt.type = 'lowpass'; A.engFilt.frequency.value = 500;
-    A.engGain = ctx.createGain(); A.engGain.gain.value = 0; A.eng.connect(A.engFilt).connect(A.engGain).connect(A.master); A.eng.start();
+    A.eng2 = ctx.createOscillator(); A.eng2.type = 'sawtooth'; A.eng2.connect(A.engFilt);
+    A.engGain = ctx.createGain(); A.engGain.gain.value = 0; A.eng.connect(A.engFilt).connect(A.engGain).connect(A.master); A.eng.start(); A.eng2.start();
     A.sir = ctx.createOscillator(); A.sir.type = 'triangle'; A.sirGain = ctx.createGain(); A.sirGain.gain.value = 0; A.sir.connect(A.sirGain).connect(A.master); A.sir.start();
     const len = ctx.sampleRate; const buf = ctx.createBuffer(1, len, ctx.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1; A.noise = buf;
     const loop = (type, f, q) => { const s = ctx.createBufferSource(); s.buffer = buf; s.loop = true; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain(); g.gain.value = 0; s.connect(fl).connect(g).connect(A.master); s.start(); return { fl, g }; };
     A.rainS = loop('lowpass', 5000, 0.4); A.windS = loop('lowpass', 320, 2.5);
+    radioInit();
   } catch (e) { A.ctx = null; }
+}
+
+// ---------- Radio: three original stations, all synthesized live (no samples). T cycles: off, WRST, Mill Town Blues, KTEO.
+// A lookahead timer (the "two clocks" way) schedules notes about 0.7 s ahead on the audio clock. Each station plays through
+// its own gain bus, so switching mutes whatever the old station had already scheduled.
+const R = { st: 0, names: ['RADIO OFF', 'WRST 1979', 'MILL TOWN BLUES', 'KTEO TALK RADIO'], next: 0, s: [null, { n: 0 }, { n: 0 }, { n: 0, q: [], mode: 0 }], out: null, buses: [], on: false, pat: null, w: [0, 1, 1.8, 2.4] };   // w: per-station loudness trim
+try { R.st = clamp(+localStorage.getItem('rustwater-radio') || 0, 0, 3) | 0; } catch (e) { /* storage blocked */ }
+const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+function rTone(bus, t, f, dur, type, vol, o = {}) {   // one enveloped note; o: f1 (glide to), lp0/lp1 (filter sweep), q, att
+  const c = A.ctx, os = c.createOscillator(), g = c.createGain(); os.type = type; os.frequency.setValueAtTime(f, t);
+  if (o.f1) os.frequency.exponentialRampToValueAtTime(o.f1, t + (o.fd || dur));
+  let node = os;
+  if (o.lp0) { const fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.Q.value = o.q || 1; fl.frequency.setValueAtTime(o.lp0, t); fl.frequency.exponentialRampToValueAtTime(o.lp1 || 200, t + dur); os.connect(fl); node = fl; }
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + (o.att || 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  node.connect(g).connect(bus); os.start(t); os.stop(t + dur + 0.05);
+}
+function rNoise(bus, t, dur, vol, type, freq, q = 1) {
+  const c = A.ctx, s2 = c.createBufferSource(), f = c.createBiquadFilter(), g = c.createGain(); s2.buffer = A.noise; f.type = type; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); s2.connect(f).connect(g).connect(bus); s2.start(t, Math.random() * 0.5); s2.stop(t + dur + 0.05);
+}
+const rKick = (b, t, v) => rTone(b, t, 130, 0.2, 'sine', v, { f1: 42, fd: 0.12 });
+const rSnare = (b, t, v) => { rNoise(b, t, 0.14, v, 'bandpass', 1900, 0.7); rTone(b, t, 200, 0.09, 'triangle', v * 0.6, { f1: 150 }); };
+const rHat = (b, t, v, d = 0.035) => rNoise(b, t, d, v, 'highpass', 7500, 0.6);
+function rVowel(bus, t, f0, dur, f1, f2, vol) {   // a "voice" syllable: a buzzing source pushed through two formant filters
+  const c = A.ctx, os = c.createOscillator(), g = c.createGain(); os.type = 'sawtooth'; os.frequency.setValueAtTime(f0 * 1.06, t); os.frequency.linearRampToValueAtTime(f0 * 0.92, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.02); g.gain.setValueAtTime(vol, t + dur - 0.03); g.gain.linearRampToValueAtTime(0.0001, t + dur);
+  for (const [fr, gn] of [[f1, 1], [f2, 0.55]]) { const b = c.createBiquadFilter(); b.type = 'bandpass'; b.frequency.value = fr; b.Q.value = 7; const gg = c.createGain(); gg.gain.value = gn; os.connect(b).connect(gg).connect(g); }
+  g.connect(bus); os.start(t); os.stop(t + dur + 0.05);
+  rNoise(bus, t, 0.03, vol * 0.5, 'bandpass', 2600 + Math.random() * 1800, 1.5);
+}
+function radioInit() {
+  const c = A.ctx; R.out = c.createGain(); R.out.gain.value = 0; R.lp = c.createBiquadFilter(); R.lp.type = 'lowpass'; R.lp.frequency.value = 4800; R.out.connect(R.lp).connect(A.master);
+  for (let i = 0; i < 4; i++) { const g = c.createGain(); g.gain.value = i === R.st ? R.w[i] : 0; g.connect(R.out); R.buses.push(g); }
+  // station patterns, generated once from a fixed seed so each station is the same song every time
+  const rnd = mulberry(1979), pent = [0, 0, 3, 5, 7, 10, 12], P = { kick: [], bass: [], stab: [], roots: [40, 45, 40, 47], qual: [[0, 3, 7, 10], [0, 4, 7, 10], [0, 3, 7, 10], [0, 4, 7, 10]] };
+  for (let b = 0; b < 4; b++) {
+    const k = [1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0]; if (b === 1) k[11] = 1; if (b === 3) { k[14] = 1; k[10] = 1; } P.kick.push(k);
+    const bs = []; for (let i = 0; i < 16; i++) bs.push(i === 0 ? 0 : (rnd() < (i % 4 === 2 ? 0.55 : 0.28) ? pent[(rnd() * pent.length) | 0] : -1)); P.bass.push(bs);
+    const st = new Set(); for (const x of [2, 5, 7, 10, 13, 15]) if (rnd() < 0.55) st.add(x); st.add(b === 3 ? 14 : 10); P.stab.push(st);
+  }
+  P.blues = { roots: [45, 45, 45, 45, 50, 50, 45, 45, 52, 50, 45, 52], mel: [] };
+  const sc = [0, 3, 5, 6, 7, 10, 12, 15];
+  for (let ch = 0; ch < 4; ch++) { const bars = []; for (let b = 0; b < 12; b++) { const m = new Array(12).fill(-1); for (let i = 0; i < 12; i++) if (i % 3 !== 1 && rnd() < (b % 4 === 3 ? 0.18 : 0.34)) m[i] = sc[(rnd() * sc.length) | 0]; if (b % 4 === 0) m[0] = 0; bars.push(m); } P.blues.mel.push(bars); }
+  R.pat = P;
+  // KTEO's static bed
+  const sBuf = c.createBufferSource(); sBuf.buffer = A.noise; sBuf.loop = true; const sf = c.createBiquadFilter(); sf.type = 'bandpass'; sf.frequency.value = 2100; sf.Q.value = 0.5; const sg = c.createGain(); sg.gain.value = 0.045;
+  sBuf.connect(sf).connect(sg).connect(R.buses[3]); sBuf.start();
+  R.timer = setInterval(radioTick, 30);
+}
+function funkStep(t, bus) {
+  const S = R.s[1], P = R.pat, n = S.n++, step = n % 16, bar = (n >> 4) % 4;
+  if (P.kick[bar][step]) rKick(bus, t, 0.5);
+  if (step === 4 || step === 12) rSnare(bus, t, 0.22); else if (step === 7 || step === 15) rSnare(bus, t, 0.05);
+  if (step % 2 === 0) rHat(bus, t, 0.05); else if (Math.random() < 0.3) rHat(bus, t, 0.025, 0.025);
+  if (step === 14) rHat(bus, t, 0.05, 0.14);
+  const b = P.bass[bar][step]; if (b >= 0) rTone(bus, t, mtof(P.roots[bar] + b), step % 4 === 0 ? 0.26 : 0.14, 'sawtooth', 0.26, { lp0: 1000, lp1: 220, q: 3 });
+  if (P.stab[bar].has(step)) for (const iv of P.qual[bar]) rTone(bus, t, mtof(P.roots[bar] + 24 + iv), 0.11, 'square', 0.025, { lp0: 2600, lp1: 700 });
+  if (step === 0 && bar === 0 && (n >> 6) % 4 === 3) for (const m of [76, 79, 83, 86]) rTone(bus, t + 0.01, mtof(m), 0.5, 'triangle', 0.05, { att: 0.01 });   // a little bell lick every fourth time round
+}
+function bluesStep(t, bus) {
+  const S = R.s[2], P = R.pat.blues, n = S.n++, step = n % 12, bar = (n / 12 | 0) % 12, ch = ((n / 144) | 0) % 4, root = P.roots[bar], beat = step / 3 | 0;
+  if (step % 3 === 0) { const walk = [0, 4, 7, 9][beat]; rTone(bus, t, mtof(root - 12 + (bar === 11 && beat === 3 ? 2 : walk)), 0.45, 'sawtooth', 0.2, { lp0: 700, lp1: 180, att: 0.004 }); }
+  if (step === 3 || step === 9) for (const iv of [4, 10, 12]) rTone(bus, t + iv * 0.002, mtof(root + 12 + iv), 0.42, 'sawtooth', 0.045, { lp0: 2400, lp1: 500 });
+  if (step === 0 || step === 6) rKick(bus, t, 0.22);
+  if (step === 3 || step === 9) rNoise(bus, t, 0.16, 0.05, 'highpass', 3500, 0.5);
+  if ([0, 3, 5, 6, 9, 11].includes(step)) rHat(bus, t, 0.02, 0.05);
+  const m = R.pat.blues.mel[ch][bar][step];
+  if (m >= 0) { const f = mtof(69 + m); rTone(bus, t, f, 0.5, 'sawtooth', 0.07, { lp0: 2600, lp1: 500, att: 0.006 }); rTone(bus, t, f * 1.004, 0.5, 'triangle', 0.05, { att: 0.006 }); }
+}
+function talkStep(t, bus, dt) {
+  const S = R.s[3];
+  if (!S.q.length) {   // plan the next segment: a jingle, then some talk, a tuning squeal or a time pip
+    const kind = S.mode++ % 4, ev = []; let at = t + 0.2;
+    if (kind === 0) { for (const [f, d] of [[392, 0.15], [494, 0.15], [587, 0.15], [784, 0.55]]) { ev.push([at, 0, 'note', f, d]); at += d; } at += 0.6; }
+    else if (kind === 2) { ev.push([at, 0, 'squeal']); at += 1.2; for (let i = 0; i < 3; i++) { ev.push([at, 0, 'pip']); at += 0.5; } at += 0.4; }
+    else { const base = 88 + Math.random() * 40, VOW = [[730, 1090], [270, 2290], [300, 870], [530, 1840], [660, 1720], [570, 840], [400, 1700]]; for (let sn = 0; sn < 2 + Math.random() * 3; sn++) { for (let w = 0, nw = 2 + (Math.random() * 4 | 0); w < nw; w++) { for (let y = 0, ny = 1 + (Math.random() * 3 | 0); y < ny; y++) { const d = 0.07 + Math.random() * 0.14, v = VOW[(Math.random() * VOW.length) | 0]; ev.push([at, 0, 'vow', base * (1 + (Math.random() - 0.5) * 0.25 - (w === nw - 1 && y === ny - 1 ? 0.12 : 0)), d, v[0] * (0.9 + Math.random() * 0.2), v[1] * (0.9 + Math.random() * 0.2)]); at += d + 0.015; } at += 0.07; } at += 0.35; } at += 0.4; }
+    S.q = ev;
+  }
+  while (S.q.length && S.q[0][0] < t + dt) {
+    const e = S.q.shift(), et = Math.max(t, e[0]);
+    if (e[2] === 'vow') rVowel(bus, et, e[3], e[4], e[5], e[6], 0.16);
+    else if (e[2] === 'squeal') { rTone(bus, et, 1500, 1.0, 'sine', 0.025, { f1: 320 }); rNoise(bus, et, 1.1, 0.06, 'bandpass', 2400, 0.8); }
+    else if (e[2] === 'pip') rTone(bus, et, 1000, 0.1, 'sine', 0.07);
+    else if (e[2] === 'note') rTone(bus, et, e[3], e[4] + 0.1, 'square', 0.07, { lp0: 3000, lp1: 800 });
+  }
+  if (Math.random() < 0.04) rNoise(bus, t, 0.03, 0.08, 'highpass', 4000, 0.5);   // crackle
+}
+function radioTick() {
+  if (!A.ctx) return;
+  const now = A.ctx.currentTime;
+  if (!R.on || R.st === 0) { R.next = now + 0.05; return; }
+  const bus = R.buses[R.st], dts = [0, 60 / 104 / 4, 60 / 70 / 3, 0.12];
+  while (R.next < now + 0.7) {
+    if (R.st === 1) funkStep(R.next, bus); else if (R.st === 2) bluesStep(R.next, bus); else talkStep(R.next, bus, dts[3]);
+    R.next += dts[R.st];
+  }
+}
+function setRadio(st, quiet) {
+  R.st = st; try { localStorage.setItem('rustwater-radio', String(st)); } catch (e) { /* storage blocked */ }
+  if (A.ctx) { const now = A.ctx.currentTime; R.buses.forEach((g, i) => g.gain.setTargetAtTime(i === st ? R.w[i] : 0, now, 0.02)); R.next = now + 0.05; if (st) rNoise(R.out, now, 0.22, 0.12, 'bandpass', 1800 + st * 700, 1.2); }   // a blip of static as the dial moves
+  if (!quiet) toast(R.names[st]);
+}
+function cycleRadio() {
+  if (state !== 'play') return;
+  if (!player.car) { toast('Radio: get in a car'); return; }
+  setRadio((R.st + 1) % 4);
 }
 function sfxBeep(f, d = 0.1, type = 'square', vol = 0.12) {
   if (!A.ctx) return; const t = A.ctx.currentTime, o = A.ctx.createOscillator(), g = A.ctx.createGain();
@@ -2793,8 +3072,17 @@ function updateAudio(t) {
   if (!A.ctx) return;
   const now = A.ctx.currentTime;
   const c = player.car;
-  A.engGain.gain.setTargetAtTime(state === 'play' && c && !c.wreck ? 0.07 : 0, now, 0.1);
-  if (c) { A.eng.frequency.setTargetAtTime(38 + Math.abs(c.speed) * 3.2 + (down('KeyW', 'ArrowUp') || TOUCH.gas ? 12 : 0), now, 0.05); A.engFilt.frequency.setTargetAtTime(300 + Math.abs(c.speed) * 30, now, 0.1); }
+  const e = c ? c.spec.engine : null, gas = down('KeyW', 'ArrowUp') || TOUCH.gas ? 1 : 0;
+  A.engGain.gain.setTargetAtTime(state === 'play' && c && !c.wreck ? e.gain * (0.85 + 0.3 * gas) : 0, now, 0.1);
+  if (c) {   // each type has its own voice: waveforms, a detuned second oscillator, a filter, and four gears so the pitch climbs and drops as it shifts
+    if (A.engType !== c.type) { A.engType = c.type; A.eng.type = e.wave; A.eng2.type = e.wave2; A.eng2.detune.value = e.det; }
+    const sp = Math.abs(c.speed), gl = c.spec.max * 0.24, gr = Math.min(3, Math.floor(sp / gl)), fr = gr < 3 ? (sp - gr * gl) / gl : Math.min(1, (sp - 3 * gl) / (c.spec.max * 0.28));
+    const f = e.base * (1 + 1.3 * fr + 0.32 * gr) * (1 + 0.1 * gas);
+    A.eng.frequency.setTargetAtTime(f, now, 0.04); A.eng2.frequency.setTargetAtTime(f * e.ratio, now, 0.04); A.engFilt.frequency.setTargetAtTime(e.lp + sp * e.lpk + gas * 150, now, 0.1);
+  }
+  // radio: only in a car, ducked by sirens, off when muted
+  R.on = state === 'play' && !!c && !c.wreck && !A.muted;
+  if (R.out) R.out.gain.setTargetAtTime(R.on && R.st ? 0.95 * (sirenDist < 90 && stars() > 0 ? 1 - 0.6 * (1 - sirenDist / 90) : 1) : 0, now, R.on ? 0.1 : 0.25);
   const sv = state === 'play' && stars() > 0 && sirenDist < 90 ? 0.05 * (1 - sirenDist / 90) : 0;
   A.sirGain.gain.setTargetAtTime(sv, now, 0.1);
   A.sir.frequency.setTargetAtTime((t % 0.9) < 0.45 ? 720 : 960, now, 0.02);
@@ -2871,6 +3159,7 @@ $('tAct').addEventListener('pointerdown', e => {
   el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 140);
   onPress('KeyE');
 });
+$('tRadio').addEventListener('pointerdown', e => { e.preventDefault(); cycleRadio(); });
 $('tPause').addEventListener('click', () => { if (state === 'play') setPause(true); });
 // Wasted / Busted: a tap anywhere carries on, like R
 addEventListener('pointerdown', e => { if (TOUCH.on && state === 'dead' && e.target.id !== 'tPause') onPress('KeyR'); });
@@ -2884,7 +3173,7 @@ function onPress(code) {
   if (code === 'KeyQ') { setQuality(Q_ORDER[(Q_ORDER.indexOf(quality) + 1) % 3], false); return; }
   if (code === 'KeyM') { A.muted = !A.muted; syncButtons(); return; }
   if (state === 'paused') { if (code === 'KeyP' || code === 'Escape') setPause(false); return; }
-  if (state === 'play') { if (code === 'KeyE') interact(); if (code === 'KeyP' || code === 'Escape') setPause(true); return; }
+  if (state === 'play') { if (code === 'KeyT') cycleRadio(); if (code === 'KeyE') interact(); if (code === 'KeyP' || code === 'Escape') setPause(true); return; }
   if (state === 'dead' && code === 'KeyR' && failT > 0.8) respawn();
 }
 function setPause(p) { state = p ? 'paused' : 'play'; $('pause').hidden = !p; if (p) { touchRelease(); syncButtons(); } }
@@ -3082,7 +3371,7 @@ function frame(now) {
   // smokestacks
   stackT -= dt; if (stackT <= 0) { stackT = 0.11; for (const [x, y, z] of stacks) smoke.emit(x + rr(-0.5, 0.5), y, z, rr(1.2, 2.4), rr(2.5, 4), rr(-1.2, -0.4), rr(6, 9), 3, rr(14, 22), 0.62, 0.55, 0.55, 0.42, 0.15); }
   boomLight.intensity *= Math.exp(-dt * 6);
-  windU.value = time; updateLamps(dt); updateFerris(dt, time); updateWater(time); updateWeather(dt, Math.max(0, 1 - Math.abs(((window.__phase ?? (time / DAY_LEN)) % 1) - 0.85) / 0.12)); updateSky(time);
+  windU.value = time; updateLamps(dt); updateHubcaps(dt); updateSkids(time, dt); updateFerris(dt, time); updateWater(time); updateWeather(dt, Math.max(0, 1 - Math.abs(((window.__phase ?? (time / DAY_LEN)) % 1) - 0.85) / 0.12)); updateSky(time);
   smoke.update(dt); fire.update(dt);
   if (state !== 'title' && state !== 'over') { updateCamera(dt); updateHud(dt, time); }
   else { // title flyover
@@ -3096,7 +3385,7 @@ function frame(now) {
 // a few cars and walkers for the title flyover
 focus.x = WORLD / 2; focus.z = WORLD / 2;
 requestAnimationFrame(frame);
-window.__rustwater = { get state() { return state; }, cars, peds, player, M, W, startGame };
+window.__rustwater = { get state() { return state; }, cars, peds, player, M, W, startGame, dentCar, damageCar };
 </script>
 <script src="../views.js" defer></script>
 </body>
