@@ -7,7 +7,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 
 | # | Session | Status |
 |---|---------|--------|
-| 1 | Night (and the shadow-pass cost) | not started |
+| 1 | Night (and the shadow-pass cost) | done (see git log, merged 2026-11-24) |
 | 2 | Weather | not started |
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | not started |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | not started |
@@ -85,6 +85,17 @@ anything the next one needs to know.
 | Medium | 260 | about 0.5M | |
 | Low | 148 | about 0.24M | |
 
+Night, measured 2026-11-23 after session 1 (same camera, `shot.mjs --at 222,163`, one frame):
+
+| Phase (quality) | Draw calls | Triangles |
+|---|---|---|
+| Golden 0.0 (high) | 376 | 0.62M |
+| Dusk 0.25 (high) | 388 | 0.64M |
+| Night 0.5 (high) | 177 | 0.24M (sun shadow pass off) |
+| Dawn 0.85 (high) | 382 | 0.63M |
+| Night (medium) | 183 | 0.25M |
+| Night (low) | 138 | 0.23M |
+
 The shadow pass (a 240 m box around the player) is the biggest single cost. Nothing has been timed
 on a real GPU yet. If the user reports fps from a real device, write the numbers here.
 
@@ -149,6 +160,27 @@ changes the sun anyway.
   believable frames, with no blown-out bloom at night.
 - Draw calls at night on high are below the table above (shadow pass gone).
 - `flow.mjs` gives the same output as before.
+
+**Session 1 notes (built 2026-11-23):**
+- Cycle is `DAY_LEN = 600` s, `p = (t / 600) % 1`; keyframe tables `K_DUSK`, `K_NIGHT`, `K_LIT` in `updateSky`.
+  `window.__phase` (a real feature in the game, not a test hook) pins it; `shot.mjs` has `--phase 0.5`
+  (`--dusk` = 0.25). The old `__fastDusk` hook is gone. The game starts at golden hour (p = 0).
+- `updateSky` still returns `k`. New globals: `nightAmt`, `clockText` (HUD `#clock`, golden hour = 6:30 PM).
+- Windows: `nightU` (uLit, uTV, uT) is shared by all facade materials through `onBeforeCompile`
+  (hash of the emissive-map cell plus the 10 m world tile). TV windows are 7% of cells, off on low (`QS.nightFx`).
+- Night shadow switch: `nightNoShadow` with hysteresis (off above 0.55, on below 0.4), through
+  `applySunShadow()`, which `setQuality` now also uses. One recompile hitch at each switch; not measured on a real GPU.
+- `scene.environmentIntensity` doesn't exist in r160, so night scales every material's `envMapIntensity`
+  (base kept in `userData.envBase`) by a scene traversal, only when the factor moves by 0.01.
+- Headlights: `c.hpool` (additive ground pool, shared material `headPoolMat`) per car, shown when night > 0.12
+  on driven cars; beam and head/tail brighten. Still one real SpotLight. Two signs buzz (`buzz` flag).
+- **Decided against the static shadow cache for daytime.** The shadow camera follows the player, so a cached
+  map would need snapping to an 8 m grid, and traffic, people and the player's own car would then visibly
+  trail their shadows. Medium already updates every other frame. Revisit only if a real-GPU report says the shadow pass is too costly by day.
+- Not done: moon sprite and stars (the camera never shows sky).
+- Daytime draw calls (376 to 388) are a little above the 351 to 371 of the table, with no new daytime
+  objects; it is probably the car/traffic mix in the frame. Not investigated.
+- Ideas for later: in session 2, wet-road reflections should use `uNight` too so neon shows in puddles.
 
 **Risks:** night too dark on phones. Keep the roads readable: lamp pools and headlights should carry
 the scene, and the minimap is unchanged.

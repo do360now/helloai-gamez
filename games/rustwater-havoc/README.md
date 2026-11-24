@@ -2,7 +2,7 @@
 
 JackCity I: Rustwater, 1979. A second JackCity I city, alongside Harbor City Havoc: a 3D top-down
 crime sandbox in the browser. Rustwater is a rust-belt mill town split by a brown river and three
-rusted truss bridges, lit at golden hour and drifting into blue dusk. Steal cars, answer Old Teo's
+rusted truss bridges, lit at golden hour and drifting through blue dusk into night and back. Steal cars, answer Old Teo's
 payphones for five jobs, and shake the cops.
 
 Play: `/games/rustwater-havoc/`. Real time. Keyboard: WASD or arrows, E (steal car, get out,
@@ -32,6 +32,16 @@ multiplier, knock-down street lamps, cars that burn and explode, and a best scor
 `localStorage`. The river flows east under the bridges, with foam at the quay walls and piers,
 barges with bow waves and wakes, a moored tug and drifting junk.
 
+## Day and night
+
+A full day runs 10 minutes: golden hour, blue dusk, night (from about 4:30 to 7:00 of the cycle), dawn,
+then golden hour again. A small clock under the health bar shows the time (golden hour is 6:30 PM,
+night is about midnight to 3 AM). At night the streets are carried by street lamps, windows that light
+up one by one (a few flicker TV blue), brighter neon signs (two buzz), car headlights with beams and
+ground pools, and a cool moonlight. The sun's shadow pass is switched off at night, which also makes it
+the cheapest part of the cycle. Tests can pin the time with `window.__phase` (0 golden, 0.25 dusk, 0.5
+night, 0.85 dawn).
+
 ## Files (open track, no build step)
 
 The folder is the source; nothing is generated. About 900 KB in all, most of it Three.js.
@@ -45,6 +55,9 @@ The folder is the source; nothing is generated. About 900 KB in all, most of it 
 | `card.jpg` | Landing-page card, a screenshot of Ferris Green in the game |
 
 ## Graphics quality
+
+Night effects (window flicker, headlight ground pools, buzzing signs) are on high and medium, off on low;
+windows still light up in sequence on every level.
 
 High: 2048 shadows, HDR bloom, a film grade (vignette, split tone, grain), 4x MSAA, and river
 reflections at half resolution (drawn only while the river is on screen).

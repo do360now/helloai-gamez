@@ -9,10 +9,9 @@ export const URL_GAME = 'http://127.0.0.1:8799/games/rustwater-havoc/';
 // Hooks added to the served page only (never to the file):
 //   window.__r         the WebGLRenderer (renderer.info for draw calls)
 //   window.__camOv     set to c => {...} to drive the camera yourself; null gives it back
-//   window.__fastDusk  truthy pins the day cycle at full blue dusk
+//   window.__phase     (a game feature, not a hook) a number 0 to 1 pins the day cycle: 0 golden, 0.25 dusk, 0.5 night, 0.85 dawn
 const HOOKS = [
   ['const scene = new THREE.Scene();', 'const scene = new THREE.Scene(); window.__r = renderer;'],
-  ['updateSky(time);', 'updateSky(window.__fastDusk ? 120 : time);'],
   ['function updateCamera(dt) {', 'function updateCamera(dt) { if (window.__camOv) { window.__camOv(camera); return; }'],
 ];
 export async function serve({ hooks = true } = {}) {
