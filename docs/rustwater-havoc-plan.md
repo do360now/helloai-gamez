@@ -8,7 +8,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | # | Session | Status |
 |---|---------|--------|
 | 1 | Night (and the shadow-pass cost) | done (see git log, merged 2026-11-24) |
-| 2 | Weather | built 2026-11-24 on branch `rustwater-havoc`, not committed yet (see Session 2 notes) |
+| 2 | Weather | done (commit ceab9c5, merged and deployed 2026-11-24) |
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | not started |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | not started |
 | 5 | More jobs: taxi fares, bridge race, cars for Sal | not started |
