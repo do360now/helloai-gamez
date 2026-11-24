@@ -49,6 +49,22 @@ cycles them, a small line under the clock names the station, and the choice is k
 (`rustwater-radio`). It plays only in a car and fades out when you get out, sirens duck it, and M mutes it with
 everything else. Nothing is audible in the headless tests, so the sound design is untested by ear.
 
+## Busier streets
+
+**Traffic lights.** The twelve 4-way junctions on the three bridge avenues have signals: poles with a head on each side, a
+25 s cycle (9 s green, 2 s amber, 1.5 s all red, then the other way) and a position offset so lights down an avenue come on
+a little apart. Stop bars are painted before the crosswalks. Traffic, taxis, trucks and buses brake to the bar on red or on an
+amber they can stop for, and queue behind each other; police ignore the lights. Running a red light with a cop within
+40 m adds a little heat (and a "Ran a red light" toast). The lights work at night and reflect in wet roads.
+**People.** Walkers stop at the kerb before crossing: near a signal they wait for red for the cars, elsewhere for a gap in
+the traffic. Some people sit on the park benches (they get up and run if the bench is knocked over), and people wait at the
+bus stops.
+**Bus line.** Two Rustwater Transit buses (cream with a rust stripe, about 11 m long) run a 960 m loop over two bridges, stopping
+at three shelters (a bench, a sign, a glass back). At a stop the people waiting walk to the door and climb in, and some
+passengers climb out. The loop takes about 2.5 minutes. You can steal a bus: it is slow, heavy and tough (420 health).
+**Delivery trucks.** Merridew Freight box trucks drive with the traffic, and a couple are parked at the kerb with their hazard
+lights flashing. Long vehicles use five collision circles, so a bus or truck is hit along its whole length.
+
 ## Day and night
 
 A full day runs 10 minutes: golden hour, blue dusk, night (from about 4:30 to 7:00 of the cycle), dawn,
@@ -82,6 +98,9 @@ The folder is the source; nothing is generated. About 900 KB in all, most of it 
 | `card.jpg` | Landing-page card, a screenshot of Ferris Green in the game |
 
 ## Graphics quality
+
+Traffic lights, bus stops and shelters are on all levels (a few instanced draws); the number of walkers follows the Peds count of each level and
+the sitters and people at bus stops are on top of that (up to about 14).
 
 Skid marks: a ring of 800 on high, 500 on medium, 300 on low. Dents, cracked glass and hubcaps are on every level.
 

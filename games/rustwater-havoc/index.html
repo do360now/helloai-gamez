@@ -345,6 +345,16 @@ for (let iz = 0; iz < ROAD_Z.length; iz++) for (let ix = 0; ix < ROAD_X.length; 
 function link(a, b) { nodes[a].nb.push(b); nodes[b].nb.push(a); }
 for (let iz = 0; iz < ROAD_Z.length; iz++) for (let ix = 0; ix < ROAD_X.length - 1; ix++) link(nodeId(ix, iz), nodeId(ix + 1, iz));
 for (let ix = 0; ix < ROAD_X.length; ix++) for (let iz = 0; iz < ROAD_Z.length - 1; iz++) { if (iz === 2 && !BRIDGES.includes(ROAD_X[ix])) continue; link(nodeId(ix, iz), nodeId(ix, iz + 1)); }
+// Traffic signals: the 4-way junctions on the three bridge avenues. A 25 s cycle (9 s green, 2 amber, 1.5 all red, then the other way),
+// with a position offset so lights down an avenue come on a little apart (a loose green wave).
+const SIG_CYCLE = 25, SIG_STOP = 23.6;   // SIG_STOP: distance from the junction centre to a stopped car's middle (the painted bar is 21.5 m out)
+for (const n of nodes) if (n.nb.length === 4 && n.ix % 2 === 1) { n.sig = true; n.sigOff = (n.iz * 4 + n.ix * 7) % SIG_CYCLE; }
+const sigNodes = nodes.filter(n => n.sig);
+function sigState(n, axis) {   // 'g', 'a' or 'r' for travel along that axis ('ns' or 'ew')
+  const pin = window.__signal; if (pin) return pin === axis ? 'g' : 'r';
+  let u = ((time + n.sigOff) + (axis === 'ew' ? SIG_CYCLE / 2 : 0)) % SIG_CYCLE;
+  return u < 9 ? 'g' : u < 11 ? 'a' : 'r';
+}
 function nearestNode(x, z) { let best = 0, bd = 1e9; for (let i = 0; i < nodes.length; i++) { const d = (nodes[i].x - x) ** 2 + (nodes[i].z - z) ** 2; if (d < bd) { bd = d; best = i; } } return best; }
 function bfs(a, b) {
   if (a === b) return [b];
@@ -579,6 +589,10 @@ function bakeGround() {
     if (hRoadRow[z] || !(hRoadRow[z - 1] || hRoadRow[z + 1]) || tileAt(rx, z) !== TILE.ROAD) continue;
     for (const xx of [rx, rx + 1]) for (let k = 0; k < 5; k++) g.fillRect(xx * PX + 2 + k * 6, z * PX + 9, 3, 14);
   }
+  // stop bars on the signalised approaches, on the lane side each direction really drives
+  g.fillStyle = 'rgba(240,232,215,0.85)';
+  const bar = (xm, zm, wm, hm) => g.fillRect(xm / T * PX, zm / T * PX, wm / T * PX, hm / T * PX);
+  for (const n of sigNodes) { bar(n.x - 22, n.z + 0.6, 0.6, 8.8); bar(n.x + 21.4, n.z - 9.4, 0.6, 8.8); bar(n.x - 9.4, n.z - 22, 8.8, 0.6); bar(n.x + 0.6, n.z + 21.4, 8.8, 0.6); }
   // Painted spots
   g.fillStyle = 'rgba(79,209,197,0.5)'; g.fillRect(47 * PX + 4, 7 * PX + 4, PX * 1 - 8, PX * 2 - 8);   // respray bay
   g.font = 'bold 22px Bungee, Impact, sans-serif'; g.fillStyle = 'rgba(245,230,200,0.55)'; g.textAlign = 'center';
@@ -1175,6 +1189,59 @@ lampSpots.forEach(([x, z, ry], i) => {
 });
 function syncLamp(l) { l.g.updateMatrix(); lampIM.setMatrixAt(l.i, l.g.matrix); lensIM.setMatrixAt(l.i, l.g.matrix); lampIM.instanceMatrix.needsUpdate = lensIM.instanceMatrix.needsUpdate = true; }
 
+
+// ---------- Traffic signal poles and heads (3 instanced draws: poles, housings, lenses)
+const sigPoleGeo = mergeGeometries([new THREE.CylinderGeometry(0.1, 0.14, 4.6, 8).translate(0, 2.3, 0), new THREE.CylinderGeometry(0.22, 0.26, 0.4, 8).translate(0, 0.2, 0)]);
+const sigHeadGeo = new THREE.BoxGeometry(0.55, 1.55, 0.4), sigLensGeo = new THREE.SphereGeometry(0.2, 8, 6).scale(1, 1, 0.45);
+const sigHeadMat = new THREE.MeshStandardMaterial({ color: '#17171a', roughness: 0.6, metalness: 0.3 });
+const sigLensMat = new THREE.MeshBasicMaterial({ color: '#ffffff', toneMapped: false });
+const SIG_COL = { r: [new THREE.Color(3.2, 0.12, 0.08), new THREE.Color(0.2, 0.012, 0.01)], a: [new THREE.Color(3.2, 1.9, 0.15), new THREE.Color(0.2, 0.11, 0.01)], g: [new THREE.Color(0.2, 3.2, 0.9), new THREE.Color(0.01, 0.2, 0.06)] };
+const sigPoles = [], sigHeads = [];
+for (const n of sigNodes) for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+  const x = n.x + sx * 10.9, z = n.z + sz * 10.9; if (tileW(x, z) !== TILE.SIDE) continue;
+  sigPoles.push([x, z]); addObst({ type: 'pole', x, z, r: 0.3 });
+  sigHeads.push({ n, axis: 'ew', x: x + sx * 0.4, z, ry: sx > 0 ? Math.PI / 2 : -Math.PI / 2 }, { n, axis: 'ns', x, z: z + sz * 0.4, ry: sz > 0 ? 0 : Math.PI });
+}
+const sigPoleIM = new THREE.InstancedMesh(sigPoleGeo, lampMat, Math.max(1, sigPoles.length)), sigHeadIM = new THREE.InstancedMesh(sigHeadGeo, sigHeadMat, Math.max(1, sigHeads.length)), sigLensIM = new THREE.InstancedMesh(sigLensGeo, sigLensMat, Math.max(1, sigHeads.length * 3));
+{
+  const o = new THREE.Object3D(), m = new THREE.Matrix4();
+  sigPoles.forEach(([x, z], i) => { o.position.set(x, 0, z); o.rotation.set(0, 0, 0); o.updateMatrix(); sigPoleIM.setMatrixAt(i, o.matrix); });
+  sigHeads.forEach((h, i) => {
+    o.position.set(h.x, 4.3, h.z); o.rotation.set(0, h.ry, 0); o.updateMatrix(); sigHeadIM.setMatrixAt(i, o.matrix); h.lens = [];
+    [0.5, 0, -0.5].forEach((dy, k) => { m.makeTranslation(0, dy, 0.21); m.premultiply(o.matrix); sigLensIM.setMatrixAt(i * 3 + k, m); h.lens.push(i * 3 + k); });
+  });
+  sigLensIM.setColorAt(0, SIG_COL.r[1]);
+}
+sigPoleIM.castShadow = false; sigPoleIM.frustumCulled = sigHeadIM.frustumCulled = sigLensIM.frustumCulled = false;
+scene.add(sigPoleIM, sigHeadIM, sigLensIM);
+function updateSignals() {
+  let dirty = false;
+  for (const h of sigHeads) {
+    const st = sigState(h.n, h.axis); if (h.st === st) continue; h.st = st; dirty = true;
+    ['r', 'a', 'g'].forEach((k, i) => sigLensIM.setColorAt(h.lens[i], SIG_COL[k][st === k ? 0 : 1]));
+  }
+  if (dirty) sigLensIM.instanceColor.needsUpdate = true;
+}
+function signalTarget(c) {   // speed limit set by a signal ahead of a traffic car, or null
+  if (c.from < 0) return null;
+  const B = nodes[c.to]; if (!B.sig) return null;
+  const A = nodes[c.from], ew = Math.abs(B.x - A.x) > Math.abs(B.z - A.z);
+  const dx = ew ? Math.sign(B.x - A.x) : 0, dz = ew ? 0 : Math.sign(B.z - A.z);
+  const dl = (B.x - c.x) * dx + (B.z - c.z) * dz - (21.3 + c.spec.body[2] / 2);
+  if (dl < -2.5 || dl > 45) return null;
+  const st = sigState(B, ew ? 'ew' : 'ns'); if (st === 'g') return null;
+  const v = Math.max(0, c.speed); if (st === 'a' && dl < v * v / 14) return null;   // too close to stop comfortably: go through
+  return Math.max(0, (dl - 0.4) * 1.1);
+}
+function redLightCheck(c) {   // the player entering a junction box on red with a cop close by is a (small) crime
+  let box = null;
+  for (const n of sigNodes) if (Math.abs(c.x - n.x) < 10 && Math.abs(c.z - n.z) < 10) { box = n; break; }
+  if (box !== c.inBox) {
+    if (box && Math.hypot(c.vx, c.vz) > 6 && sigState(box, Math.abs(c.vx) > Math.abs(c.vz) ? 'ew' : 'ns') === 'r' && cars.some(o => o.kind === 'police' && !o.wreck && Math.hypot(o.x - c.x, o.z - c.z) < 40)) { crime(0.3); toast('Ran a red light'); }
+    c.inBox = box;
+  }
+}
+
 // Street furniture (knockable): hydrants, bins, news boxes, mailboxes, benches
 const vcMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.3, envMapIntensity: 0.6 });
 function vc(geo, hex) { const c = new THREE.Color(hex), n = geo.attributes.position.count, a = new Float32Array(n * 3); for (let i = 0; i < n; i++) a.set([c.r, c.g, c.b], i * 3); geo.setAttribute('color', new THREE.BufferAttribute(a, 3)); geo.deleteAttribute('uv'); return geo; }
@@ -1627,6 +1694,35 @@ const stdMat = (c, o = {}) => matCache[c + JSON.stringify(o)] ||= new THREE.Mesh
 // Skinned, jointed people: one draw call each, rigid-weighted parts, one shared material.
 // Bones: [parent, x, y, z] rest offsets. Faces +z, feet at the origin, about 2.07 tall.
 const B = { root: 0, hips: 1, spine: 2, chest: 3, head: 4, uaL: 5, faL: 6, uaR: 7, faR: 8, thL: 9, shL: 10, thR: 11, shR: 12 };
+
+// ---------- Bus line: one loop over two bridges, three stops with shelters
+const BUS_ROUTE = [[1, 1], [2, 1], [3, 1], [3, 2], [3, 3], [3, 4], [2, 4], [1, 4], [1, 3], [1, 2]].map(([ix, iz]) => nodeId(ix, iz));
+const busStops = [];
+const shelterGeo = mergeGeometries([
+  vc(new THREE.BoxGeometry(3.5, 0.1, 1.8).translate(0, 2.5, 0), '#2f5d5a'),
+  ...[[-1.55, -0.65], [1.55, -0.65], [-1.55, 0.65], [1.55, 0.65]].map(([x, z]) => vc(new THREE.BoxGeometry(0.09, 2.5, 0.09).translate(x, 1.25, z), '#2a2624')),
+  vc(new THREE.BoxGeometry(3.1, 1.5, 0.05).translate(0, 1.45, -0.68), '#7fa3a0'),
+  ...[-1.55, 1.55].map(x => vc(new THREE.BoxGeometry(0.05, 1.5, 1.3).translate(x, 1.45, 0), '#7fa3a0')),
+  vc(new THREE.BoxGeometry(2.5, 0.07, 0.45).translate(0, 0.5, -0.42), '#8a5a32'),
+  ...[-1.1, 1.1].map(x => vc(new THREE.BoxGeometry(0.06, 0.5, 0.4).translate(x, 0.25, -0.42), '#2a2624')),
+  vc(new THREE.CylinderGeometry(0.04, 0.04, 3.0, 6).translate(2.0, 1.5, 0.6), '#444444'),
+  vc(new THREE.CylinderGeometry(0.34, 0.34, 0.05, 14).rotateX(Math.PI / 2).translate(2.0, 3.0, 0.6), '#2f7fa8'),
+  vc(new THREE.CylinderGeometry(0.2, 0.2, 0.06, 14).rotateX(Math.PI / 2).translate(2.0, 3.0, 0.6), '#efe6cc'),
+]);
+for (const ei of [0, 4, 6]) {
+  const a = BUS_ROUTE[ei], b = BUS_ROUTE[ei + 1], A = nodes[a], Bn = nodes[b], l = laneOf(A.x, A.z, Bn.x, Bn.z);
+  for (const along of [40, 30, 50, 24, 56]) {
+    const sx = A.x + l.dx * along + l.rx * 12, sz = A.z + l.dz * along + l.rz * 12;
+    if (tileW(sx, sz) !== TILE.SIDE || circleHitsWorldStatic(sx, sz, 1.9)) continue;
+    busStops.push({ a, b, dx: l.dx, dz: l.dz, rx: l.rx, rz: l.rz, sx, sz, px: A.x + l.dx * (along - 3) + l.rx * LANE, pz: A.z + l.dz * (along - 3) + l.rz * LANE, waiters: [] });
+    for (const k of [-1, 1]) addObst({ type: 'stop', x: sx + l.dx * k * 1.0, z: sz + l.dz * k * 1.0, r: 0.9 });
+    break;
+  }
+}
+const shelterIM = new THREE.InstancedMesh(shelterGeo, vcMat, Math.max(1, busStops.length)); shelterIM.count = busStops.length; shelterIM.castShadow = true; shelterIM.receiveShadow = true;
+{ const o = new THREE.Object3D(); busStops.forEach((S, i) => { o.position.set(S.sx, 0, S.sz); o.rotation.set(0, Math.atan2(-S.rx, -S.rz), 0); o.updateMatrix(); shelterIM.setMatrixAt(i, o.matrix); }); }
+scene.add(shelterIM);
+
 const BONE_DEF = [[-1, 0, 0, 0], [0, 0, 1.0, 0], [1, 0, 0.07, 0], [2, 0, 0.3, 0], [3, 0, 0.27, 0],
   [3, 0.31, 0.22, 0], [5, 0, -0.31, 0], [3, -0.31, 0.22, 0], [7, 0, -0.31, 0],
   [1, 0.12, -0.05, 0], [9, 0, -0.45, 0], [1, -0.12, -0.05, 0], [11, 0, -0.45, 0]];
@@ -1789,6 +1885,13 @@ function animPerson(m, sp, phase) {
   b[B.chest].rotation.set(0, 0, 0);
   b[B.head].rotation.set(-(0.03 + run * 0.3) * 0.6, w ? -0.1 * s : 0.45 * Math.sin(t * 0.37) * Math.sin(t * 0.11), 0);
 }
+function posePersonSit(m) {
+  const b = m.b, t = time + m.seed;
+  b[B.hips].position.y = 0.6; b[B.hips].rotation.set(0, 0, 0);
+  b[B.spine].rotation.set(0.05, 0, 0); b[B.chest].rotation.set(0, 0, 0); b[B.head].rotation.set(0.02, 0.4 * Math.sin(t * 0.21) * Math.sin(t * 0.07), 0);
+  b[B.thL].rotation.set(-1.5, 0, 0.05); b[B.thR].rotation.set(-1.5, 0, -0.05); b[B.shL].rotation.x = 1.5; b[B.shR].rotation.x = 1.5;
+  b[B.uaL].rotation.set(-0.3, 0, 0.1); b[B.uaR].rotation.set(-0.3, 0, -0.1); b[B.faL].rotation.x = -1.2; b[B.faR].rotation.x = -1.2;
+}
 // knocked down: flailing in the air, sprawled on the ground
 function posePersonDown(m, air) {
   const b = m.b, t = time * 18 + m.seed, f = air ? 1 : 0;
@@ -1843,8 +1946,11 @@ const CAR_TYPES = {
   van:    { engine: { wave: 'triangle', wave2: 'square', det: -9, ratio: 0.5, base: 28, lp: 220, lpk: 18, gain: 0.1 }, max: 29, acc: 17, turn: 1.9, body: [2.25, 1.75, 4.9, 1.22], hp: 140, p: { belt: 1.1, hoodF: 1.04, trunk: 1.1, wb: 2.95, A0: 1.95, A1: 1.5, C1: -2.42, C0: -2.45, top: 2.2, cw: 2.13, wins: [[1.9, 0.85], [0.6, -0.5]], lights: 'round', band: '#e8dcc0' } },
   pickup: { engine: { wave: 'square', wave2: 'sawtooth', det: 6, ratio: 0.5, base: 32, lp: 260, lpk: 22, gain: 0.085 }, max: 33, acc: 20, turn: 2.1, body: [2.2, 0.9, 4.8, 0.8], hp: 120, p: { belt: 1.02, hoodF: 0.95, trunk: 1.02, wb: 3.0, A0: 0.75, A1: 0.32, C1: -0.5, C0: -0.58, top: 1.8, cw: 1.9, wins: [[0.75, -0.55]], lights: 'round', bed: true } },
   taxi:   { engine: { wave: 'sawtooth', wave2: 'square', det: 4, ratio: 1, base: 34, lp: 340, lpk: 30, gain: 0.065 }, max: 37, acc: 23, turn: 2.25, body: [2.1, 0.78, 4.5, 0.72], hp: 100, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.7, A0: 0.85, A1: 0.15, C1: -1.0, C0: -1.5, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
+  bus:    { engine: { wave: 'sawtooth', wave2: 'triangle', det: -6, ratio: 0.5, base: 26, lp: 200, lpk: 15, gain: 0.11 }, max: 22, acc: 9, turn: 1.25, body: [2.6, 3.0, 11.0, 1.4], hp: 420, wheelK: 1.6, p: { belt: 1.15, hoodF: 1.2, trunk: 1.2, wb: 6.4, A0: 5.0, A1: 5.15, C1: -5.1, C0: -5.0, top: 3.05, cw: 2.5, wins: [[4.5, 2.4], [2.0, -0.4], [-0.8, -3.2], [-3.6, -4.7]], lights: 'round', band: '#b4532a' } },
+  truck:  { engine: { wave: 'square', wave2: 'sawtooth', det: 7, ratio: 0.5, base: 29, lp: 240, lpk: 18, gain: 0.1 }, max: 27, acc: 13, turn: 1.7, body: [2.4, 3.1, 7.0, 1.4], hp: 220, wheelK: 1.45, p: { belt: 1.3, hoodF: 1.2, trunk: 1.2, wb: 4.0, A0: 2.35, A1: 2.0, C1: 0.75, C0: 0.7, top: 2.5, cw: 2.3, wins: [[2.0, 0.95]], lights: 'round', box: 3.15 } },
   police: { engine: { wave: 'sawtooth', wave2: 'sawtooth', det: 5, ratio: 0.5, base: 31, lp: 380, lpk: 34, gain: 0.085 }, max: 41, acc: 27, turn: 2.35, body: [2.1, 0.78, 4.6, 0.72], hp: 130, p: { belt: 1.0, hoodF: 0.92, trunk: 0.98, wb: 2.75, A0: 0.88, A1: 0.18, C1: -1.0, C0: -1.52, top: 1.48, cw: 1.8, bp: -0.42, lights: 'quad' } },
 };
+const TRAFFIC_MIX = ['sedan', 'sedan', 'coupe', 'van', 'pickup', 'taxi', 'sedan', 'truck'];
 const CAR_COLORS = ['#c8553d', '#e0a339', '#3c6e71', '#8c5a3c', '#d9cbb0', '#5b7b3a', '#2f4b7c', '#a33b5a', '#e7e2d4', '#6a2e2a', '#c9a26a', '#4a6a3a', '#7a8a9a'];
 const glassMat = new THREE.MeshStandardMaterial({ color: '#1a2430', map: null, roughness: 0.05, metalness: 0.85, envMapIntensity: 1.6, side: THREE.DoubleSide });
 const carTrimMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0.75, envMapIntensity: 1.3 });
@@ -1869,6 +1975,9 @@ const sirenPoolB = sirenPoolR.clone(); sirenPoolB.color.set('#2a6aff');
 const decalMat = (draw) => new THREE.MeshStandardMaterial({ map: glowTex(draw, 256, 64), transparent: true, roughness: 0.35, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
 const policeDecal = decalMat((g, w, h) => { g.font = '38px Bungee, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#f2efe6'; g.fillText('POLICE', w / 2 + 14, h / 2 + 2); g.fillStyle = '#d9b040'; g.beginPath(); for (let i = 0; i < 10; i++) { const a = i / 10 * Math.PI * 2 - Math.PI / 2, r = i % 2 ? 9 : 20; g.lineTo(28 + Math.cos(a) * r, h / 2 + Math.sin(a) * r); } g.fill(); });
 const taxiDecal = decalMat((g, w, h) => { for (let x = 0; x < w; x += 16) for (let y = 0; y < 2; y++) { g.fillStyle = (x / 16 + y) % 2 ? '#111' : '#f2efe6'; g.fillRect(x, 16 + y * 16, 16, 16); } });
+const busDecal = decalMat((g, w, h) => { g.font = '21px Bungee, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#1f4e4a'; g.fillText('RUSTWATER TRANSIT', w / 2, h / 2 + 2); });
+const truckDecal = decalMat((g, w, h) => { g.fillStyle = '#1f3b5c'; g.fillRect(0, h - 20, w, 10); g.font = '22px Bungee, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('MERRIDEW FREIGHT', w / 2, h / 2 - 6); });
+const DECAL_MAT = { police: policeDecal, taxi: taxiDecal, bus: busDecal, truck: truckDecal };
 const taxiSignMat = new THREE.MeshStandardMaterial({ map: glowTex((g, w, h) => { g.fillStyle = '#f2d060'; g.fillRect(0, 0, w, h); g.font = '40px Bungee, Impact, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = '#1a1a1a'; g.fillText('TAXI', w / 2, h / 2 + 2); }, 256, 64), emissive: '#ffffff', emissiveIntensity: 0.6, roughness: 0.4 });
 taxiSignMat.emissiveMap = taxiSignMat.map;
 
@@ -1891,6 +2000,7 @@ function carGeo(type) {
   b.lineTo(p.A0 + 0.05, p.belt); b.lineTo(p.C0 - 0.05, p.belt); b.lineTo(-h + 0.14, p.trunk); b.quadraticCurveTo(-h, p.trunk, -h, p.trunk - 0.12);
   b.lineTo(-h, yb + 0.1); b.quadraticCurveTo(-h, yb, -h + 0.08, yb);
   const paint = [sideExtrude(b, W, 0.07)];
+  if (p.box) paint.push(NI(box(W - 0.1, p.box - p.trunk - 0.05, p.C0 - 0.1 - (-h + 0.05), 0, (p.box + p.trunk) / 2, (p.C0 - 0.1 + (-h + 0.05)) / 2)));   // delivery truck: a box body behind the cab
   // greenhouse in paint, glass set into it
   const gh = new THREE.Shape(); gh.moveTo(p.A0, p.belt - 0.04); gh.lineTo(p.A1 + 0.04, p.top - 0.02); gh.quadraticCurveTo(p.A1, p.top, p.A1 - 0.08, p.top);
   gh.lineTo(p.C1 + 0.08, p.top); gh.quadraticCurveTo(p.C1, p.top, p.C1 - 0.03, p.top - 0.03); gh.lineTo(p.C0, p.belt - 0.04); gh.closePath();
@@ -1935,7 +2045,7 @@ function carGeo(type) {
     else if (hl === 'round') roundL(sx * (gW / 2 + 0.25), 0.16);
     else head.push(box(0.5, 0.1, 0.04, sx * (gW / 2 + 0.3), hy + 0.05, h + 0.02));
     if (hl !== 'slim') T2(new THREE.CylinderGeometry(hl === 'round' ? 0.19 : 0.14, hl === 'round' ? 0.19 : 0.14, 0.03, 14).rotateX(Math.PI / 2).translate(sx * (gW / 2 + (hl === 'round' ? 0.25 : 0.3)), hy, h + 0.005), C);
-    const tw = type === 'van' || type === 'pickup' ? 0.2 : 0.5, th = type === 'van' || type === 'pickup' ? 0.42 : 0.18, tx = sx * (W / 2 - 0.1 - tw / 2), ty = p.trunk - 0.12 - th / 2;
+    const tall = type === 'van' || type === 'pickup' || type === 'bus' || type === 'truck', tw = tall ? 0.2 : 0.5, th = tall ? 0.42 : 0.18, tx = sx * (W / 2 - 0.1 - tw / 2), ty = p.trunk - 0.12 - th / 2;
     tail.push(box(tw, th, 0.04, tx, ty, -h - 0.015)); brake.push(box(tw + 0.04, th + 0.04, 0.02, tx, ty, -h - 0.045));
   }
   // wheels: tyre with sidewall, chrome hubcap
@@ -1945,9 +2055,9 @@ function carGeo(type) {
     vc(new THREE.CylinderGeometry(0.2, 0.2, 0.32, 14), '#4a3a30'), vc(new THREE.CylinderGeometry(0.06, 0.06, 0.34, 6), '#2a2220')].map(NI)).rotateZ(Math.PI / 2);
   const g = { wheelBare, paint: mergeGeometries(paint.map(NI)), glass: mergeGeometries(glass), trim: mergeGeometries(trim.map(NI)), head: mergeGeometries(head.map(NI)), tail: mergeGeometries(tail.map(NI)), brake: mergeGeometries(brake.map(NI)), wheel,
     beam: new THREE.PlaneGeometry(5.5, 13).rotateX(-Math.PI / 2).translate(0, 0.07, h + 6.4), W, L };
-  if (type === 'police' || type === 'taxi') {
-    const dl = type === 'police' ? 1.7 : L - 1.4, dh = type === 'police' ? 0.42 : 0.2, dy = type === 'police' ? (p.belt + yb) / 2 + 0.02 : p.belt - 0.12;
-    g.decal = mergeGeometries([new THREE.PlaneGeometry(dl, dh).rotateY(Math.PI / 2).translate(W / 2 + 0.016, dy, 0), new THREE.PlaneGeometry(dl, dh).rotateY(-Math.PI / 2).translate(-W / 2 - 0.016, dy, 0)]);
+  if (DECAL_MAT[type]) {
+    const dd = { police: [1.7, 0.42, (p.belt + yb) / 2 + 0.02, 0], taxi: [L - 1.4, 0.2, p.belt - 0.12, 0], bus: [7.2, 0.55, 0.72, -0.4], truck: [4.8, 1.2, 2.2, -1.45] }[type];
+    g.decal = mergeGeometries([new THREE.PlaneGeometry(dd[0], dd[1]).rotateY(Math.PI / 2).translate(W / 2 + 0.016, dd[2], dd[3]), new THREE.PlaneGeometry(dd[0], dd[1]).rotateY(-Math.PI / 2).translate(-W / 2 - 0.016, dd[2], dd[3])]);
   }
   return CAR_GEO[type] = g;
 }
@@ -1957,15 +2067,17 @@ function makeCar(type, color, x, z, angle, kind) {
   const s = CAR_TYPES[type], p = s.p, G = carGeo(type);
   if (type === 'police') color = '#e9e6dc';
   if (type === 'taxi') color = '#e8b43e';
+  if (type === 'bus') color = '#e4d8b8';
+  if (type === 'truck') color = '#e8e4d6';
   const g = new THREE.Group(), body = new THREE.Group(); g.add(body);
   const add = (geo, mat, cast = true, parent = body) => { const m = new THREE.Mesh(geo, mat); m.castShadow = cast; m.receiveShadow = cast; parent.add(m); return m; };
   const bodyMesh = add(G.paint, paintMat(color)), glass = add(G.glass, glassMat, false), trim = add(G.trim, carTrimMat, false);
   const head = add(G.head, headMat, false), tail = add(G.tail, tailMat, false), brake = add(G.brake, brakeMat, false); brake.visible = false;
   const beam = add(G.beam, beamMat, false, g); beam.visible = false;
   const hpool = new THREE.Mesh(headPoolGeo, headPoolMat); hpool.position.set(0, 0.06, G.L / 2 + 5.5); hpool.visible = false; g.add(hpool);
-  const decal = G.decal ? add(G.decal, type === 'police' ? policeDecal : taxiDecal, false) : null;
+  const decal = G.decal ? add(G.decal, DECAL_MAT[type], false) : null;
   const wheels = [];
-  for (const [wx, wz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const w = new THREE.Mesh(G.wheel, wheelMat); w.rotation.order = 'YXZ'; w.position.set(wx * (G.W / 2 - 0.2), WR, wz * p.wb / 2); w.castShadow = true; g.add(w); wheels.push(w); }
+  for (const [wx, wz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) { const w = new THREE.Mesh(G.wheel, wheelMat); w.rotation.order = 'YXZ'; w.position.set(wx * (G.W / 2 - 0.2), WR * (s.wheelK || 1), wz * p.wb / 2); if (s.wheelK) w.scale.setScalar(s.wheelK); w.castShadow = true; g.add(w); wheels.push(w); }
   let bar = null, pools = null;
   if (type === 'police') {
     bar = new THREE.Group(); bar.position.set(0, p.top + 0.04, (p.A1 + p.C1) / 2);
@@ -2160,7 +2272,11 @@ function circleHitsWorld(x, z, r) {
   nearObst(x, z, o => { if (!hit && o.type !== 'lamp' && o.type !== 'prop' && (x - o.x) ** 2 + (z - o.z) ** 2 < (r + o.r) ** 2) hit = true; });
   return hit;
 }
-function carCircles(c, x, z, a) { const fx = Math.sin(a), fz = Math.cos(a), L = c.spec.body[2] * 0.3; return [[x + fx * L, z + fz * L], [x, z], [x - fx * L, z - fz * L]]; }
+function carCircles(c, x, z, a) {
+  const fx = Math.sin(a), fz = Math.cos(a), Ln = c.spec.body[2], L = Ln * 0.3;
+  if (Ln > 6) { const k = Ln * 0.38; return [[x + fx * k, z + fz * k], [x + fx * k / 2, z + fz * k / 2], [x, z], [x - fx * k / 2, z - fz * k / 2], [x - fx * k, z - fz * k]]; }   // buses and trucks
+  return [[x + fx * L, z + fz * L], [x, z], [x - fx * L, z - fz * L]];
+}
 function carHitsWorld(c, x, z, a = c.angle) { const r = c.spec.body[0] * 0.5; for (const [px, pz] of carCircles(c, x, z, a)) if (circleHitsWorld(px, pz, r)) return true; return false; }
 
 // ---------- Car physics
@@ -2294,8 +2410,16 @@ function carCollisions() {
 }
 
 // ---------- Pedestrians
+function releasePed(p) {   // a waiting or sitting ped gets going again
+  const st = p.stay; if (!st) return;
+  if (st.S) { const i = st.S.waiters.indexOf(p); if (i >= 0) st.S.waiters.splice(i, 1); }
+  if (st.bench && st.bench.sitter === p) st.bench.sitter = null;
+  p.stay = null; p.mesh.g.position.y = 0; pedGoal(p);
+}
+function dropPed(p) { if (p.stay) releasePed(p); disposePerson(p.mesh); }
 function knockPed(p, vx, vz, byPlayer) {
   if (p.down) return;
+  if (p.stay) releasePed(p); p.board = null; p.waitT = 0;
   p.down = true; p.downT = rr(4, 6); p.vx = vx; p.vz = vz; p.vy = 3 + Math.hypot(vx, vz) * 0.25; p.y = 0;
   p.spin = rr(-6, 6);
   if (byPlayer) { addScore(25, 'Pedestrian'); crime(0.55, true); sfxThud(0.8); }
@@ -2332,11 +2456,48 @@ function pedGoal(p) {
   p.goal = [(tx + p.dir[0] + 0.5) * T + (keepLane ? 0 : rr(-3.5, 3.5)) * Math.abs(p.dir[1]) + (keepLane ? 0 : 0), (tz + p.dir[1] + 0.5) * T + (keepLane ? 0 : rr(-3.5, 3.5)) * Math.abs(p.dir[0])];
   if (!keepLane) { if (p.dir[0]) p.goal[1] = p.z + rr(-1, 1); else p.goal[0] = p.x + rr(-1, 1); }
 }
+
+function pedMayCross(p, ux, uz) {   // may a walker step off the kerb here? (red for the cars that cross their path, or no car coming)
+  let best = null, bd = 900;
+  for (const n of sigNodes) { const d = (n.x - p.x) ** 2 + (n.z - p.z) ** 2; if (d < bd) { bd = d; best = n; } }
+  if (best) return sigState(best, Math.abs(ux) > Math.abs(uz) ? 'ns' : 'ew') === 'r';
+  const cx = p.x + ux * 6, cz = p.z + uz * 6;
+  for (const c of cars) {
+    if (c.wreck || Math.abs(c.speed) < 2) continue;
+    const dx = cx - c.x, dz = cz - c.z; if (dx * dx + dz * dz < 400 && dx * c.vx + dz * c.vz > 0) return false;
+  }
+  return true;
+}
+function busDoor(c) { const a = c.angle, L = c.spec.body[2], W = c.spec.body[0]; return [c.x - Math.cos(a) * (W / 2 + 0.45) + Math.sin(a) * (L / 2 - 2.6), c.z + Math.sin(a) * (W / 2 + 0.45) + Math.cos(a) * (L / 2 - 2.6)]; }
+function seatPeople() {   // people on benches and at bus stops come and go around the player
+  if (Math.random() > 0.05) return;
+  for (const S of busStops) {
+    if (S.waiters.length >= 3 || Math.random() > 0.3) continue;
+    const d = Math.hypot(S.sx - focus.x, S.sz - focus.z); if (d < 25 || d > 120) continue;
+    const k = S.waiters.length - 1, p = newPed({ x: S.sx - S.rx * 1.5 + S.dx * k * 1.1, z: S.sz - S.rz * 1.5 + S.dz * k * 1.1 });
+    p.goal = null; p.angle = Math.atan2(-S.rx, -S.rz); p.stay = { kind: 'bus', S, t: rr(60, 120) }; S.waiters.push(p);
+  }
+  let sitters = 0; for (const p of peds) if (p.stay && p.stay.bench) sitters++;
+  if (sitters >= 8) return;
+  for (const o of props) {
+    if (o.kind !== 'bench' || o.down || o.sitter || Math.random() > 0.15) continue;
+    const d = Math.hypot(o.x - focus.x, o.z - focus.z); if (d < 25 || d > 120) continue;
+    const side = Math.random() < 0.5 ? -0.5 : 0.5, p = newPed({ x: o.x + Math.cos(o.ry) * side, z: o.z - Math.sin(o.ry) * side });
+    p.goal = null; p.angle = o.ry; p.stay = { kind: 'bench', bench: o, t: rr(40, 100) }; o.sitter = p; break;
+  }
+}
+function busDwell(c, S) {   // the bus has stopped: people at the stop climb in, a few climb out
+  for (const w of S.waiters.splice(0)) { w.stay = null; w.board = c; w.mesh.g.position.y = 0; }
+  const d = busDoor(c);
+  for (let i = 0; i < Math.min(c.pax, 2); i++) {
+    c.pax--; const p = newPed({ x: d[0] - S.dx * i * 0.9, z: d[1] - S.dz * i * 0.9 }); p.goal = [S.sx - S.rx * 1.5 + S.dx * (i - 0.5) * 2.5, S.sz - S.rz * 1.5 + S.dz * (i - 0.5) * 2.5];
+  }
+}
 function updatePeds(dt) {
   for (let i = peds.length - 1; i >= 0; i--) {
     const p = peds[i];
     const dist = Math.hypot(p.x - focus.x, p.z - focus.z);
-    if (dist > 150 && !p.down) { disposePerson(p.mesh); peds.splice(i, 1); continue; }
+    if (dist > 150 && !p.down) { dropPed(p); peds.splice(i, 1); continue; }
     if (p.down) {
       if (p.vy !== 0 || p.y > 0) {
         p.vy -= 22 * dt; p.y += p.vy * dt;
@@ -2352,6 +2513,30 @@ function updatePeds(dt) {
     }
     // flee from fast cars, fire and the player's driving
     if (player.car && Math.abs(player.car.speed) > 12) { const dx = p.x - player.car.x, dz = p.z - player.car.z; if (dx * dx + dz * dz < 140) { p.flee = 3; p.fdx = dx; p.fdz = dz; } }
+    if (p.stay) {   // sitting on a bench, or waiting at a bus stop
+      const st = p.stay; st.t -= dt;
+      if (p.flee > 0 || (st.bench && st.bench.down) || st.t < 0) { if (!(p.flee > 0)) p.flee = 0; releasePed(p); if (st.bench && st.bench.down) p.flee = 5; }
+      else {
+        p.mesh.g.position.set(p.x, 0, p.z); p.mesh.g.rotation.set(0, p.angle, 0);
+        if (st.bench) posePersonSit(p.mesh); else animPerson(p.mesh, 0, 0);
+        continue;
+      }
+    }
+    if (p.board) {   // walking to a bus door; stepping in takes them out of the world
+      const b = p.board;
+      if (!cars.includes(b) || !(b.dwell > 0)) p.board = null;
+      else {
+        const d = busDoor(b), ddx = d[0] - p.x, ddz = d[1] - p.z, L = Math.hypot(ddx, ddz) || 1;
+        if (L < 0.9) { b.pax++; dropPed(p); peds.splice(i, 1); continue; }
+        p.x += ddx / L * 2.4 * dt; p.z += ddz / L * 2.4 * dt; p.angle = Math.atan2(ddx, ddz); p.phase += dt * 2.4 * strideRate(2.4);
+        p.mesh.g.position.set(p.x, 0, p.z); p.mesh.g.rotation.set(0, p.angle, 0); animPerson(p.mesh, 2.4, p.phase); continue;
+      }
+    }
+    if (p.waitT > 0) {   // at the kerb, waiting to cross
+      p.waitT += dt;
+      if (p.waitT > 20 || pedMayCross(p, p.cu, p.cv)) p.waitT = 0;
+      else { p.mesh.g.position.set(p.x, 0, p.z); p.mesh.g.rotation.set(0, p.angle, 0); animPerson(p.mesh, 0, 0); continue; }
+    }
     let spd = p.speed, gx, gz;
     if (p.flee > 0) {
       p.flee -= dt; spd = 5.5;
@@ -2365,14 +2550,16 @@ function updatePeds(dt) {
     // stop for cars when crossing
     const dx = gx - p.x, dz = gz - p.z, L = Math.hypot(dx, dz) || 1;
     const nx = p.x + dx / L * spd * dt, nz = p.z + dz / L * spd * dt;
+    if (p.flee <= 0 && !p.waitT && tileW(p.x, p.z) !== TILE.ROAD && tileW(nx, nz) === TILE.ROAD && !pedMayCross(p, dx / L, dz / L)) { p.waitT = 0.01; p.cu = dx / L; p.cv = dz / L; p.angle = Math.atan2(dx, dz); continue; }
     if (!circleHitsWorld(nx, nz, 0.35)) { p.x = nx; p.z = nz; } else if (p.flee > 0) { const t0 = p.fdx; p.fdx = -p.fdz; p.fdz = t0; } else pedGoal(p);
     p.angle = Math.atan2(dx, dz);
     p.phase += dt * spd * strideRate(spd);
     p.mesh.g.position.set(p.x, 0, p.z); p.mesh.g.rotation.set(0, p.angle, 0);
     animPerson(p.mesh, spd, p.phase);
   }
-  const want = QS.peds;
-  if (peds.length < want) { const pos = spawnPed(peds.length < 20 ? 20 : 55, 120); if (pos) newPed(pos); }
+  const want = QS.peds; let walkers = 0; for (const p of peds) if (!p.stay) walkers++;
+  seatPeople();
+  if (walkers < want) { const pos = spawnPed(peds.length < 20 ? 20 : 55, 120); if (pos) newPed(pos); }
 }
 
 // =========================================================================
@@ -2383,7 +2570,8 @@ function edgeWaypoints(a, b) {
   return [[A.x + l.dx * 12 + l.rx * LANE, A.z + l.dz * 12 + l.rz * LANE], [B.x - l.dx * 12 + l.rx * LANE, B.z - l.dz * 12 + l.rz * LANE]];
 }
 function planNext(c) {
-  const B = nodes[c.to];
+  const B = nodes[c.to]; c.lastStop = null;
+  if (c.route) { c.from = c.to; c.ri = (c.ri + 1) % c.route.length; c.to = c.route[c.ri]; c.wp = edgeWaypoints(c.from, c.to); return; }
   let opts = B.nb.filter(n => n !== c.from);
   if (!opts.length) opts = B.nb;
   const n = pick(opts);
@@ -2406,9 +2594,10 @@ function spawnTrafficAt(minD, maxD, type, kind = 'traffic') {
   return null;
 }
 function blockedAhead(c, range = 9) {
+  range += (c.spec.body[2] - 4.5) / 2; const hw = c.spec.body[0] / 2 + 0.8;
   const fx = Math.sin(c.angle), fz = Math.cos(c.angle);
   const test = (x, z, w) => { const dx = x - c.x, dz = z - c.z, lz = dx * fx + dz * fz, lx = dx * fz - dz * fx; return lz > 0.5 && lz < range && Math.abs(lx) < w; };
-  for (const o of cars) if (o !== c && test(o.x, o.z, 2.0)) return true;
+  for (const o of cars) if (o !== c && test(o.x, o.z, hw)) return true;
   if (!player.car && test(player.x, player.z, 1.6)) return true;
   for (const p of peds) if (!p.down && test(p.x, p.z, 1.5)) return true;
   return false;
@@ -2428,16 +2617,46 @@ function driveToward(c, gx, gz, target, dt, avoid) {
   stepCar(c, thr, steer, false, dt);
   if (target > 2 && Math.abs(c.speed) < 0.8) { c.stuck += dt; if (c.stuck > 1.3) { c.stuck = 0; c.rev = 0.9; } } else c.stuck = 0;
 }
+function busStopTarget(c) {
+  if (c.dwell > 0) return 0;
+  const S = busStops.find(s => s.a === c.from && s.b === c.to); if (!S || c.lastStop === S) return null;
+  const dl = (S.px - c.x) * S.dx + (S.pz - c.z) * S.dz;
+  if (dl < -2) return null;
+  if (dl < 1.5 && Math.abs(c.speed) < 0.8) { c.dwell = 7; c.lastStop = S; busDwell(c, S); return 0; }
+  return Math.max(0, (dl - 0.5) * 1.0);
+}
+function spawnBus(i, f, minD = 0) {
+  const n = BUS_ROUTE.length, a = BUS_ROUTE[i % n], b = BUS_ROUTE[(i + 1) % n], [s, e] = edgeWaypoints(a, b);
+  const x = lerp(s[0], e[0], f), z = lerp(s[1], e[1], f);
+  if (Math.hypot(x - focus.x, z - focus.z) < minD || cars.some(c => Math.hypot(c.x - x, c.z - z) < 14)) return null;
+  const c = makeCar('bus', '#fff', x, z, Math.atan2(e[0] - s[0], e[1] - s[1]), 'traffic');
+  if (carHitsWorld(c, x, z)) { removeCar(c); return null; }
+  c.from = a; c.to = b; c.wp = [e]; c.bus = true; c.route = BUS_ROUTE; c.ri = (i + 1) % n; c.cruise = rr(10, 12); c.pax = (Math.random() * 4) | 0;
+  c.vx = Math.sin(c.angle) * c.cruise * 0.7; c.vz = Math.cos(c.angle) * c.cruise * 0.7; return c;
+}
+function spawnCurbTruck(minD, maxD) {   // a delivery truck stopped at the kerb with its hazards flashing
+  for (let tries = 0; tries < 40; tries++) {
+    const a = Math.floor(Math.random() * nodes.length), b = pick(nodes[a].nb), A = nodes[a], B2 = nodes[b], l = laneOf(A.x, A.z, B2.x, B2.z), f = rr(0.3, 0.7);
+    const x = lerp(A.x, B2.x, f) + l.rx * 7.7, z = lerp(A.z, B2.z, f) + l.rz * 7.7, d = Math.hypot(x - focus.x, z - focus.z);
+    if (d < minD || d > maxD || cars.some(c => Math.hypot(c.x - x, c.z - z) < 12)) continue;
+    const c = makeCar('truck', '#fff', x, z, Math.atan2(l.dx, l.dz), 'parked');
+    if (carHitsWorld(c, x, z)) { removeCar(c); continue; }
+    c.hazard = true; return c;
+  }
+  return null;
+}
 function updateTraffic(c, dt) {
   if (!c.wp.length) planNext(c);
   let w = c.wp[0];
   if (Math.hypot(w[0] - c.x, w[1] - c.z) < 4) { c.wp.shift(); if (!c.wp.length) planNext(c); w = c.wp[0]; }
   const blocked = blockedAhead(c);
   if (blocked) { c.wait = (c.wait || 0) + dt; } else c.wait = 0;
-  const target = (blocked && c.wait < 5) ? 0 : c.cruise;
+  let target = (blocked && c.wait < 5) ? 0 : c.cruise;
+  const sgT = signalTarget(c); c.sigWait = sgT !== null && sgT < 1; if (sgT !== null) target = Math.min(target, sgT);
+  if (c.bus) { const bT = busStopTarget(c); if (bT !== null) { target = Math.min(target, bT); c.sigWait = true; } if (c.dwell > 0) c.dwell -= dt; }
   if (blocked && c.wait > 2.5 && c.horn <= 0) { c.horn = 0.5; if (Math.hypot(c.x - focus.x, c.z - focus.z) < 40) sfxHorn(); }
   driveToward(c, w[0], w[1], target, dt, false);
-  if (c.stuck === 0 && c.rev <= 0 && Math.abs(c.speed) < 0.5 && !blocked) c.idle = (c.idle || 0) + dt; else c.idle = 0;
+  if (c.stuck === 0 && c.rev <= 0 && Math.abs(c.speed) < 0.5 && !blocked && !c.sigWait) c.idle = (c.idle || 0) + dt; else c.idle = 0;
 }
 
 // =========================================================================
@@ -2562,7 +2781,7 @@ function updatePlayer(dt) {
       const fx = Math.sin(c.angle), fz = Math.cos(c.angle), lz = dx * fx + dz * fz, lx = dx * fz - dz * fx;
       if (Math.abs(lz) < c.spec.body[2] / 2 + 0.3 && Math.abs(lx) < c.spec.body[0] / 2 + 0.3) { knockPed(p, c.vx * 0.7, c.vz * 0.7, true); c.vx *= 0.9; c.vz *= 0.9; }
     }
-    nearMisses(c, dt);
+    nearMisses(c, dt); redLightCheck(c);
     return;
   }
   player.mesh.g.visible = true;
@@ -3180,6 +3399,7 @@ function setPause(p) { state = p ? 'paused' : 'play'; $('pause').hidden = !p; if
 function resetWorld() {
   for (const c of [...cars]) removeCar(c);
   for (const p of peds) disposePerson(p.mesh); peds.length = 0;
+  for (const S of busStops) S.waiters.length = 0; for (const o of props) o.sitter = null;
   heat = 0; evade = 0; bustT = 0;
 }
 function placePlayer(pos) {
@@ -3196,7 +3416,8 @@ function startGame() {
   score = 0; lives = 3; mult = 1; M.next = 0; M.active = null; M.encore = false; clearTargets();
   for (const c of M.crates) scene.remove(c.mesh); M.crates = [];
   placePlayer(SPAWN);
-  for (let i = 0; i < 18; i++) spawnTrafficAt(20, 160, pick(['sedan', 'sedan', 'coupe', 'van', 'pickup', 'taxi']));
+  for (let i = 0; i < 18; i++) spawnTrafficAt(20, 160, pick(TRAFFIC_MIX));
+  spawnBus(0, 0.6); spawnBus(5, 0.5); spawnCurbTruck(25, 150); spawnCurbTruck(25, 150);
   for (let i = 0; i < 30; i++) { const p = spawnPed(8, 110); if (p) newPed(p); }
   $('title').hidden = true; $('hud').hidden = false; state = 'play';
   flashBanner('RUSTWATER, 1979', 'Find a ringing payphone. Teo has work.', 3, '#f2b33d');
@@ -3221,7 +3442,8 @@ function respawn() {
   }
   resetWorld();
   placePlayer(failKind === 'busted' ? PRECINCT : SPAWN);
-  for (let i = 0; i < 16; i++) spawnTrafficAt(30, 160, pick(['sedan', 'coupe', 'van', 'pickup', 'taxi']));
+  for (let i = 0; i < 16; i++) spawnTrafficAt(30, 160, pick(TRAFFIC_MIX));
+  spawnBus(0, 0.6); spawnBus(5, 0.5); spawnCurbTruck(25, 150);
   $('banner').classList.remove('show'); bannerT = 0;
   state = 'play';
   flashBanner('', failKind === 'busted' ? 'Out on bail. Precinct 9 says behave.' : 'Patched up at St. Agnes. Try not to do that again.', 2.4, '#f5e6c8');
@@ -3292,18 +3514,32 @@ function updateSky(t) {
 // ---------- Population upkeep
 function upkeep() {
   for (const c of [...cars]) {
-    if (c === player.car || c.mission) continue;
+    if (c === player.car || c.mission || (c.bus && c.kind === 'traffic')) continue;
     const d = Math.hypot(c.x - focus.x, c.z - focus.z);
     if (d > 190 || (c.wreck && c.wreckT > 25 && d > 70) || (c.kind === 'traffic' && c.idle > 8 && d > 60)) removeCar(c);
   }
   const traffic = cars.filter(c => c.kind === 'traffic').length;
-  if (traffic < QS.traffic) spawnTrafficAt(80, 170, pick(['sedan', 'sedan', 'coupe', 'van', 'pickup', 'taxi', 'sedan']));
+  if (traffic < QS.traffic) spawnTrafficAt(80, 170, pick(TRAFFIC_MIX));
+  if (cars.filter(c => c.bus && c.kind === 'traffic' && !c.wreck).length < 2) spawnBus((Math.random() * BUS_ROUTE.length) | 0, rr(0.2, 0.8), 90);
+  if (cars.filter(c => c.hazard && !c.wreck).length < 2 && Math.random() < 0.3) spawnCurbTruck(70, 170);
 }
 
 setQuality(quality, true);
 
 // ---------- Main loop
+function simCars(dt) {
+  for (const c of cars) {
+    if (c === player.car) continue;
+    if (c.wreck || !c.driver || c.kind === 'parked' || c.kind === 'player') { if (c.kind === 'player') c.kind = 'parked'; stepCar(c, 0, 0, true, dt); continue; }
+    if (c.kind === 'police') updatePolice(c, dt); else updateTraffic(c, dt);
+    c.horn -= dt;
+  }
+  carCollisions();
+}
 let last = performance.now(), time = 0, upkeepT = 0;
+function fastForward(sec) {   // test hook: run the traffic, signals and walkers without drawing (headless Chromium draws about 1 frame a second)
+  for (let t = 0; t < sec; t += 0.05) { time += 0.05; simCars(0.05); updatePeds(0.05); upkeepT -= 0.05; if (upkeepT <= 0) { upkeep(); upkeepT = 0.5; } }
+}
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -3316,13 +3552,7 @@ function frame(now) {
     updateMission(dt); updateRespray(dt); updateWanted(dt);
   } else if (state === 'dead') { failT += dt; }
   if (state === 'play' || state === 'dead') {
-    for (const c of cars) {
-      if (c === player.car) continue;
-      if (c.wreck || !c.driver || c.kind === 'parked' || c.kind === 'player') { if (c.kind === 'player') c.kind = 'parked'; stepCar(c, 0, 0, true, dt); continue; }
-      if (c.kind === 'police') updatePolice(c, dt); else updateTraffic(c, dt);
-      c.horn -= dt;
-    }
-    carCollisions();
+    simCars(dt);
     // fire and wreck effects
     for (const c of [...cars]) {
       if (c.onFire) {
@@ -3347,7 +3577,7 @@ function frame(now) {
     for (const w of c.wheels) w.rotation.x += c.speed * dt / WR;
     c.wheels[0].rotation.y = c.wheels[1].rotation.y = c.wreck ? 0.3 : lerp(c.wheels[0].rotation.y, (c.steerVis || 0) * 0.42, Math.min(1, dt * 10));
     if (c.bar) c.bar.visible = c.kind === 'police' && !c.wreck;
-    if (!c.wreck) { c.brake.visible = !!c.braking; c.beam.visible = c.driver || c === player.car; c.hpool.visible = QS.nightFx && nightAmt > 0.12 && c.beam.visible; if (c.pools) c.pools.visible = !!c.siren; }
+    if (!c.wreck) { c.brake.visible = c.hazard ? Math.sin(time * 7) > 0 : !!c.braking; c.beam.visible = c.driver || c === player.car; c.hpool.visible = QS.nightFx && nightAmt > 0.12 && c.beam.visible; if (c.pools) c.pools.visible = !!c.siren; }
   }
   const flash = Math.sin(time * 18) > 0;
   sirenR.color.setRGB(flash ? 3 : 0.3, 0.05, 0.05); sirenB.color.setRGB(0.05, 0.2, flash ? 0.3 : 3);
@@ -3371,7 +3601,7 @@ function frame(now) {
   // smokestacks
   stackT -= dt; if (stackT <= 0) { stackT = 0.11; for (const [x, y, z] of stacks) smoke.emit(x + rr(-0.5, 0.5), y, z, rr(1.2, 2.4), rr(2.5, 4), rr(-1.2, -0.4), rr(6, 9), 3, rr(14, 22), 0.62, 0.55, 0.55, 0.42, 0.15); }
   boomLight.intensity *= Math.exp(-dt * 6);
-  windU.value = time; updateLamps(dt); updateHubcaps(dt); updateSkids(time, dt); updateFerris(dt, time); updateWater(time); updateWeather(dt, Math.max(0, 1 - Math.abs(((window.__phase ?? (time / DAY_LEN)) % 1) - 0.85) / 0.12)); updateSky(time);
+  windU.value = time; updateSignals(); updateLamps(dt); updateHubcaps(dt); updateSkids(time, dt); updateFerris(dt, time); updateWater(time); updateWeather(dt, Math.max(0, 1 - Math.abs(((window.__phase ?? (time / DAY_LEN)) % 1) - 0.85) / 0.12)); updateSky(time);
   smoke.update(dt); fire.update(dt);
   if (state !== 'title' && state !== 'over') { updateCamera(dt); updateHud(dt, time); }
   else { // title flyover
@@ -3385,7 +3615,7 @@ function frame(now) {
 // a few cars and walkers for the title flyover
 focus.x = WORLD / 2; focus.z = WORLD / 2;
 requestAnimationFrame(frame);
-window.__rustwater = { get state() { return state; }, cars, peds, player, M, W, startGame, dentCar, damageCar };
+window.__rustwater = { get state() { return state; }, cars, peds, player, M, W, startGame, dentCar, damageCar, nodes, sigState, makeCar, fastForward, busStops, props, get time() { return time; }, get heat() { return heat; } };
 </script>
 <script src="../views.js" defer></script>
 </body>
