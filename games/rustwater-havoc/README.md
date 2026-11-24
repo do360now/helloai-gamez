@@ -42,6 +42,16 @@ ground pools, and a cool moonlight. The sun's shadow pass is switched off at nig
 the cheapest part of the cycle. Tests can pin the time with `window.__phase` (0 golden, 0.25 dusk, 0.5
 night, 0.85 dawn).
 
+## Weather
+
+The weather changes by itself, on a timer of a few minutes per state: clear, overcast, rain, clearing, and
+sometimes a leaf storm. Rain falls as streaks with splashes and rings on the river, the sky greys and the fog
+closes in, roads go dark and glossy, and puddles and wet asphalt mirror lamps, windows and neon. Rain hisses
+(muffled inside a car), wet roads give less grip and longer slides, a thin mist hangs over the river (also
+at dawn), and in a leaf storm autumn leaves blow across town and the trees thrash. The clock shows RAIN,
+OVERCAST or WINDY. Tests can pin the weather with `window.__weather` (`'clear'`, `'overcast'`, `'rain'`,
+`'clearing'`, `'storm'`).
+
 ## Files (open track, no build step)
 
 The folder is the source; nothing is generated. About 900 KB in all, most of it Three.js.
@@ -55,6 +65,9 @@ The folder is the source; nothing is generated. About 900 KB in all, most of it 
 | `card.jpg` | Landing-page card, a screenshot of Ferris Green in the game |
 
 ## Graphics quality
+
+Rain: about 3000 streaks on high, 1500 on medium and 800 on low. The wet-ground mirror (a second scene pass,
+only while the ground is wet) is 40% of the screen size on high, a quarter every other frame on medium, and off on low.
 
 Night effects (window flicker, headlight ground pools, buzzing signs) are on high and medium, off on low;
 windows still light up in sequence on every level.

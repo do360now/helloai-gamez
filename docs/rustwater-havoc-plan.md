@@ -8,7 +8,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | # | Session | Status |
 |---|---------|--------|
 | 1 | Night (and the shadow-pass cost) | done (see git log, merged 2026-11-24) |
-| 2 | Weather | not started |
+| 2 | Weather | built 2026-11-24 on branch `rustwater-havoc`, not committed yet (see Session 2 notes) |
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | not started |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | not started |
 | 5 | More jobs: taxi fares, bridge race, cars for Sal | not started |
@@ -95,6 +95,18 @@ Night, measured 2026-11-23 after session 1 (same camera, `shot.mjs --at 222,163`
 | Dawn 0.85 (high) | 382 | 0.63M |
 | Night (medium) | 183 | 0.25M |
 | Night (low) | 138 | 0.23M |
+
+Weather, measured 2026-11-24 after session 2 (same camera, `shot.mjs --at 222,163 --weather ...`, one frame, all passes):
+
+| Weather (quality) | Draw calls | Triangles | Note |
+|---|---|---|---|
+| Clear (high) | 375 | 0.62M | same as before |
+| Overcast (high) | 364 | 0.61M | |
+| Leaf storm (high) | 385 | 0.63M | |
+| Rain, day (high) | 713 | 1.10M | the wet-ground mirror is a second full scene pass; this is the expensive case |
+| Rain, night (high) | 342 to 463 | 0.49M to 0.68M | no sun shadow pass at night; the range is two different views |
+| Rain, day (medium) | 165 | 0.24M | measured on a frame where both shadow and wet pass were skipped (they run every other frame); a pass frame is about 160 calls more |
+| Rain, day (low) | 142 | 0.24M | no wet mirror, no shadows |
 
 The shadow pass (a 240 m box around the player) is the biggest single cost. Nothing has been timed
 on a real GPU yet. If the user reports fps from a real device, write the numbers here.
@@ -236,6 +248,39 @@ roads reflect lights.
 **Done when:** screenshots of clear, rain (day), rain (night, with neon visible in puddles) and the
 leaf storm all look right; draw calls in rain on high are noted in the cost table; and `flow.mjs`
 passes.
+
+**Session 2 notes (built 2026-11-24):**
+- State is `W = { kind, rain, wet, cloud, wind, gust, t }` (also on `window.__rustwater.W`). Kinds and their
+  targets are in `WK`, the random order in `W_NEXT`, durations in `W_DUR` (clear 150 to 240 s, overcast 50 to 90,
+  rain 110 to 190, clearing 50 to 80, storm 70 to 110). The game starts clear. `updateWeather(dt, dawn)` runs just
+  before `updateSky`. `window.__weather = 'rain'` (clear, overcast, rain, clearing, storm) pins the kind and snaps
+  every value; `shot.mjs --weather` sets it. Pinning `storm` also pre-fills the view with leaves (headless runs at
+  about 1 fps, game time moves 0.05 s per frame, so natural easing is far too slow to test).
+- Rain: one `LineSegments` (3000 streaks, draw range follows `W.rain`), animated in the vertex shader from a
+  wrapped box around the camera. Splashes are a `Particles` system (`splash`), skipped on the river rows. Rain rings
+  on the river are in the water shader (`uRain`). Rain sound is two looped noise sources (`A.rainS`, `A.windS`),
+  muffled inside a car.
+- Wet ground: `wetU` (`uWet`) in `gmat`: darker albedo, roughness down, flat mirror puddles. The roughness map's
+  blue channel is 0 on roads and puddles, so it is the road mask; green is the puddle mask.
+- The mirror: `makePlanar(Y, ...)` is now the generic planar reflection; `refl` (river, y = WATER_Y) and `wetRefl`
+  (ground, y = 0) both use it. The wet pass runs when `W.wet > 0.3` and `QS.wetRefl > 0` (high 0.4 scale, medium 0.25
+  every other frame, low off). **I did not merge it with the river pass:** the planes are 1.8 m apart, but the river
+  needs the water hidden and its own oblique clip, so one shared target would show wrong reflections in one of them.
+  The cost is in the table above: rain by day on high is about twice the draw calls.
+- Neon in puddles: confirmed at night, windows and signs mirror in the wet asphalt
+  (`n2/low.png` in the session scratchpad). Neon and lamps look much weaker in a top-down view, because the
+  mirror strength depends on the viewing angle.
+- Overcast: `updateSky` scales sun and env light by `W.cloud`, greys the fog, and rain pulls the fog in (140/360 to 85/250).
+- Leaf storm: `leaves` (`Particles`, 500) blown east, trees sway by `windAmp` (up to 4x). Leaves are round-ish point
+  sprites that don't tumble.
+- Handling: wet damping 9 to 6.5 and handbrake 1.4 to 0.9 at full wet (applies to all cars). `flow.mjs` passed three times,
+  but "police" printed 0 once, then 2, 2 (baseline 1): that count depends on frame timing at 1 fps and is flaky.
+- River mist: 16 flat additive-free quads (one `InstancedMesh`), thicker in rain, at dawn and under cloud.
+- Loose end (low quality changing mid-game keeps the 2x ground texture): **accepted, not rebaked**. It only costs memory.
+- Not done: no rain on car windows, no lightning or thunder, no puddle ripples on the ground, and rain falls through
+  roofs (the camera looks down, so it isn't noticeable).
+- Not measured on a real GPU. Rain by day on high is the likeliest to drop frames; the `perfWatch` step-down
+  covers it, but if a real device shows it, set `wetRefl` lower or skip the wet pass on high too.
 
 ---
 

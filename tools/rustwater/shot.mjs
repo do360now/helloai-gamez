@@ -1,5 +1,5 @@
 // Screenshots for graphics work.
-//   node tools/rustwater/shot.mjs <outdir> [--quality high|medium|low] [--phase 0.5 | --dusk] [--at x,z] [--size 1200x675]
+//   node tools/rustwater/shot.mjs <outdir> [--quality high|medium|low] [--phase 0.5 | --dusk] [--weather clear|overcast|rain|clearing|storm] [--at x,z] [--size 1200x675]
 //        [--view name=px,py,pz,tx,ty,tz ...]
 // Always writes <outdir>/game.png (the normal game camera around the player, HUD hidden). Each --view adds
 // <outdir>/<name>.png from a fixed camera. Prints draw calls at the game camera and any page errors.
@@ -17,6 +17,8 @@ await page.goto(URL_GAME, { timeout: 180000 }); await page.waitForTimeout(4000);
 await page.keyboard.press('Enter'); await page.waitForTimeout(2000);
 await page.evaluate(([x, z]) => { const g = window.__rustwater; g.player.x = x; g.player.z = z; }, at);
 const phase = args.includes('--dusk') ? 0.25 : opt('--phase', null);
+const weather = opt('--weather', null);
+if (weather) await page.evaluate(w => { window.__weather = w; }, weather);
 if (phase !== null) await page.evaluate(p => { window.__phase = +p; }, phase);
 await page.waitForTimeout(5000);
 await page.evaluate(() => { for (const id of ['hud', 'banner']) document.getElementById(id).style.display = 'none'; });
