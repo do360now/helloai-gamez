@@ -10,7 +10,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | 1 | Night (and the shadow-pass cost) | done (see git log, merged 2026-11-24) |
 | 2 | Weather | done (commit ceab9c5, merged and deployed 2026-11-24) |
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | done (commit 024a243, merged and deployed 2026-11-24; touch point steering not done) |
-| 4 | Busier streets: traffic lights, people waiting, buses and trucks | not started |
+| 4 | Busier streets: traffic lights, people waiting, buses and trucks | built 2026-11-24 on branch rustwater-havoc, not committed or merged yet |
 | 5 | More jobs: taxi fares, bridge race, cars for Sal | not started |
 | 6 | Agent mode | not started |
 
@@ -120,6 +120,18 @@ Cars and sound, measured 2026-11-24 after session 3 (same camera, `shot.mjs --at
 
 Session 3 adds at most 1 call for the skid marks (hidden until the first mark), up to 8 for loose hubcaps, and nothing per damaged car (a dent only swaps geometry).
 The rain and medium numbers move with which frame the every-other-frame passes land on, so compare them loosely.
+
+Busier streets, measured 2026-11-24 after session 4 (same camera, one frame, all passes; the figures include the signals, shelters, extra people, trucks and buses that happen to be in view):
+
+| Case | Draw calls | Triangles |
+|---|---|---|
+| Clear, golden (high) | 385 | 0.66M |
+| Rain, day (high) | 555 | 0.93M |
+| Night (high) | 161 | 0.24M |
+| Clear (medium) | 388 | 0.65M |
+| Clear (low) | 145 | 0.27M |
+
+Signals add 3 draw calls (poles, heads, lenses) and the shelters 1; each bus or truck in view is about 8 to 10 like any other car.
 
 The shadow pass (a 240 m box around the player) is the biggest single cost. Nothing has been timed
 on a real GPU yet. If the user reports fps from a real device, write the numbers here.
@@ -424,6 +436,34 @@ bus stops or sitting on benches, a bus line and delivery trucks.
 - Bus-stop and bench people are visible.
 - A bus completes a loop over 2 minutes headless (check its position).
 - `flow.mjs` passes. Traffic must not deadlock at lights: watch for cars with `idle > 8` piling up.
+
+**Session 4 notes (built 2026-11-24, in two parts: signals and braking, then people, buses and trucks):**
+- Signals: `sigNodes` (4-way nodes in odd columns, so the three bridge avenues; 12 junctions), `sigState(n, axis)` (25 s cycle, offset `n.sigOff`),
+  `window.__signal = 'ns' | 'ew'` pins it (green for that axis; a real feature hook like `__phase`). `updateSignals` recolours the lens instances only when a head changes.
+  Stop bars are painted in `bakeGround`. `signalTarget(c)` in `updateTraffic` caps the speed of a car heading for a red or an uncomfortable amber
+  (stop point is 21.3 m + half the car's length from the junction centre); cars waiting at a light don't count towards the `idle > 8` despawn.
+  Police don't use `updateTraffic`, so they ignore lights. `redLightCheck` gives `crime(0.3)` when the player enters a junction box on red with a cop within 40 m.
+- Long vehicles: `carCircles` uses 5 circles above 6 m; `blockedAhead` scales its range and width with the car.
+- Types: `bus` (11 m, hp 420, max 22) and `truck` (7 m box body, hp 220) in `CAR_TYPES`, with `wheelK` (bigger wheels) and decals through `DECAL_MAT`.
+  `TRAFFIC_MIX` replaces the three hard-coded lists. `spawnCurbTruck` parks a truck at the kerb with `c.hazard` (flashing the brake lights).
+- Bus line: `BUS_ROUTE` (10 nodes, 960 m, both ends of two bridges), `busStops` (3, found by scanning for a free sidewalk spot), `shelterIM`.
+  A bus is `kind: 'traffic'` with `c.bus`, `c.route`, `c.ri`; `planNext` follows the route; `busStopTarget` brakes to the stop, `c.dwell` holds it 7 s,
+  `busDwell` makes the waiters walk to the door (`p.board`, `busDoor`) and climb in (the ped is removed) and lets up to 2 passengers climb out.
+  `upkeep` keeps two buses alive (never despawns a bus that is still on its route) and about two kerb trucks.
+- People: `p.stay` (a bench sitter or a bus-stop waiter), `p.board`, `p.waitT` (waiting at a kerb; `pedMayCross`: near a signal, wait for red for the cars,
+  otherwise wait for a gap, give up after 20 s). `seatPeople` adds sitters (max 8) and waiters (max 3 per stop) around the player; `releasePed` / `dropPed` clean up.
+  `posePersonSit` is the sitting pose. People who wait or sit are on top of `QS.peds`.
+- Test hooks: `__rustwater.fastForward(seconds)` runs traffic, signals and people without drawing (headless draws 1 frame a second, so a bus would never get round);
+  the handle also has `nodes`, `sigState`, `makeCar`, `busStops`, `props`, `time`, `heat`.
+  With it, two buses ran the whole loop in about 150 s of game time, stopping at all three stops, with no car idle for more than 8 s. Cars queue and
+  stop at a pinned red; walkers wait about 11 s at the kerb near a light.
+- Checked: `flow.mjs` (police 2), `touch.mjs` landscape and portrait, no page errors; screenshots of the lights, a bus at a stop with people boarding, a bench sitter,
+  and the hazard truck were looked at in the session scratchpad.
+- Not done / ideas: people don't get on a bus that is not at a stop; the bus has no driver or passengers visible, and no interior; cars don't give way to each other in a junction
+  (a car left in the box when the light changes relies on the 1.5 s all-red); hazard lights flash the red brake lamps, not amber; peds only look for a gap
+  at kerbs (not for a car that is already crossing); trucks don't deliver anything.
+  Next session (5) can use `TRAFFIC_MIX` and the new types in Sal's list.
+- Not measured on a real GPU or by ear/eye in motion: only still frames in headless.
 
 ---
 
