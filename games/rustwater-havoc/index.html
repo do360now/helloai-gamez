@@ -220,6 +220,7 @@
 </div>
 <div id="nogl" class="overlay" hidden>Rustwater needs WebGL. Try a recent desktop browser.</div>
 
+<script src="../arcade.js"></script>
 <script type="module">
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -242,8 +243,8 @@ const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const mpick = arr => arr[Math.floor(mrand() * arr.length)];
 // Gameplay randomness (anything the simulation or the score reads) comes from three seeded streams; rr/pick/Math.random stay for looks and sound.
 // world: traffic, people, fares, physics jitter. weather: the forecast, the same for every player. sal: Sal's wanted list, the same for every player.
-const QP = new URLSearchParams(location.search), AGENT = QP.get('agent') === '1';
-let SEED = /^\d{1,10}$/.test(QP.get('seed') || '') && +QP.get('seed') <= 4294967295 ? +QP.get('seed') : (Math.random() * 4294967296) >>> 0;
+const QP = new URLSearchParams(location.search), AGENT = !!(window.Arcade && Arcade.agent);   // ?agent=1, or a replay
+let SEED = window.Arcade ? Arcade.seed : (Math.random() * 4294967296) >>> 0;
 let gen = {};
 function seedStreams() { gen = { world: mulberry32(SEED), weather: mulberry32(SEED ^ 0x9e3779b9), sal: mulberry32(SEED ^ 0x85ebca6b) }; }
 seedStreams();
@@ -2870,7 +2871,7 @@ function addScore(n, why) {
   const v = Math.round(n * mult); score += v;
   if (why) { multT = 4; mult = Math.min(4, mult + 0.25); }
   toast(`+$${v}${why ? ' ' + why : ''}`);
-  if (score > best) { best = score; try { localStorage.setItem('rustwater-best', String(best)); } catch (e) { /* storage blocked */ } }
+  if (score > best) { best = score; if (!AGENT) try { localStorage.setItem('rustwater-best', String(best)); } catch (e) { /* storage blocked */ } }
 }
 
 // =========================================================================
@@ -2942,6 +2943,8 @@ const MISSIONS = [
   { id: 'heat', name: 'Rustwater Heat', reward: 2000, time: 200,
     brief: 'Teo: "Last job. Light this town up to 3 stars, then make the cops forget your face. Sal\'s is shut tonight."' },
 ];
+const STAT = { jobs: 0, laps: 0, fares: 0, deliveries: 0, busts: 0, wipeouts: 0 };   // run stats for the agent report
+const EV = [];   // what the HUD would have said (toasts and banners), for observe()
 const M = { next: 0, active: null, stage: 0, timer: 0, targets: [], crates: [], car: null, got: 0, encore: false, cpIndex: 0 };
 
 function beam(color, x, z, r = 2.6) {
@@ -2992,7 +2995,7 @@ function completeMission() {
   const m = M.active, reward = M.encore ? Math.round(m.reward / 2) : m.reward;
   clearTargets(); for (const c of M.crates) scene.remove(c.mesh); M.crates = [];
   if (M.car && M.car !== player.car) M.car.mission = false;
-  M.active = null; addScore(reward, ''); sfxWin();
+  M.active = null; addScore(reward, ''); sfxWin(); STAT.jobs++;
   M.next++;
   if (M.next >= MISSIONS.length) { M.next = 0; if (!M.encore) { M.encore = true; flashBanner('RUSTWATER IS YOURS', `All five of Teo's jobs done. The phones still ring, for half pay.`, 4.5, '#f2b33d'); updateMissionPanel(); return; } }
   flashBanner('MISSION COMPLETE', `+$${reward}`, 2.6, '#7dff6a');
@@ -3120,7 +3123,7 @@ function salDeliver(c) {
   if (TX.on && TX.car === c) endTaxi('');
   SAL.list.splice(SAL.list.indexOf(c.type), 1); salRefill();
   player.car = null; player.x = c.x - Math.cos(c.angle) * 2.8; player.z = c.z + Math.sin(c.angle) * 2.8; if (circleHitsWorld(player.x, player.z, 0.5)) { player.x = c.x; player.z = c.z + 4; }
-  removeCar(c); addScore(pay, "Sal's list"); sfxWin(); flashBanner('DELIVERED', `${c.type.toUpperCase()} +$${pay}`, 2.4, '#7dff6a');
+  removeCar(c); STAT.deliveries++; addScore(pay, "Sal's list"); sfxWin(); flashBanner('DELIVERED', `${c.type.toUpperCase()} +$${pay}`, 2.4, '#7dff6a');
   if (c.type === 'police') crime(1.2);
 }
 function startRace() {
@@ -3131,9 +3134,9 @@ function startRace() {
 }
 function finishRace() {
   const t = M.timer, newBest = !raceBest || t < raceBest;
-  if (newBest) { raceBest = t; try { localStorage.setItem('rustwater-race', String(t)); } catch (e) { /* storage blocked */ } }
+  if (newBest) { raceBest = t; if (!AGENT) try { localStorage.setItem('rustwater-race', String(t)); } catch (e) { /* storage blocked */ } }
   const reward = Math.round(clamp(1100 - (t - 50) * 10, 300, 1100));
-  clearTargets(); M.active = null; addScore(reward, ''); sfxWin(); flashBanner(newBest ? 'NEW BEST' : 'BRIDGE RUN', `${fmtT(t)} · +$${reward}`, 3, '#7dff6a'); updateMissionPanel();
+  clearTargets(); M.active = null; STAT.laps++; addScore(reward, ''); sfxWin(); flashBanner(newBest ? 'NEW BEST' : 'BRIDGE RUN', `${fmtT(t)} · +$${reward}`, 3, '#7dff6a'); updateMissionPanel();
 }
 // Taxi duty: E in a taxi (stopped) starts it; people at the kerb wave; stop next to one, then take them across town
 const TX = { on: false, car: null, ped: null, stage: 0, dest: null, destName: '', fare: 0, par: 0, left: 0, hp0: 0, streak: 0, fares: 0, earned: 0, hailT: 0 };
@@ -3169,7 +3172,7 @@ function boardFare(c) {
 }
 function payFare(c) {
   const dmg = Math.max(0, TX.hp0 - c.health), tip = Math.max(0, Math.round(TX.fare * 0.5 * clamp((TX.left - 15) / (TX.par * 0.7), 0, 1)) - Math.round(dmg * 1.5)), total = TX.fare + tip;
-  TX.fares++; TX.streak++; TX.earned += total; addScore(total, tip ? `Fare, $${tip} tip` : 'Fare');
+  TX.fares++; STAT.fares++; TX.streak++; TX.earned += total; addScore(total, tip ? `Fare, $${tip} tip` : 'Fare');
   if (TX.streak % 10 === 0) { TX.earned += 500; addScore(500, 'Ten fares in a row'); flashBanner('TEN FARES', '+$500 bonus', 2.4, '#f2d060'); }
   for (const sd of [-1, 1]) { const x = c.x + Math.cos(c.angle) * 2.4 * sd, z = c.z - Math.sin(c.angle) * 2.4 * sd; if (!circleHitsWorld(x, z, 0.5)) { newPed({ x, z }); break; } }
   TX.stage = 0; TX.hailT = 1.5; clearTargets(); sfxWin(); updateMissionPanel();
@@ -3261,6 +3264,8 @@ function drawMini(t) {
 let lastHud = {};
 const toasts = [];
 function toast(text) {
+  EV.push(text); if (EV.length > 40) EV.shift();
+  if (AGENT && !VIEW) return;
   const el = document.createElement('div'); el.textContent = text;
   el.style.cssText = 'position:absolute;left:50%;top:58%;transform:translateX(-50%);font:700 15px "IBM Plex Mono",monospace;color:#f2b33d;text-shadow:0 2px 0 #000;transition:transform 1.2s ease-out,opacity 1.2s;white-space:nowrap';
   $('hud').appendChild(el); requestAnimationFrame(() => { el.style.transform = 'translate(-50%,-60px)'; el.style.opacity = '0'; });
@@ -3268,6 +3273,7 @@ function toast(text) {
 }
 let bannerT = 0;
 function flashBanner(title, sub, time = 2, color = '#f2b33d') {
+  EV.push((title ? title + ': ' : '') + sub); if (EV.length > 40) EV.shift();
   const b = $('banner'); b.querySelector('h2').textContent = title; b.querySelector('h2').style.color = color; b.querySelector('p').textContent = sub;
   b.classList.add('show'); bannerT = time;
 }
@@ -3488,11 +3494,12 @@ let state = 'title', failT = 0, failKind = '', shake = 0;
 const keys = {};
 const down = (...codes) => codes.some(k => keys[k]);
 addEventListener('keydown', e => {
+  if (AGENT) return;   // agent mode: only arcade.act() drives the game
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (!keys[e.code]) onPress(e.code);
   keys[e.code] = true;
 });
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => { if (!AGENT) keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; touchRelease(); if (state === 'play' && !AGENT) setPause(true); });
 $('goBtn').addEventListener('click', () => startGame());
 $('qBtn').addEventListener('click', e => { e.stopPropagation(); cycleQuality(); });
@@ -3508,6 +3515,7 @@ function syncButtons() {
 // ---------- Touch controls: a floating stick on the left half, pedals and buttons on the right
 const TOUCH = { on: false, sx: 0, sy: 0, gas: false, brake: false, hb: false };
 function enableTouch() {
+  if (AGENT) return;
   if (TOUCH.on) return;
   TOUCH.on = true; document.body.classList.add('touch'); lastHud.act = lastHud.inCar = undefined;
   if (state === 'title') $('goBtn').textContent = 'TAP TO PLAY';
@@ -3583,7 +3591,8 @@ function placePlayer(pos) {
 }
 function startGame() {
   initAudio();
-  if (AGENT) { seedStreams(); time = 0; upkeepT = 0; SAL.list.length = 0; SAL.t = 150; salRefill(); }   // a benchmark run starts from the seed, with the clock at 0
+  Object.assign(STAT, { jobs: 0, laps: 0, fares: 0, deliveries: 0, busts: 0, wipeouts: 0 }); EV.length = 0;
+  if (AGENT) { SEED = Arcade.seed; seedStreams(); time = 0; upkeepT = 0; SAL.list.length = 0; SAL.t = 150; salRefill(); }   // a benchmark run starts from the seed, with the clock at 0
   resetWorld();
   score = 0; lives = 3; mult = 1; M.next = 0; M.active = null; M.encore = false; clearTargets();
   for (const c of M.crates) scene.remove(c.mesh); M.crates = [];
@@ -3597,7 +3606,7 @@ function startGame() {
 }
 function playerFail(kind, why) {
   if (state !== 'play') return;
-  state = 'dead'; failKind = kind; failT = 0; lives--;
+  state = 'dead'; failKind = kind; failT = 0; lives--; STAT[kind === 'busted' ? 'busts' : 'wipeouts']++;
   if (M.active) { const m = M.active; failMission(''); }
   const penalty = Math.min(score, kind === 'busted' ? 300 : 150); score -= penalty;
   const over = lives <= 0;
@@ -3726,7 +3735,7 @@ function simStep(dt) {   // everything that decides the score: no drawing, no au
 }
 function tick(dt) { time += dt; simStep(dt); }
 function fastForward(sec) { for (let t = 0; t < sec - 1e-9; t += 0.05) tick(0.05); }   // test hook: n seconds of the full simulation without drawing
-const VIEW = !AGENT || QP.get('view') === '1';   // agent mode draws only when asked (headless drawing is about 1 s a frame)
+const VIEW = !AGENT || QP.get('view') === '1' || (Arcade.replaying && +(QP.get('speed') ?? 140) > 0);   // agent mode draws only when asked (headless drawing is about 1 s a frame)
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -3801,6 +3810,118 @@ function stateHash() {   // test hook: a fingerprint of everything the rules rea
   return (h >>> 0).toString(16) + ':' + cars.length + ':' + peds.length;
 }
 window.__rustwater = { simStep, tick, stateHash, keys, press: onPress, seed: () => SEED, reseed: n => { SEED = n >>> 0; seedStreams(); }, get state() { return state; }, cars, peds, player, M, W, startGame, dentCar, damageCar, nodes, sigState, makeCar, TX, SAL, RACE_GATE, salDeliver, fastForward, busStops, props, get time() { return time; }, get heat() { return heat; } };
+
+// ---------- Agent mode: window.arcade (protocol in /agents.md). The world only moves inside apply(): n units of 0.25 s, 5 simulation steps each.
+const AG = { started: false, announced: false, steps: 0, limit: 0, events: [] };
+const UNIT = 5, STEP = 0.05, KEYCODE = { up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight', handbrake: 'Space' };
+const BENCHES = { 'rust-240': { label: 'Rustwater: 240 s', seconds: 240 } };
+function agentOver() { return AG.started && (state === 'over' || (state === 'dead' && lives <= 0) || (AG.limit > 0 && AG.steps >= AG.limit * 20)); }
+function agentSteps(n) {
+  for (let i = 0; i < n && !agentOver(); i++) { tick(STEP); AG.steps++; }
+  if (agentOver() && !AG.announced) { AG.announced = true; Arcade.onGameOver(); }
+}
+function agentApply(action) {
+  const m = /^(wait|enter|respawn|(?:up|down|left|right|handbrake)(?:\+(?:up|down|left|right|handbrake))*)(?: (\d{1,2}))?$/.exec(action);
+  if (!m || !AG.started || agentOver()) return false;
+  const verb = m[1], n = m[2] ? +m[2] : 1;
+  if (n < 1 || n > 40) return false;
+  EV.length = 0;
+  if (verb === 'enter' || verb === 'respawn') {
+    if (m[2]) return false;
+    if (verb === 'enter') { if (state !== 'play') return false; onPress('KeyE'); }
+    else { if (state !== 'dead') return false; while (failT <= 0.8 && !agentOver()) agentSteps(1); if (!agentOver()) onPress('KeyR'); }
+    agentSteps(UNIT);
+  } else if (verb === 'wait') agentSteps(UNIT * n);
+  else {
+    const parts = verb.split('+');
+    if ((parts.includes('up') && parts.includes('down')) || (parts.includes('left') && parts.includes('right')) || new Set(parts).size !== parts.length) return false;
+    for (const k of parts) keys[KEYCODE[k]] = true;
+    agentSteps(UNIT * n);
+    for (const k of Object.values(KEYCODE)) keys[k] = false;
+  }
+  AG.events = EV.slice();
+  return true;
+}
+const compassName = deg => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+function agentView() {
+  const px = focus.x, pz = focus.z, c = player.car, tx = Math.floor(px / T), tz = Math.floor(pz / T);
+  const rel = (x, z) => ({ dx: +((x - px) / T).toFixed(1), dz: +((z - pz) / T).toFixed(1), dist: Math.round(Math.hypot(x - px, z - pz)) });
+  const bearing = (x, z) => compassName(Math.atan2(x - px, -(z - pz)) * 180 / Math.PI);
+  const glyph = (x, z) => { const t = tileAt(x, z); return t === TILE.ROAD ? (z >= RIVER0 && z <= RIVER1 ? '=' : '.') : t === TILE.SIDE ? ',' : t === TILE.BLD ? '#' : t === TILE.PARK ? '"' : t === TILE.WATER ? '~' : ':'; };
+  const COLS = 15, ROWS = 9, grid2 = [];
+  for (let r = -ROWS; r <= ROWS; r++) { const row = []; for (let q = -COLS; q <= COLS; q++) row.push(glyph(tx + q, tz + r)); grid2.push(row); }
+  const put = (x, z, ch) => { const q = Math.floor(x / T) - tx + COLS, r = Math.floor(z / T) - tz + ROWS; if (q >= 0 && q < 2 * COLS + 1 && r >= 0 && r < 2 * ROWS + 1) grid2[r][q] = ch; };
+  const vis = (x, z) => Math.abs(x - px) < (COLS + 0.5) * T && Math.abs(z - pz) < (ROWS + 0.5) * T;
+  const others = cars.filter(o => o !== c && vis(o.x, o.z));
+  const cch = o => o.wreck ? '*' : o.kind === 'police' ? 'p' : o.bus || o.type === 'truck' ? 'B' : o.type === 'taxi' ? 't' : 'c';
+  for (const p of peds) if (vis(p.x, p.z)) put(p.x, p.z, 'o');
+  for (const o of others) put(o.x, o.z, cch(o));
+  put(GARAGE[0], GARAGE[1], 'S');
+  if (!M.active) for (const ph of phoneObjs) put(ph.x, ph.z, 'P');
+  const targets = M.targets.map(t => ({ x: t.g.position.x, z: t.g.position.z }));
+  if (M.active && M.active.id === 'scrap' && M.stage === 0) for (const cr of M.crates) if (!cr.got) targets.push({ x: cr.x, z: cr.z });
+  for (const t of targets) put(t.x, t.z, 'X');
+  put(px, pz, '@');
+  const near = (arr, k) => arr.map(o => [Math.hypot(o.x - px, o.z - pz), o]).sort((a, b) => a[0] - b[0]).slice(0, k).map(a => a[1]);
+  const carsOut = near(cars.filter(o => o !== c && Math.hypot(o.x - px, o.z - pz) < 120), 8).map(o => Object.assign({ type: o.type, kind: o.wreck ? 'wreck' : o.kind, speed: Math.round(Math.abs(o.speed)), health: Math.round(o.health / o.maxHp * 100) }, rel(o.x, o.z)));
+  const pedsOut = near(peds.filter(p => !p.down && Math.hypot(p.x - px, p.z - pz) < 60), 6).map(p => Object.assign({ what: p.stay ? p.stay.kind : 'walking' }, rel(p.x, p.z)));
+  const sigs = near(sigNodes, 6).filter(n => Math.hypot(n.x - px, n.z - pz) < 130).map(n => Object.assign({ ns: sigState(n, 'ns'), ew: sigState(n, 'ew') }, rel(n.x, n.z)));
+  const heading = c ? Math.round(Math.atan2(Math.sin(c.angle), -Math.cos(c.angle)) * 180 / Math.PI) : null;
+  const job = M.active ? { id: M.active.id, name: M.active.name, objective: missionObjective(), timeLeft: M.timer > 900 ? null : Math.round(M.active.up ? M.timer : Math.max(0, M.timer)), counts: M.active.up ? 'up' : 'down' } : { id: null, name: M.encore ? 'Encore' : `Job ${M.next + 1} of 5`, objective: 'Answer a ringing payphone (P) on foot, press enter next to it' };
+  const taxi = TX.on ? { on: true, stage: TX.stage, fares: TX.fares, streak: TX.streak, destination: TX.stage === 1 ? TX.destName : null, fare: TX.stage === 1 ? TX.fare : null, timeLeft: TX.stage === 1 ? Math.round(TX.left) : null } : { on: false };
+  const out = {
+    seconds: +(AG.steps * STEP).toFixed(2), secondsLeft: AG.limit ? +(AG.limit - AG.steps * STEP).toFixed(2) : null, state, lives, health: Math.round((c ? c.health / c.maxHp : player.health / 100) * 100),
+    stars: stars(), seenByPolice: evade < 0.5 && stars() > 0, weather: W.kind, wet: +W.wet.toFixed(2), clock: clockText, mult: +mult.toFixed(2),
+    pos: { x: Math.round(px), z: Math.round(pz), tx, tz }, onFoot: !c, car: c ? { type: c.type, speed: Math.round(c.speed), heading, compass: compassName(heading), health: Math.round(c.health / c.maxHp * 100), onFire: !!c.onFire } : null,
+    job, targets: targets.map(t => Object.assign(rel(t.x, t.z), { bearing: bearing(t.x, t.z) })), taxi,
+    sal: { wants: SAL.list.map(k => ({ type: k, pay: SAL_PAY[k] })), garage: rel(GARAGE[0], GARAGE[1]) },
+    bridgeRun: M.active ? null : Object.assign(rel(RACE_GATE[0], RACE_GATE[1]), { note: 'drive south through the banner in any car' }),
+    phones: M.active ? [] : near(phoneObjs, 4).map(ph => rel(ph.x, ph.z)), signals: sigs, cars: carsOut, people: pedsOut, events: AG.events.slice(), stats: agentStats(),
+    map: grid2.map(r => r.join('')),
+  };
+  if (state === 'dead') out.respawn = lives > 0 ? 'wasted or busted: use respawn' : 'no lives left';
+  return out;
+}
+function agentStats() { return Object.assign({ steps: AG.steps }, STAT, { lives }); }
+function agentText(v) {
+  const L = [];
+  L.push(`rustwater-havoc ${Arcade.bench || ''} seed ${Arcade.seed} t ${v.seconds}${v.secondsLeft != null ? '/' + (v.seconds + v.secondsLeft) : ''} s  ${v.clock}  weather ${v.weather}${v.wet > 0.3 ? ' (wet roads)' : ''}`);
+  L.push(`score $${score} lives ${v.lives} health ${v.health}% stars ${v.stars}${v.stars ? (v.seenByPolice ? ' (police see you)' : ' (hidden)') : ''}${v.mult > 1 ? ' mayhem x' + v.mult : ''}${v.state === 'dead' ? '  ** ' + v.respawn + ' **' : ''}`);
+  L.push(v.car ? `in a ${v.car.type}: speed ${v.car.speed} m/s heading ${v.car.heading} deg (${v.car.compass})${v.car.onFire ? ' ON FIRE' : ''}; at tile ${v.pos.tx},${v.pos.tz}` : `on foot at tile ${v.pos.tx},${v.pos.tz} (up, down, left, right walk north, south, west, east)`);
+  L.push(`job: ${v.job.name}: ${v.job.objective}${v.job.timeLeft != null ? ` (${v.job.timeLeft} s ${v.job.counts === 'up' ? 'elapsed' : 'left'})` : ''}`);
+  if (v.taxi.on) L.push(`taxi duty on: fares ${v.taxi.fares} streak ${v.taxi.streak}${v.taxi.destination ? `; fare $${v.taxi.fare} to ${v.taxi.destination}, ${v.taxi.timeLeft} s left` : '; look for a person waving (yellow target)'}; enter ends duty`);
+  for (const t of v.targets.slice(0, 5)) L.push(`target X: dx ${t.dx} dz ${t.dz} tiles (${t.dist} m, ${t.bearing})`);
+  L.push(`Sal wants: ${v.sal.wants.map(w => w.type + ' $' + w.pay).join(', ')}; garage S dx ${v.sal.garage.dx} dz ${v.sal.garage.dz}`);
+  if (v.bridgeRun) L.push(`Bridge Run banner: dx ${v.bridgeRun.dx} dz ${v.bridgeRun.dz} (${v.bridgeRun.note})`);
+  if (v.phones.length) L.push('phones P: ' + v.phones.map(p => `dx ${p.dx} dz ${p.dz}`).join('; '));
+  if (v.signals.length) L.push('signals: ' + v.signals.map(g => `dx ${g.dx} dz ${g.dz} north-south ${g.ns} east-west ${g.ew}`).join('; '));
+  if (v.cars.length) L.push('cars: ' + v.cars.map(o => `${o.type}${o.kind === 'traffic' ? '' : ' ' + o.kind} dx ${o.dx} dz ${o.dz} ${o.speed} m/s`).join('; '));
+  if (v.people.length) L.push('people: ' + v.people.map(o => `${o.what} dx ${o.dx} dz ${o.dz}`).join('; '));
+  if (v.events.length) L.push('events: ' + v.events.slice(-6).join(' | '));
+  L.push('legend: tile 10 m, north up, dx east, dz south. , sidewalk . road = bridge # building " park ~ water : lot; @ you X target S Sal P phone o person c car t taxi B bus/truck p police * wreck');
+  L.push('map (31 x 19 tiles around you):');
+  for (const r of v.map) L.push(r);
+  return L.join('\n');
+}
+if (AGENT) Arcade.register({
+  id: 'rustwater-havoc', benchmarks: BENCHES, turnBased: false,
+  actions: {
+    'up|down|left|right [n]': 'Hold a direction for n units of 0.25 s (1 to 40, default 1). In a car: up gas, down brake and reverse, left and right steer. On foot: walk north, south, west, east.',
+    'up+left, up+right, down+left, down+right [n]': 'Two directions at once (gas and steer, or a diagonal walk).',
+    'handbrake [n]': 'Hold the handbrake (slides). On foot: sprint. Combine with directions: up+left+handbrake 4.',
+    'wait [n]': 'Do nothing for n units.',
+    enter: 'Press E once, then 1 unit: answer a nearby payphone, get in a nearby car (steals it if driven), get out of a car; in a stopped taxi it starts taxi duty, and pressing it again gets out.',
+    respawn: 'After Wasted or Busted: wait for the hospital or precinct and carry on (needs a life left).',
+  },
+  start() { Arcade.reset(); AG.limit = (BENCHES[Arcade.bench] || {}).seconds || 0; AG.steps = 0; AG.announced = false; EV.length = 0; startGame(); AG.events = EV.slice(); AG.started = true; },
+  ready() { return AG.started; },
+  over() { return agentOver(); },
+  score() { return score; },
+  stats() { return agentStats(); },
+  observe() { return agentView(); },
+  text() { return agentText(agentView()); },
+  async apply(action) { return agentApply(action); },
+});
 </script>
 <script src="../views.js" defer></script>
 </body>
