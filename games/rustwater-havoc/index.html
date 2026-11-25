@@ -240,6 +240,16 @@ const mrand = mulberry32(1979);               // map generation is seeded: Rustw
 const rr = (a, b) => a + Math.random() * (b - a);
 const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 const mpick = arr => arr[Math.floor(mrand() * arr.length)];
+// Gameplay randomness (anything the simulation or the score reads) comes from three seeded streams; rr/pick/Math.random stay for looks and sound.
+// world: traffic, people, fares, physics jitter. weather: the forecast, the same for every player. sal: Sal's wanted list, the same for every player.
+const QP = new URLSearchParams(location.search), AGENT = QP.get('agent') === '1';
+let SEED = /^\d{1,10}$/.test(QP.get('seed') || '') && +QP.get('seed') <= 4294967295 ? +QP.get('seed') : (Math.random() * 4294967296) >>> 0;
+let gen = {};
+function seedStreams() { gen = { world: mulberry32(SEED), weather: mulberry32(SEED ^ 0x9e3779b9), sal: mulberry32(SEED ^ 0x85ebca6b) }; }
+seedStreams();
+const grand = () => gen.world(), grr = (a, b) => a + gen.world() * (b - a), gpick = arr => arr[Math.floor(gen.world() * arr.length)];
+const wrr = (a, b) => a + gen.weather() * (b - a), wpick = arr => arr[Math.floor(gen.weather() * arr.length)];
+const srand = () => gen.sal(), spick = arr => arr[Math.floor(gen.sal() * arr.length)];
 const $ = id => document.getElementById(id);
 function makeCanvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
 
@@ -361,7 +371,7 @@ const SIG_CYCLE = 25, SIG_STOP = 23.6;   // SIG_STOP: distance from the junction
 for (const n of nodes) if (n.nb.length === 4 && n.ix % 2 === 1) { n.sig = true; n.sigOff = (n.iz * 4 + n.ix * 7) % SIG_CYCLE; }
 const sigNodes = nodes.filter(n => n.sig);
 function sigState(n, axis) {   // 'g', 'a' or 'r' for travel along that axis ('ns' or 'ew')
-  const pin = window.__signal; if (pin) return pin === axis ? 'g' : 'r';
+  const pin = AGENT ? null : window.__signal; if (pin) return pin === axis ? 'g' : 'r';
   let u = ((time + n.sigOff) + (axis === 'ew' ? SIG_CYCLE / 2 : 0)) % SIG_CYCLE;
   return u < 9 ? 'g' : u < 11 ? 'a' : 'r';
 }
@@ -474,7 +484,7 @@ function setQuality(q, auto) {
 // step down once frames stay slow for a few seconds of play
 const perf = { n: 0, sum: 0, settleUntil: 0, last: 0 };
 function perfWatch(now, dt) {
-  if (state !== 'play' || !qAuto || quality === 'low') { perf.settleUntil = 0; perf.sum = perf.n = 0; return; }
+  if (AGENT || state !== 'play' || !qAuto || quality === 'low') { perf.settleUntil = 0; perf.sum = perf.n = 0; return; }
   if (!perf.settleUntil) perf.settleUntil = now + 2500;
   if (now < perf.settleUntil) { perf.last = now; return; }
   perf.sum += now - perf.last; perf.last = now; perf.n++;
@@ -1637,17 +1647,19 @@ function leafBurst(dx, age) {   // one leaf, already part-way along its flight (
   leaves.emit(focus.x + dx, rr(0.4, 14), focus.z + rr(-55, 55), rr(11, 19), rr(-1, 3), rr(-4, 4), rr(3.5, 5.5), 0.5, 0.5, c[0] * dl, c[1] * dl, c[2] * dl, 0.95, 0.15, 0.8); leaves.age[i] = age; leaves.pos[i * 3] += leaves.vel[i * 3] * age;
 }
 const tmpC = new THREE.Color();
+const weatherPinned = () => !AGENT && typeof window.__weather === 'string' && !!WK[window.__weather];
+function stepWeather(dt) {   // the forecast: simulation (wet roads change grip), so it runs in simStep, on the weather stream
+  if (weatherPinned()) return;
+  W.t -= dt;
+  if (W.t <= 0) { W.kind = wpick(W_NEXT[W.kind]); const d = W_DUR[W.kind]; W.t = wrr(d[0], d[1]); }
+  const g = WK[W.kind], ease = (v, to, rate) => v + clamp(to - v, -rate * dt, rate * dt);
+  W.rain = ease(W.rain, g.rain, 1 / 20); W.cloud = ease(W.cloud, g.cloud, 1 / 15); W.wind = ease(W.wind, g.wind, 1 / 10);
+  W.wet = ease(W.wet, W.rain > 0.1 ? 1 : 0, W.rain > 0.1 ? 1 / 25 : 1 / 60);
+}
 function updateWeather(dt, dawn) {
-  const ov = window.__weather, pinned = typeof ov === 'string' && WK[ov];
+  const ov = window.__weather, pinned = weatherPinned();
   if (pinned) { const g = WK[ov]; W.kind = ov; W.cloud = g.cloud; W.rain = g.rain; W.wind = g.wind; W.wet = ov === 'rain' ? 1 : ov === 'clearing' ? 0.7 : 0;
     if (ov !== pinnedSeen) { pinnedSeen = ov; if (ov === 'storm') for (let i = 0; i < 380; i++) leafBurst(rr(-60, 25), rr(0, 4.5)); } }
-  else {
-    W.t -= dt;
-    if (W.t <= 0) { W.kind = pick(W_NEXT[W.kind]); const d = W_DUR[W.kind]; W.t = rr(d[0], d[1]); }
-    const g = WK[W.kind], ease = (v, to, rate) => v + clamp(to - v, -rate * dt, rate * dt);
-    W.rain = ease(W.rain, g.rain, 1 / 20); W.cloud = ease(W.cloud, g.cloud, 1 / 15); W.wind = ease(W.wind, g.wind, 1 / 10);
-    W.wet = ease(W.wet, W.rain > 0.1 ? 1 : 0, W.rain > 0.1 ? 1 / 25 : 1 / 60);
-  }
   W.gust = W.wind * (0.85 + 0.15 * Math.sin(time * 0.7) * Math.sin(time * 0.23 + 1));
   windAmp.value = 1 + W.gust * 3.2; wetU.uWet.value = W.wet; waterU.uRain.value = W.rain;
   // rain streaks: draw range follows the rain amount; a dedicated clock keeps them falling in pause-free time
@@ -2103,7 +2115,7 @@ function makeCar(type, color, x, z, angle, kind) {
   }
   if (type === 'taxi') { const sg = new THREE.Mesh(boxGeo(0.8, 0.28, 0.3), taxiSignMat); sg.position.set(0, p.top + 0.17, (p.A1 + p.C1) / 2); body.add(sg); bar = null; }
   g.position.set(x, 0, z); g.rotation.y = angle; scene.add(g);
-  const car = { type, spec: s, g, body, bodyMesh, glass, trim, head, tail, brake, beam, hpool, decal, pools, wheels, bar, x, z, angle, vx: 0, vz: 0, speed: 0, health: s.hp, maxHp: s.hp, kind, driver: kind === 'traffic' || kind === 'police', wp: [], from: -1, to: -1, onFire: false, fireT: 0, wreck: false, wreckT: 0, color, stuck: 0, rev: 0, cruise: rr(11, 16), path: [], pathT: 0, lastSteer: 0, roll: 0, smokeT: 0, mission: false, horn: 0 };
+  const car = { type, spec: s, g, body, bodyMesh, glass, trim, head, tail, brake, beam, hpool, decal, pools, wheels, bar, x, z, angle, vx: 0, vz: 0, speed: 0, health: s.hp, maxHp: s.hp, kind, driver: kind === 'traffic' || kind === 'police', wp: [], from: -1, to: -1, onFire: false, fireT: 0, wreck: false, wreckT: 0, color, stuck: 0, rev: 0, cruise: grr(11, 16), path: [], pathT: 0, lastSteer: 0, roll: 0, smokeT: 0, mission: false, horn: 0 };
   cars.push(car); return car;
 }
 function removeCar(c) { if (c.dent) { c.dent.paint.dispose(); c.dent.trim.dispose(); } scene.remove(c.g); const i = cars.indexOf(c); if (i >= 0) cars.splice(i, 1); }
@@ -2164,7 +2176,7 @@ function tessellateNear(geo, px, py, pz, R) {
 const dentHash = i => { const v = Math.sin(i * 12.9898) * 43758.5453; return v - Math.floor(v); };
 function dentCar(c, dx, dz, force) {   // (dx, dz): world direction from the car's centre toward what it hit
   if (c.wreck || force < 0.5) return;
-  const t0 = performance.now(); if (t0 - (c.dentAt || 0) < 120) return; c.dentAt = t0;
+  const t0 = time; if (t0 - (c.dentAt || -9) < 0.12) return; c.dentAt = t0;
   const ca = Math.cos(c.angle), sa = Math.sin(c.angle);
   let lx = dx * ca - dz * sa, lz = dx * sa + dz * ca; const l0 = Math.hypot(lx, lz) || 1; lx /= l0; lz /= l0;
   const Wd = c.spec.body[0], Ln = c.spec.body[2], belt = c.spec.p.belt;
@@ -2361,8 +2373,8 @@ function updateLamps(dt) {
 }
 function knockProp(o, c) {
   const sp = Math.hypot(c.vx, c.vz);
-  o.down = true; o.fly = true; o.vx = c.vx * 0.9 + rr(-2, 2); o.vz = c.vz * 0.9 + rr(-2, 2); o.vy = rr(3, 6) + sp * 0.12;
-  o.axis = new THREE.Vector3(c.vz, 0, -c.vx).normalize(); o.spin = rr(6, 12);
+  o.down = true; o.fly = true; o.vx = c.vx * 0.9 + grr(-2, 2); o.vz = c.vz * 0.9 + grr(-2, 2); o.vy = grr(3, 6) + sp * 0.12;
+  o.axis = new THREE.Vector3(c.vz, 0, -c.vx).normalize(); o.spin = grr(6, 12);
   c.vx *= 0.92; c.vz *= 0.92; sparks(o.x, 0.6, o.z, 5);
   if (o.kind === 'hydrant') { o.spray = 7; if (c === player.car) addScore(15, 'Hydrant'); }
   if (c === player.car) sfxThud(0.35);
@@ -2379,7 +2391,7 @@ function explodeCar(c) {
   for (let i = 0; i < 40; i++) { const a = Math.random() * 6.3, s = rr(4, 16); fire.emit(c.x, 1 + Math.random() * 2, c.z, Math.cos(a) * s, rr(2, 12), Math.sin(a) * s, rr(0.4, 0.9), rr(3, 5), rr(7, 11), 1, rr(0.4, 0.7), 0.15, 1, 2.2, 6); }
   for (let i = 0; i < 26; i++) smoke.emit(c.x + rr(-2, 2), rr(1, 3), c.z + rr(-2, 2), rr(-3, 3), rr(3, 8), rr(-3, 3), rr(2.5, 4.5), 4, rr(12, 18), 0.12, 0.1, 0.1, 0.75, 0.6);
   sfxBoom(); shake = Math.max(shake, Math.min(1.6, 60 / (Math.hypot(c.x - focus.x, c.z - focus.z) + 20)));
-  c.vy = 9; c.flip = rr(-1, 1);
+  c.vy = 9; c.flip = grr(-1, 1);
   for (const o of cars) if (o !== c && !o.wreck) { const d = Math.hypot(o.x - c.x, o.z - c.z); if (d < 9) { damageCar(o, (9 - d) * 9, c.firedBy); o.vx += (o.x - c.x) / (d + 0.1) * 10; o.vz += (o.z - c.z) / (d + 0.1) * 10; } }
   for (const p of peds) if (!p.down) { const d = Math.hypot(p.x - c.x, p.z - c.z); if (d < 8) knockPed(p, (p.x - c.x) / (d + 0.1) * 12, (p.z - c.z) / (d + 0.1) * 12, c.firedBy === player.car || c === player.car); }
   if (!player.car) { const d = Math.hypot(player.x - c.x, player.z - c.z); if (d < 8) hurtPlayer((8 - d) * 14); }
@@ -2431,24 +2443,24 @@ function dropPed(p) { if (p.stay) releasePed(p); disposePerson(p.mesh); }
 function knockPed(p, vx, vz, byPlayer) {
   if (p.down) return;
   if (p.stay) releasePed(p); p.board = null; p.waitT = 0;
-  p.down = true; p.downT = rr(4, 6); p.vx = vx; p.vz = vz; p.vy = 3 + Math.hypot(vx, vz) * 0.25; p.y = 0;
-  p.spin = rr(-6, 6);
+  p.down = true; p.downT = grr(4, 6); p.vx = vx; p.vz = vz; p.vy = 3 + Math.hypot(vx, vz) * 0.25; p.y = 0;
+  p.spin = grr(-6, 6);
   if (byPlayer) { addScore(25, 'Pedestrian'); crime(0.55, true); sfxThud(0.8); }
 }
 function spawnPed(minD = 40, maxD = 110) {
   for (let tries = 0; tries < 40; tries++) {
-    const a = Math.random() * 6.28, d = rr(minD, maxD);
+    const a = grand() * 6.28, d = grr(minD, maxD);
     const [x, z] = [focus.x + Math.cos(a) * d, focus.z + Math.sin(a) * d];
     const t = tileW(x, z); if (t !== TILE.SIDE && t !== TILE.PARK) continue;
     const tx = Math.floor(x / T), tz = Math.floor(z / T);
-    const px = (tx + 0.5) * T + rr(-3.5, 3.5), pz = (tz + 0.5) * T + rr(-3.5, 3.5);
+    const px = (tx + 0.5) * T + grr(-3.5, 3.5), pz = (tz + 0.5) * T + grr(-3.5, 3.5);
     if (circleHitsWorld(px, pz, 0.5)) continue;
     return { x: px, z: pz };
   }
   return null;
 }
 function newPed(pos) {
-  const p = { x: pos.x, z: pos.z, angle: 0, goal: null, dir: pick([[1, 0], [-1, 0], [0, 1], [0, -1]]), speed: rr(1.3, 2.1), mesh: makePerson(pick(CLOTH)), phase: Math.random() * 6, down: false, downT: 0, flee: 0, y: 0, vy: 0, vx: 0, vz: 0, spin: 0 };
+  const p = { x: pos.x, z: pos.z, angle: 0, goal: null, dir: gpick([[1, 0], [-1, 0], [0, 1], [0, -1]]), speed: grr(1.3, 2.1), mesh: makePerson(pick(CLOTH)), phase: Math.random() * 6, down: false, downT: 0, flee: 0, y: 0, vy: 0, vx: 0, vz: 0, spin: 0 };
   pedGoal(p); peds.push(p); return p;
 }
 function pedGoal(p) {
@@ -2457,15 +2469,15 @@ function pedGoal(p) {
   const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   let opts = dirs.filter(d => pedOK(tileAt(tx + d[0], tz + d[1])));
   if (here === TILE.ROAD) { const nt = tileAt(tx + p.dir[0], tz + p.dir[1]); opts = (nt === TILE.ROAD || pedOK(nt)) ? [p.dir] : opts; }
-  else if (Math.random() < 0.12) { const roads = dirs.filter(d => tileAt(tx + d[0], tz + d[1]) === TILE.ROAD && pedOK(tileAt(tx + d[0] * 3, tz + d[1] * 3))); if (roads.length) opts = [pick(roads)]; }
+  else if (grand() < 0.12) { const roads = dirs.filter(d => tileAt(tx + d[0], tz + d[1]) === TILE.ROAD && pedOK(tileAt(tx + d[0] * 3, tz + d[1] * 3))); if (roads.length) opts = [gpick(roads)]; }
   if (!opts.length) opts = dirs.filter(d => !isSolid(tileAt(tx + d[0], tz + d[1])));
   const nonBack = opts.filter(d => !(d[0] === -p.dir[0] && d[1] === -p.dir[1]));
   let d = opts.find(o => o[0] === p.dir[0] && o[1] === p.dir[1]);
-  if (!d || Math.random() < 0.3) d = pick(nonBack.length ? nonBack : opts);
+  if (!d || grand() < 0.3) d = gpick(nonBack.length ? nonBack : opts);
   p.dir = d || [0, 0];
   const keepLane = here === TILE.ROAD || tileAt(tx + p.dir[0], tz + p.dir[1]) === TILE.ROAD;
-  p.goal = [(tx + p.dir[0] + 0.5) * T + (keepLane ? 0 : rr(-3.5, 3.5)) * Math.abs(p.dir[1]) + (keepLane ? 0 : 0), (tz + p.dir[1] + 0.5) * T + (keepLane ? 0 : rr(-3.5, 3.5)) * Math.abs(p.dir[0])];
-  if (!keepLane) { if (p.dir[0]) p.goal[1] = p.z + rr(-1, 1); else p.goal[0] = p.x + rr(-1, 1); }
+  p.goal = [(tx + p.dir[0] + 0.5) * T + (keepLane ? 0 : grr(-3.5, 3.5)) * Math.abs(p.dir[1]) + (keepLane ? 0 : 0), (tz + p.dir[1] + 0.5) * T + (keepLane ? 0 : grr(-3.5, 3.5)) * Math.abs(p.dir[0])];
+  if (!keepLane) { if (p.dir[0]) p.goal[1] = p.z + grr(-1, 1); else p.goal[0] = p.x + grr(-1, 1); }
 }
 
 function pedMayCross(p, ux, uz) {   // may a walker step off the kerb here? (red for the cars that cross their path, or no car coming)
@@ -2481,20 +2493,20 @@ function pedMayCross(p, ux, uz) {   // may a walker step off the kerb here? (red
 }
 function busDoor(c) { const a = c.angle, L = c.spec.body[2], W = c.spec.body[0]; return [c.x - Math.cos(a) * (W / 2 + 0.45) + Math.sin(a) * (L / 2 - 2.6), c.z + Math.sin(a) * (W / 2 + 0.45) + Math.cos(a) * (L / 2 - 2.6)]; }
 function seatPeople() {   // people on benches and at bus stops come and go around the player
-  if (Math.random() > 0.05) return;
+  if (grand() > 0.05) return;
   for (const S of busStops) {
-    if (S.waiters.length >= 3 || Math.random() > 0.3) continue;
+    if (S.waiters.length >= 3 || grand() > 0.3) continue;
     const d = Math.hypot(S.sx - focus.x, S.sz - focus.z); if (d < 25 || d > 120) continue;
     const k = S.waiters.length - 1, p = newPed({ x: S.sx - S.rx * 1.5 + S.dx * k * 1.1, z: S.sz - S.rz * 1.5 + S.dz * k * 1.1 });
-    p.goal = null; p.angle = Math.atan2(-S.rx, -S.rz); p.stay = { kind: 'bus', S, t: rr(60, 120) }; S.waiters.push(p);
+    p.goal = null; p.angle = Math.atan2(-S.rx, -S.rz); p.stay = { kind: 'bus', S, t: grr(60, 120) }; S.waiters.push(p);
   }
   let sitters = 0; for (const p of peds) if (p.stay && p.stay.bench) sitters++;
   if (sitters >= 8) return;
   for (const o of props) {
-    if (o.kind !== 'bench' || o.down || o.sitter || Math.random() > 0.15) continue;
+    if (o.kind !== 'bench' || o.down || o.sitter || grand() > 0.15) continue;
     const d = Math.hypot(o.x - focus.x, o.z - focus.z); if (d < 25 || d > 120) continue;
-    const side = Math.random() < 0.5 ? -0.5 : 0.5, p = newPed({ x: o.x + Math.cos(o.ry) * side, z: o.z - Math.sin(o.ry) * side });
-    p.goal = null; p.angle = o.ry; p.stay = { kind: 'bench', bench: o, t: rr(40, 100) }; o.sitter = p; break;
+    const side = grand() < 0.5 ? -0.5 : 0.5, p = newPed({ x: o.x + Math.cos(o.ry) * side, z: o.z - Math.sin(o.ry) * side });
+    p.goal = null; p.angle = o.ry; p.stay = { kind: 'bench', bench: o, t: grr(40, 100) }; o.sitter = p; break;
   }
 }
 function busDwell(c, S) {   // the bus has stopped: people at the stop climb in, a few climb out
@@ -2569,7 +2581,7 @@ function updatePeds(dt) {
     p.mesh.g.position.set(p.x, 0, p.z); p.mesh.g.rotation.set(0, p.angle, 0);
     animPerson(p.mesh, spd, p.phase);
   }
-  const want = QS.peds; let walkers = 0; for (const p of peds) if (!p.stay) walkers++;
+  const want = AGENT ? 40 : QS.peds; let walkers = 0; for (const p of peds) if (!p.stay) walkers++;
   seatPeople();
   if (walkers < want) { const pos = spawnPed(peds.length < 20 ? 20 : 55, 120); if (pos) newPed(pos); }
 }
@@ -2586,18 +2598,18 @@ function planNext(c) {
   if (c.route) { c.from = c.to; c.ri = (c.ri + 1) % c.route.length; c.to = c.route[c.ri]; c.wp = edgeWaypoints(c.from, c.to); return; }
   let opts = B.nb.filter(n => n !== c.from);
   if (!opts.length) opts = B.nb;
-  const n = pick(opts);
+  const n = gpick(opts);
   c.from = c.to; c.to = n;
   c.wp = edgeWaypoints(c.from, c.to);
 }
 function spawnTrafficAt(minD, maxD, type, kind = 'traffic') {
   for (let tries = 0; tries < 50; tries++) {
-    const a = Math.floor(Math.random() * nodes.length), b = pick(nodes[a].nb);
-    const [s, e] = edgeWaypoints(a, b), f = rr(0.1, 0.9);
+    const a = Math.floor(grand() * nodes.length), b = gpick(nodes[a].nb);
+    const [s, e] = edgeWaypoints(a, b), f = grr(0.1, 0.9);
     const x = lerp(s[0], e[0], f), z = lerp(s[1], e[1], f);
     const d = Math.hypot(x - focus.x, z - focus.z); if (d < minD || d > maxD) continue;
     if (cars.some(c => Math.hypot(c.x - x, c.z - z) < 9)) continue;
-    const c = makeCar(type, pick(CAR_COLORS), x, z, Math.atan2(e[0] - s[0], e[1] - s[1]), kind);
+    const c = makeCar(type, gpick(CAR_COLORS), x, z, Math.atan2(e[0] - s[0], e[1] - s[1]), kind);
     if (carHitsWorld(c, x, z)) { removeCar(c); continue; }
     c.from = a; c.to = b; c.wp = [e];
     const sp = c.cruise * 0.8; c.vx = Math.sin(c.angle) * sp; c.vz = Math.cos(c.angle) * sp;
@@ -2643,12 +2655,12 @@ function spawnBus(i, f, minD = 0) {
   if (Math.hypot(x - focus.x, z - focus.z) < minD || cars.some(c => Math.hypot(c.x - x, c.z - z) < 14)) return null;
   const c = makeCar('bus', '#fff', x, z, Math.atan2(e[0] - s[0], e[1] - s[1]), 'traffic');
   if (carHitsWorld(c, x, z)) { removeCar(c); return null; }
-  c.from = a; c.to = b; c.wp = [e]; c.bus = true; c.route = BUS_ROUTE; c.ri = (i + 1) % n; c.cruise = rr(10, 12); c.pax = (Math.random() * 4) | 0;
+  c.from = a; c.to = b; c.wp = [e]; c.bus = true; c.route = BUS_ROUTE; c.ri = (i + 1) % n; c.cruise = grr(10, 12); c.pax = (grand() * 4) | 0;
   c.vx = Math.sin(c.angle) * c.cruise * 0.7; c.vz = Math.cos(c.angle) * c.cruise * 0.7; return c;
 }
 function spawnCurbTruck(minD, maxD) {   // a delivery truck stopped at the kerb with its hazards flashing
   for (let tries = 0; tries < 40; tries++) {
-    const a = Math.floor(Math.random() * nodes.length), b = pick(nodes[a].nb), A = nodes[a], B2 = nodes[b], l = laneOf(A.x, A.z, B2.x, B2.z), f = rr(0.3, 0.7);
+    const a = Math.floor(grand() * nodes.length), b = gpick(nodes[a].nb), A = nodes[a], B2 = nodes[b], l = laneOf(A.x, A.z, B2.x, B2.z), f = grr(0.3, 0.7);
     const x = lerp(A.x, B2.x, f) + l.rx * 7.7, z = lerp(A.z, B2.z, f) + l.rz * 7.7, d = Math.hypot(x - focus.x, z - focus.z);
     if (d < minD || d > maxD || cars.some(c => Math.hypot(c.x - x, c.z - z) < 12)) continue;
     const c = makeCar('truck', '#fff', x, z, Math.atan2(l.dx, l.dz), 'parked');
@@ -2691,7 +2703,7 @@ function lineClear(ax, az, bx, bz) {
 function updatePolice(c, dt) {
   const tx = focus.x, tz = focus.z, d = Math.hypot(tx - c.x, tz - c.z);
   c.siren = stars() > 0;
-  if (stars() === 0) { c.kind = 'traffic'; c.from = nearestNode(c.x, c.z); c.to = pick(nodes[c.from].nb); c.wp = edgeWaypoints(c.from, c.to); c.cruise = 15; return; }
+  if (stars() === 0) { c.kind = 'traffic'; c.from = nearestNode(c.x, c.z); c.to = gpick(nodes[c.from].nb); c.wp = edgeWaypoints(c.from, c.to); c.cruise = 15; return; }
   let gx, gz;
   const pv = player.car ? [player.car.vx, player.car.vz] : [0, 0];
   if (d < 42 && lineClear(c.x, c.z, tx, tz)) { gx = tx + pv[0] * 0.5; gz = tz + pv[1] * 0.5; c.path = []; }
@@ -3063,7 +3075,7 @@ function updateMissionPanel() {
 // ---------- Side jobs: Bridge Run (a timed lap over all three bridges), taxi fares, and Sal's wanted-cars list.
 // They use M.active like Teo's jobs (one at a time, so the phones stay quiet), but with side: true they don't advance M.next.
 const fmtT = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-let raceBest = 0; try { raceBest = +localStorage.getItem('rustwater-race') || 0; } catch (e) { /* storage blocked */ }
+let raceBest = 0; try { raceBest = AGENT ? 0 : +localStorage.getItem('rustwater-race') || 0; } catch (e) { /* storage blocked */ }
 { // the start banner over the road, on two poles
   const [bc, bg] = makeCanvas(1024, 128);
   bg.fillStyle = '#16120f'; bg.fillRect(0, 0, 1024, 128);
@@ -3089,7 +3101,7 @@ function drawSalBoard() {
 }
 function salRefill() {
   const rare = ['police', 'bus', 'truck'];
-  while (SAL.list.length < 3) { let k; do k = pick(Object.keys(SAL_PAY)); while (SAL.list.includes(k) || (rare.includes(k) && SAL.list.some(x => rare.includes(x)))); SAL.list.push(k); }
+  while (SAL.list.length < 3) { let k; do k = spick(Object.keys(SAL_PAY)); while (SAL.list.includes(k) || (rare.includes(k) && SAL.list.some(x => rare.includes(x)))); SAL.list.push(k); }
   drawSalBoard();
 }
 {
@@ -3147,7 +3159,7 @@ function boardFare(c) {
   dropPed(TX.ped); const i = peds.indexOf(TX.ped); if (i >= 0) peds.splice(i, 1); TX.ped = null;
   let d = null;
   for (let k = 0; k < 60 && !d; k++) {
-    const q = nearestTile(rr(40, WORLD - 40), rr(40, WORLD - 40), t => t === TILE.SIDE), dd = Math.hypot(q[0] - c.x, q[1] - c.z);
+    const q = nearestTile(grr(40, WORLD - 40), grr(40, WORLD - 40), t => t === TILE.SIDE), dd = Math.hypot(q[0] - c.x, q[1] - c.z);
     if (dd > 220 && dd < 560 && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => tileW(q[0] + a * T, q[1] + b * T) === TILE.ROAD)) d = q;
   }
   if (!d) d = nearestTile(c.x + 260, c.z, t => t === TILE.SIDE);
@@ -3188,7 +3200,7 @@ function updateSideMission(dt) {   // the clock and checkpoints of the Bridge Ru
   }
 }
 function updateSide(dt) {
-  SAL.t -= dt; if (SAL.t <= 0) { SAL.t = 150; SAL.list.splice((Math.random() * 3) | 0, 1); salRefill(); }
+  SAL.t -= dt; if (SAL.t <= 0) { SAL.t = 150; SAL.list.splice((srand() * 3) | 0, 1); salRefill(); }
   if (TX.on && (!M.active || M.active.id !== 'taxi')) endTaxi('');
   if (state !== 'play') return;
   if (TX.on) updateTaxi(dt);
@@ -3205,8 +3217,8 @@ function updateRespray(dt) {
   if (M.active && M.active.id === 'heat') { M.hint = "Sal's is shut tonight."; return; }
   if (score < 250) { toast('Respray costs $250'); resprayCD = 2; return; }
   score -= 250; heat = 0; evade = 0; resprayCD = 4;
-  const c = player.car; const col = pick(CAR_COLORS); if (!c.mission) { c.bodyMesh.material = paintMat(col); c.color = col; }
-  c.health = c.maxHp; repairCar(c); for (const o of cars) if (o.kind === 'police') o.kind = 'traffic', o.wp = [], o.from = nearestNode(o.x, o.z), o.to = pick(nodes[o.from].nb);
+  const c = player.car; const col = gpick(CAR_COLORS); if (!c.mission) { c.bodyMesh.material = paintMat(col); c.color = col; }
+  c.health = c.maxHp; repairCar(c); for (const o of cars) if (o.kind === 'police') o.kind = 'traffic', o.wp = [], o.from = nearestNode(o.x, o.z), o.to = gpick(nodes[o.from].nb);
   sfxSpray(); flashBanner('', 'Fresh paint. New plates. Nobody knows you.', 2, '#4fd1c5');
 }
 
@@ -3263,7 +3275,6 @@ let areaT = 0, lastArea = '';
 function setHud(id, v, prop = 'textContent') { if (lastHud[id + prop] !== v) { lastHud[id + prop] = v; $(id)[prop] = v; } }
 function updateHud(dt, t) {
   setHud('score', '$' + score.toLocaleString());
-  multT -= dt; if (multT <= 0) mult = 1;
   setHud('mult', mult > 1 ? `x${mult.toFixed(2)} MAYHEM` : '');
   const st = stars();
   setHud('stars', '<b>' + '★'.repeat(st) + '</b>' + '★'.repeat(5 - st), 'innerHTML');
@@ -3308,6 +3319,7 @@ function updateHud(dt, t) {
 const A = { ctx: null, master: null, eng2: null, engType: '', eng: null, engGain: null, engFilt: null, sir: null, sirGain: null, muted: false, noise: null };
 let sirenDist = 1e9;
 function initAudio() {
+  if (AGENT) return;
   if (A.ctx) { A.ctx.resume(); return; }
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)(); A.ctx = ctx;
@@ -3481,7 +3493,7 @@ addEventListener('keydown', e => {
   keys[e.code] = true;
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
-addEventListener('blur', () => { for (const k in keys) keys[k] = false; touchRelease(); if (state === 'play') setPause(true); });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; touchRelease(); if (state === 'play' && !AGENT) setPause(true); });
 $('goBtn').addEventListener('click', () => startGame());
 $('qBtn').addEventListener('click', e => { e.stopPropagation(); cycleQuality(); });
 $('pResume').addEventListener('click', () => { if (state === 'paused') setPause(false); });
@@ -3571,11 +3583,12 @@ function placePlayer(pos) {
 }
 function startGame() {
   initAudio();
+  if (AGENT) { seedStreams(); time = 0; upkeepT = 0; SAL.list.length = 0; SAL.t = 150; salRefill(); }   // a benchmark run starts from the seed, with the clock at 0
   resetWorld();
   score = 0; lives = 3; mult = 1; M.next = 0; M.active = null; M.encore = false; clearTargets();
   for (const c of M.crates) scene.remove(c.mesh); M.crates = [];
   placePlayer(SPAWN);
-  for (let i = 0; i < 18; i++) spawnTrafficAt(20, 160, pick(TRAFFIC_MIX));
+  for (let i = 0; i < 18; i++) spawnTrafficAt(20, 160, gpick(TRAFFIC_MIX));
   spawnBus(0, 0.6); spawnBus(5, 0.5); spawnCurbTruck(25, 150); spawnCurbTruck(25, 150);
   for (let i = 0; i < 30; i++) { const p = spawnPed(8, 110); if (p) newPed(p); }
   $('title').hidden = true; $('hud').hidden = false; state = 'play';
@@ -3601,7 +3614,7 @@ function respawn() {
   }
   resetWorld();
   placePlayer(failKind === 'busted' ? PRECINCT : SPAWN);
-  for (let i = 0; i < 16; i++) spawnTrafficAt(30, 160, pick(TRAFFIC_MIX));
+  for (let i = 0; i < 16; i++) spawnTrafficAt(30, 160, gpick(TRAFFIC_MIX));
   spawnBus(0, 0.6); spawnBus(5, 0.5); spawnCurbTruck(25, 150);
   $('banner').classList.remove('show'); bannerT = 0;
   state = 'play';
@@ -3678,9 +3691,9 @@ function upkeep() {
     if (d > 190 || (c.wreck && c.wreckT > 25 && d > 70) || (c.kind === 'traffic' && c.idle > 8 && d > 60)) removeCar(c);
   }
   const traffic = cars.filter(c => c.kind === 'traffic').length;
-  if (traffic < QS.traffic) spawnTrafficAt(80, 170, pick(TRAFFIC_MIX));
-  if (cars.filter(c => c.bus && c.kind === 'traffic' && !c.wreck).length < 2) spawnBus((Math.random() * BUS_ROUTE.length) | 0, rr(0.2, 0.8), 90);
-  if (cars.filter(c => c.hazard && !c.wreck).length < 2 && Math.random() < 0.3) spawnCurbTruck(70, 170);
+  if (traffic < (AGENT ? 15 : QS.traffic)) spawnTrafficAt(80, 170, gpick(TRAFFIC_MIX));
+  if (cars.filter(c => c.bus && c.kind === 'traffic' && !c.wreck).length < 2) spawnBus((grand() * BUS_ROUTE.length) | 0, grr(0.2, 0.8), 90);
+  if (cars.filter(c => c.hazard && !c.wreck).length < 2 && grand() < 0.3) spawnCurbTruck(70, 170);
 }
 
 setQuality(quality, true);
@@ -3696,35 +3709,40 @@ function simCars(dt) {
   carCollisions();
 }
 let last = performance.now(), time = 0, upkeepT = 0;
-function fastForward(sec) {   // test hook: run the traffic, signals and walkers without drawing (headless Chromium draws about 1 frame a second)
-  for (let t = 0; t < sec; t += 0.05) { time += 0.05; simCars(0.05); updatePeds(0.05); upkeepT -= 0.05; if (upkeepT <= 0) { upkeep(); upkeepT = 0.5; } }
-}
-function frame(now) {
-  requestAnimationFrame(frame);
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  if (state === 'paused') { draw(); return; }
-  time += dt;
-  perfWatch(now, dt);
+function simStep(dt) {   // everything that decides the score: no drawing, no audio, gameplay randomness only from the seeded streams
+  stepWeather(dt);
   if (state === 'play') {
     updatePlayer(dt);
     focus.x = player.car ? player.car.x : player.x; focus.z = player.car ? player.car.z : player.z;
     updateMission(dt); updateSide(dt); updateRespray(dt); updateWanted(dt);
   } else if (state === 'dead') { failT += dt; }
   if (state === 'play' || state === 'dead') {
+    multT -= dt; if (multT <= 0) mult = 1;
     simCars(dt);
-    // fire and wreck effects
-    for (const c of [...cars]) {
+    for (const c of [...cars]) { if (c.onFire) { c.fireT -= dt; if (c.fireT <= 0) explodeCar(c); } if (c.wreck) c.wreckT += dt; }
+    updatePeds(dt);
+    upkeepT -= dt; if (upkeepT <= 0) { upkeep(); upkeepT = 0.5; }
+  }
+}
+function tick(dt) { time += dt; simStep(dt); }
+function fastForward(sec) { for (let t = 0; t < sec - 1e-9; t += 0.05) tick(0.05); }   // test hook: n seconds of the full simulation without drawing
+const VIEW = !AGENT || QP.get('view') === '1';   // agent mode draws only when asked (headless drawing is about 1 s a frame)
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (!VIEW) return;
+  if (state === 'paused') { draw(); return; }
+  if (!AGENT) { time += dt; perfWatch(now, dt); simStep(dt); }
+  if (state === 'play' || state === 'dead') {
+    // fire and wreck effects (looks only; the fire timer and the explosion are in simStep)
+    for (const c of cars) {
       if (c.onFire) {
-        c.fireT -= dt;
         if (Math.random() < 0.7) fire.emit(c.x + rr(-0.8, 0.8), 1.4, c.z + rr(-0.8, 0.8), rr(-0.5, 0.5), rr(2, 4), rr(-0.5, 0.5), rr(0.4, 0.7), 1.6, 3, 1, rr(0.35, 0.6), 0.1, 0.9, 1);
         if (Math.random() < 0.3) smoke.emit(c.x, 2, c.z, rr(-0.5, 0.5), 3, rr(-0.5, 0.5), 2.2, 2, 7, 0.1, 0.08, 0.08, 0.6, 0.5);
-        if (c.fireT <= 0) explodeCar(c);
       } else if (c.health < c.maxHp * 0.35 && !c.wreck && Math.random() < 0.15) smoke.emit(c.x + Math.sin(c.angle) * 1.8, 1.2, c.z + Math.cos(c.angle) * 1.8, rr(-0.3, 0.3), 2, rr(-0.3, 0.3), 1.4, 1, 3.5, 0.3, 0.3, 0.3, 0.5, 0.6);
-      if (c.wreck) { c.wreckT += dt; if (c.wreckT < 8 && Math.random() < 0.2) smoke.emit(c.x, 1.5, c.z, rr(-0.3, 0.3), 2.5, rr(-0.3, 0.3), 3, 2, 8, 0.08, 0.07, 0.07, 0.5, 0.4); }
+      if (c.wreck) { if (c.wreckT < 8 && Math.random() < 0.2) smoke.emit(c.x, 1.5, c.z, rr(-0.3, 0.3), 2.5, rr(-0.3, 0.3), 3, 2, 8, 0.08, 0.07, 0.07, 0.5, 0.4); }
     }
-    updatePeds(dt);
     updatePeopleBlobs([player, ...peds]);
-    upkeepT -= dt; if (upkeepT <= 0) { upkeep(); upkeepT = 0.5; }
   }
   // visuals
   for (const c of cars) {
@@ -3774,7 +3792,15 @@ function frame(now) {
 // a few cars and walkers for the title flyover
 focus.x = WORLD / 2; focus.z = WORLD / 2;
 requestAnimationFrame(frame);
-window.__rustwater = { get state() { return state; }, cars, peds, player, M, W, startGame, dentCar, damageCar, nodes, sigState, makeCar, TX, SAL, RACE_GATE, salDeliver, fastForward, busStops, props, get time() { return time; }, get heat() { return heat; } };
+function stateHash() {   // test hook: a fingerprint of everything the rules read
+  const f = v => Math.round(v * 1000), parts = [f(time), f(player.x), f(player.z), score, lives, state, M.next, M.active ? M.active.id + M.stage : '', f(M.timer), W.kind, f(W.wet), SAL.list.join(','), f(heat), f(mult)];
+  for (const c of cars) parts.push(c.type, f(c.x), f(c.z), f(c.angle), f(c.speed), f(c.health));
+  for (const p of peds) parts.push(f(p.x), f(p.z), p.down ? 1 : 0);
+  let h = 2166136261; const str = parts.join('|');
+  for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(16) + ':' + cars.length + ':' + peds.length;
+}
+window.__rustwater = { simStep, tick, stateHash, keys, press: onPress, seed: () => SEED, reseed: n => { SEED = n >>> 0; seedStreams(); }, get state() { return state; }, cars, peds, player, M, W, startGame, dentCar, damageCar, nodes, sigState, makeCar, TX, SAL, RACE_GATE, salDeliver, fastForward, busStops, props, get time() { return time; }, get heat() { return heat; } };
 </script>
 <script src="../views.js" defer></script>
 </body>
