@@ -11,7 +11,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | 2 | Weather | done (commit ceab9c5, merged and deployed 2026-11-24) |
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | done (commit 024a243, merged and deployed 2026-11-24; touch point steering not done) |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | done (commit 725f59f, merged and deployed 2026-11-24) |
-| 5 | More jobs: taxi fares, bridge race, cars for Sal | built 2026-11-25 on branch rustwater-havoc, not committed or merged yet |
+| 5 | More jobs: taxi fares, bridge race, cars for Sal | done (commit 468bd16, merged and deployed 2026-11-25) |
 | 6 | Agent mode | not started |
 
 At the end of a session, set its row to `done (commit abc1234)` and add notes under the session for
