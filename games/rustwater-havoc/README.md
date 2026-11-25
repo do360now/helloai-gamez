@@ -49,6 +49,22 @@ cycles them, a small line under the clock names the station, and the choice is k
 (`rustwater-radio`). It plays only in a car and fades out when you get out, sirens duck it, and M mutes it with
 everything else. Nothing is audible in the headless tests, so the sound design is untested by ear.
 
+## More jobs
+
+Teo's five jobs are not the only things to do. Side jobs share the one-job-at-a-time slot, so the phones stay quiet while one runs.
+**Bridge Run.** Drive south through the checkered banner at the north foot of the west bridge (any car). It starts a lap
+over all three bridges and back through the banner; each checkpoint is a green beam, the clock counts up, and the pay falls
+with the time ($1,100 for 50 s down to $300). The best lap is kept in `localStorage` (`rustwater-race`). Leaving the car or
+taking over 4 minutes fails it.
+**Taxi duty.** In a taxi, stopped, press E (the touch E button says "Taxi duty") to go on duty; press E again to get out, which
+ends it. People at the kerb wave an arm and show a yellow beam; stop next to one to pick them up, then drive to the
+destination beam across town. A fare is $20 plus $0.28 a metre, plus up to half again as a tip for being quick, minus
+damage to the car; being too slow loses the fare and the streak, and ten fares in a row pay $500. Two stars, a wreck or
+leaving the car end duty.
+**Sal's list.** A board near Sal's Garage (and a line under the clock when you are near it, or in a car he wants) lists three
+wanted models, with the price for each; one changes every 2.5 minutes. Drive one in to the garage and stop: you are paid by
+type and health (35 to 100 per cent of the price). Police cars pay most ($1,200) and bring a star; a bus pays $900.
+
 ## Busier streets
 
 **Traffic lights.** The twelve 4-way junctions on the three bridge avenues have signals: poles with a head on each side, a

@@ -11,7 +11,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | 2 | Weather | done (commit ceab9c5, merged and deployed 2026-11-24) |
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | done (commit 024a243, merged and deployed 2026-11-24; touch point steering not done) |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | done (commit 725f59f, merged and deployed 2026-11-24) |
-| 5 | More jobs: taxi fares, bridge race, cars for Sal | not started |
+| 5 | More jobs: taxi fares, bridge race, cars for Sal | built 2026-11-25 on branch rustwater-havoc, not committed or merged yet |
 | 6 | Agent mode | not started |
 
 At the end of a session, set its row to `done (commit abc1234)` and add notes under the session for
@@ -132,6 +132,18 @@ Busier streets, measured 2026-11-24 after session 4 (same camera, one frame, all
 | Clear (low) | 145 | 0.27M |
 
 Signals add 3 draw calls (poles, heads, lenses) and the shelters 1; each bus or truck in view is about 8 to 10 like any other car.
+
+More jobs, measured 2026-11-25 after session 5 (same camera, one frame, all passes):
+
+| Case | Draw calls | Triangles |
+|---|---|---|
+| Clear, golden (high) | 392 | 0.68M |
+| Rain, day (high) | 599 | 1.00M |
+| Night (high) | 158 | 0.26M |
+| Clear (medium) | 397 | 0.65M |
+| Clear (low) | 136 | 0.25M |
+
+Session 5 adds about 5 static draws (banner, its poles, Sal's board and posts); the numbers move a few calls with whatever cars and people are in view.
 
 The shadow pass (a 240 m box around the player) is the biggest single cost. Nothing has been timed
 on a real GPU yet. If the user reports fps from a real device, write the numbers here.
@@ -503,6 +515,27 @@ thefts for Sal that pay by vehicle type.
 
 **Done when:** each new activity is played through headless by teleporting (as in `flow.mjs`), the
 updated `flow.mjs` passes, and the score and localStorage records behave.
+
+**Session 5 notes (built 2026-11-25):**
+- Side jobs set `M.active = { id, name, side: true }` (so phones stay quiet and `playerFail` clears them) and never touch `M.next`; `updateMission` hands
+  `side` jobs to `updateSideMission` (the race clock and checkpoints); `updateSide(dt)` runs next to it every frame (Sal's list timer, the race gate trigger, taxi duty, deliveries).
+  The mission panel hides the timer when `M.timer > 900` (taxi duty, while looking for a fare); the race counts up (`M.active.up`).
+- Bridge Run: `RACE_GATE` (north foot of the west bridge, z = junction + 27) with a checkered strip in the ground texture and a banner on two poles; trigger is a car moving south
+  (`vz > 3`) through it with no job running. `M.cps` is 11 checkpoints (all three bridges, back over the west one to the gate), radius 8. Pay `clamp(1100 - (t - 50) * 10, 300, 1100)`,
+  best in `localStorage` `rustwater-race`, 240 s limit. The race has no rivals and no ghost.
+- Taxi duty: `TX` (also on the debug handle). First E in a stopped taxi with no job starts duty; E again gets out and ends it. `pickFare` makes a walker on a sidewalk tile
+  (30 to 110 m away) wave (`p.stay.kind === 'hail'`, raised arm in the stay branch of `updatePeds`, yellow beam through `setTarget`, so the minimap and compass use it).
+  Stopping within 7 m boards them (the ped is removed), `boardFare` picks a destination 220 to 560 m away on a sidewalk tile beside a road, and `payFare` pays
+  `20 + 0.28 * distance` plus a tip (up to 50%, less 1.5 per point of damage), a 10-fare streak bonus, and drops the passenger beside the car. Late fares walk off and reset the streak.
+  Duty ends for 2 stars, a wreck, or leaving the car. Cost of the design: leaving a taxi takes two E presses when you are not on duty.
+- Sal's list: `SAL = { list, t }`, `SAL_PAY` by type, a board with a canvas texture next to the garage (first free sidewalk spot on a ring around `GARAGE`; faces away from the garage)
+  and a HUD line `#sal` near the garage or in a wanted car. `salDeliver` pays `price * (0.35 + 0.65 * health)`, removes the car, puts you on foot, and adds a star for a police car.
+  One entry is replaced every 150 s. Cars with `c.mission` (the copper coupe) are not accepted.
+- `flow.mjs` now has a second phase on a fresh game: a taxi fare (hail, board, pay, off duty), the race (start through the banner, all 11 checkpoints, best saved) and a Sal delivery.
+  Expected: S1 paid with fares 1 and score $170 or so (the fare is random), S2 finishes with about +$1,100, S3 pays about +$250 for a sedan and puts you on foot, and no errors.
+- Checked: `flow.mjs` (both phases), `touch.mjs` landscape and portrait, screenshots of the banner, the garage with the board, and a hailing person (session scratchpad `c5/`).
+- Not done / ideas: no minimap marker for a taxi fare beyond the beam dot; the board is hard to read from the road (small, and it faces away from the garage); the race has no
+  traffic-light or cop handling; nothing is saved between sessions except the best lap; the player can't refuse a fare. Touch players start taxi duty with the E button (label "Taxi duty").
 
 ---
 
