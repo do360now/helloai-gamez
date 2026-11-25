@@ -12,7 +12,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | done (commit 024a243, merged and deployed 2026-11-24; touch point steering not done) |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | done (commit 725f59f, merged and deployed 2026-11-24) |
 | 5 | More jobs: taxi fares, bridge race, cars for Sal | done (commit 468bd16, merged and deployed 2026-11-25) |
-| 6 | Agent mode | 6a done (commit 89633b6); 6b built 2026-11-25 (arcade adapter, uncommitted, awaiting review); 6c (benchmark, verify, listing) not started. Decisions 1 to 5 confirmed (recommendations) |
+| 6 | Agent mode | 6a done (89633b6), 6b done (268f76b), 6c built 2026-11-25 (benchmark, baselines, listing; uncommitted, not pushed, not deployed). Decisions 1 to 5 confirmed (recommendations) |
 
 At the end of a session, set its row to `done (commit abc1234)` and add notes under the session for
 anything the next one needs to know.
@@ -672,6 +672,15 @@ Counted with perl: **96 `Math.random`, 92 `rr(`, 50 `pick(`** (the definitions i
 
 **Why three parts and not two.** The plan's (a) put the seed, the fixed step and the arcade API together. The audit shows the first two are the hard, risky part (the simulation is tangled with drawing, and about 55 random sites need converting), and the arcade API is a separate chunk of design (the text view). Splitting them lets 6a be proven with hashes before any API depends on it, and 6a can ship on its own (it changes no behaviour for humans).
 If 6a goes fast, 6b can follow in the same sitting.
+
+**Part 6c built 2026-11-25 (on the branch, not committed, not pushed, not deployed).**
+- `data/benchmarks.json`: `rustwater-havoc/rust-240` (seed 20261022) with `"agentOnly": true` (new flag: no human rows, no real-time Play link). `build-index.mjs` carries it into `data/runs/index.json` unchanged.
+- Baselines (`tools/agents/rustwater-random.mjs`, `rustwater-seeker.mjs`; `run.mjs` takes the agent name): **seeker $2,003** (5 Sal deliveries, no lives lost; a plain path search over the observed map and a steering rule on the heading; ignores Teo, taxi duty and the race), **random $125** (one wipeout). Both are recorded as `data/runs/rustwater-havoc/rust-240/baseline-*.json`, and re-recording the seeker gives the same score. A full run takes about 17 s including page load.
+  Worth knowing: Sal's list pays well for a simple bot (about $400 for a car 25 tiles away), so the benchmark rewards a good Sal loop; the real contest will be agents that also do the Bridge Run ($1,100) and taxi fares.
+- Verified with the repo's own `tools/verify.mjs` (plain `chromium.launch()`, a local `http.server`): both runs reproduce score and stats. **Not run on CI**: that needs a push, which waits for the user. Port 8765 on this machine is held by a stray server on the LAN address, so I served on 8791 (`--base http://127.0.0.1:8791`). Do not `pkill -f` the server by name inside a command that contains that name.
+- Landing page (`index.html`): the Rustwater card is `agent: true, bench: "rust-240", agentOnly: true` (Play opens the plain game; "Agent-ready" chip); the benchmark panel shows "Agent mode ↗" and "Copy for your agent" instead of Play, with no "You" rows; the Watch player shows Deliveries and Seconds (0 / 240). `games/prompt.js` has a `rustwater-havoc` hint (the 133 tests in `tools/test` pass). `llms.txt`, `agents.md` (status paragraph, start-here link, an actions section), the game README (an "Agent mode" section), the root README (baseline names) and `docs/harbor-city-agent-mode.md` are updated.
+- Checked: `node tools/build-index.mjs --check`, `npm test` (133) and `node tools/smoke.mjs` pass; a screenshot of the benchmark panel; the Watch button loads the replay and the HUD shows no NaN (headless drawing is too slow to see progress).
+- **To do when the user says so:** commit; push the branch to see the `Verify runs` workflow (the float-determinism risk 13); merge to `main`; `./deploy.sh`; `node tools/rustwater/live.mjs`; open the live `?agent=1&seed=20261022&bench=rust-240` and play two actions. After that, session 6 is done.
 
 ---
 

@@ -14,8 +14,7 @@ or in a car steers sideways and drives with an up or down push. On the right are
 (brake and reverse), DRIFT (sprint on foot), RADIO (in a car: next station) and E, which pulses and names the
 action when one is in reach. The II button pauses, and the pause screen has resume, sound and graphics buttons.
 After Wasted or Busted, a tap anywhere carries on.
-Human-only: there is no `window.arcade`, no seeded benchmark and no agent mode, the same as
-`harbor-city`.
+Agents: open `/games/rustwater-havoc/?agent=1&seed=20261022&bench=rust-240` (see "Agent mode" below).
 
 ## Missions
 
@@ -100,6 +99,16 @@ closes in, roads go dark and glossy, and puddles and wet asphalt mirror lamps, w
 at dawn), and in a leaf storm autumn leaves blow across town and the trees thrash. The clock shows RAIN,
 OVERCAST or WINDY. Tests can pin the weather with `window.__weather` (`'clear'`, `'overcast'`, `'rain'`,
 `'clearing'`, `'storm'`).
+
+## Agent mode
+
+`?agent=1` makes the game turn-based for agents (protocol: `/agents.md`, section "Rustwater Havoc actions"). The simulation lives in
+`simStep(dt)`; `arcade.act()` runs it in fixed steps of 0.05 s (5 per 0.25 s unit) and nothing else moves the world. Gameplay randomness
+(traffic, people, fares, physics jitter, the weather forecast, Sal's list) comes from three streams seeded by `?seed=`, so the same seed and
+the same actions give the same run; looks and sound stay on `Math.random`. In agent mode the graphics level does not change the number of
+cars and people, nothing is drawn unless `?view=1` is added, there is no sound, and the keyboard and touch are ignored. Benchmark `rust-240`:
+the money you hold after 240 s of game time, three lives. Human real-time play (no `agent=1`) is unchanged.
+Checks: `node tools/rustwater/sim.mjs` (determinism), `node tools/rustwater/agent.mjs` (a bot plays a full run, then the run is replayed).
 
 ## Files (open track, no build step)
 

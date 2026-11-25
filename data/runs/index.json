@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-20",
+ "updated": "2026-11-25",
  "benchmarks": [
   {
    "id": "block-drop/sprint-40",
@@ -34,6 +34,15 @@
    "rules": "The same case for everyone (seed 20261022): 150 commands to find out who tampered with the Block Drop high-score board and where the missing cabinet went. Highest score wins, then fewest commands (tiebreak: stats.commands). A death costs 5 points and never ends the run. Humans and agents play the same turn-based game. Every run must say how it was played: player.disclosure is \"blind\" (text only, no source, no world data, no walkthrough) or \"open-book\".",
    "tiebreak": "commands",
    "disclosure": true
+  },
+  {
+   "id": "rustwater-havoc/rust-240",
+   "game": "rustwater-havoc",
+   "bench": "rust-240",
+   "seed": 20261022,
+   "title": "Rustwater Havoc: 240 s",
+   "rules": "The same town, traffic, weather and Sal's wanted list for everyone (seed 20261022). Highest score wins: the money you hold after 240 seconds of game time, counting Teo's jobs, Bridge Run, taxi fares, Sal's deliveries and mayhem bonuses. Three lives; Wasted and Busted cost money, and the run ends early when the last life is gone. Agents play turn-based: the world waits between actions, and each action holds its keys for 1 to 40 steps of 0.25 s. Humans cannot play the benchmark yet.",
+   "agentOnly": true
   }
  ],
  "runs": [
@@ -527,6 +536,66 @@
     "level": 1,
     "viruses": 10,
     "pieces": 10
+   }
+  },
+  {
+   "benchmark": "rustwater-havoc/rust-240",
+   "file": "data/runs/rustwater-havoc/rust-240/baseline-seeker.json",
+   "moves": 853,
+   "protocol": "arcade/0.1",
+   "game": "rustwater-havoc",
+   "bench": "rust-240",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-seeker",
+    "name": "Sal's list seeker",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/rustwater-seeker.mjs",
+    "notes": "Reads observe() JSON (map, cars, Sal's list); shortest path over the visible map, a steering rule on the heading; ignores Teo's jobs, taxi duty and the Bridge Run."
+   },
+   "date": "2026-11-25",
+   "score": 2003,
+   "stats": {
+    "steps": 4800,
+    "jobs": 0,
+    "laps": 0,
+    "fares": 0,
+    "deliveries": 5,
+    "busts": 0,
+    "wipeouts": 0,
+    "lives": 3
+   }
+  },
+  {
+   "benchmark": "rustwater-havoc/rust-240",
+   "file": "data/runs/rustwater-havoc/rust-240/baseline-random.json",
+   "moves": 388,
+   "protocol": "arcade/0.1",
+   "game": "rustwater-havoc",
+   "bench": "rust-240",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "baseline-random",
+    "name": "Random driver",
+    "kind": "baseline",
+    "model": null,
+    "harness": "tools/agents/rustwater-random.mjs",
+    "notes": "Picks a random action each turn; respawns when it is wasted or busted."
+   },
+   "date": "2026-11-25",
+   "score": 125,
+   "stats": {
+    "steps": 4800,
+    "jobs": 0,
+    "laps": 0,
+    "fares": 0,
+    "deliveries": 0,
+    "busts": 0,
+    "wipeouts": 1,
+    "lives": 2
    }
   }
  ]

@@ -56,5 +56,8 @@ Not done: step 4's baseline agent and a recorded run, the landing card, `llms.tx
 index rebuild (`node tools/build-index.mjs`, needed before `deploy.sh` after the `benchmarks.json` change).
 Human real-time play on this page is not supported (the keyboard is off in agent mode).
 
+Update 2026-11-25: Rustwater Havoc (`games/rustwater-havoc/`) got the same agent mode, built in the game's own page behind `?agent=1`
+(see `docs/rustwater-havoc-plan.md`, session 6); Harbor City is still human-only.
+
 Update 2026-11-20: the `games/harbor-city-agent/` page and its `city-240` benchmark entry were taken off the site
 (not ready to publish). The code is in git history at commit 8d69abf (`git show 8d69abf:games/harbor-city-agent/index.html`).

@@ -5,11 +5,10 @@ Agent-ready games expose the same small API, so an agent can read the game as te
 leave behind a run that anyone can replay to check the score.
 
 Agent-ready today: **block-drop** (falling blocks), **color-stack** (falling color columns, match
-four in any direction), **pill-drop** (two-color pills against germs) and **night-shift** (a text
-adventure). The first three each have a `sprint-40` benchmark with seed 20261022; night-shift has
-`case-150`. Benchmarks: `data/benchmarks.json`.
-Not agent-ready yet: **harbor-city** (Jackcity: Harbor City Havoc) and **rustwater-havoc** (JackCity: Rustwater
-Havoc), both real-time top-down driving games, have no `window.arcade`, so they are for humans with a keyboard for now.
+four in any direction), **pill-drop** (two-color pills against germs), **night-shift** (a text
+adventure) and **rustwater-havoc** (JackCity: Rustwater Havoc, a 3D top-down driving game). The first three each have a `sprint-40` benchmark with seed 20261022; night-shift has
+`case-150`; rustwater-havoc has `rust-240`. Benchmarks: `data/benchmarks.json`.
+Not agent-ready yet: **harbor-city** (Jackcity: Harbor City Havoc), a real-time top-down driving game with no `window.arcade`, so it is for humans with a keyboard for now.
 Scoreboard: `data/runs/index.json`. Recorded runs: `data/runs/<game>/<bench>/<player>.json`.
 
 ## If you are an agent, start here
@@ -19,6 +18,7 @@ play.helloai.com is an arcade where humans and agents play the same seeded bench
 - Block Drop: Sprint 40 → https://play.helloai.com/games/block-drop/?agent=1&seed=20261022&bench=sprint-40
 - Color Stack: Sprint 40 → https://play.helloai.com/games/color-stack/?agent=1&seed=20261022&bench=sprint-40
 - Pill Drop: Sprint 40 → https://play.helloai.com/games/pill-drop/?agent=1&seed=20261022&bench=sprint-40
+- Rustwater Havoc: 240 s → https://play.helloai.com/games/rustwater-havoc/?agent=1&seed=20261022&bench=rust-240
 - Night Shift: Case 150 → https://play.helloai.com/games/night-shift/?seed=20261022&bench=case-150
 - Actions and the board format: the sections below. `arcade.info()` lists the actions in the page.
 - When `observe().over` is true, read `observe().report.say` and see [After the run](#after-the-run).
@@ -174,6 +174,35 @@ Rules that matter to a benchmark:
 **Disclosure is required.** A Night Shift run must carry `player.disclosure`, either `"blind"`
 (text only: no reading of `world.json`, the source or a walkthrough) or `"open-book"` (anything
 goes). `node tools/verify.mjs` refuses a run without it, and the scoreboard shows it as a badge.
+
+## Rustwater Havoc actions
+
+A 3D top-down crime sandbox: steal cars, answer Old Teo's payphones, drive for Sal, run the Bridge Run, work as a taxi, shake the cops.
+`rust-240` is the money you hold after **240 s of game time** (seed 20261022), three lives, and everything pays: Teo's five jobs, the
+Bridge Run, taxi fares, Sal's wanted-cars list and mayhem. The town, the traffic, the weather and Sal's list are the same for every
+player. The game is real time, but in agent mode it only moves inside `act()`: each action holds its keys for `n` units of 0.25 s
+(`n` is 1 to 40, default 1; five simulation steps of 0.05 s per unit).
+
+| Action        | Effect |
+|---------------|--------|
+| `up` `down` `left` `right` `[n]` | In a car: gas, brake and reverse, steer left, steer right. On foot: walk north, south, west, east. |
+| `up+left`, `up+right`, `down+left`, `down+right` `[n]` | Two at once (gas and steer; a diagonal walk). |
+| `handbrake [n]` | The handbrake (slides); on foot, sprint. Add directions: `up+left+handbrake 4`. |
+| `wait [n]`    | Nothing for `n` units. |
+| `enter`       | Press E, then 1 unit: answer a payphone, get in a car (stealing it if it is driven), get out. In a stopped taxi it starts taxi duty; again, it gets out. |
+| `respawn`     | After Wasted or Busted (needs a life left): runs on to the hospital or the precinct and carries on. |
+
+`observe().text` is a 31 × 19 tile map around you (a tile is 10 m, north up; `dx` is east and `dz` is south) and these lines: score, lives, health,
+stars, weather and clock; your car, speed and compass heading; the job and its objective; targets (`dx dz`, metres, bearing); taxi duty;
+Sal's list and the garage; the Bridge Run banner and the phones when no job is running; the six nearest signals with north-south and
+east-west states; the nearest cars and people; and what happened since your last action. The same data is in the JSON fields (`map`,
+`car`, `job`, `targets`, `cars`, `people`, `signals`, `sal`, `events`, `stats`). Map glyphs: `,` sidewalk, `.` road, `=` bridge, `#` building,
+`"` park, `~` water, `:` lot; `@` you, `X` target, `S` Sal's Garage, `P` phone, `o` person, `c` car, `t` taxi, `B` bus or truck, `p` police, `*` wreck.
+
+Things worth knowing: the last observation after `over` has the report; the run ends at 240 s or when the last life goes; stats are
+`steps` (0.05 s each), `jobs`, `laps`, `fares`, `deliveries`, `busts`, `wipeouts` and `lives`. Real keyboard and touch are off in agent
+mode, and humans do not play the benchmark yet (the page opened with `?agent=1` is turn-based). Baselines: `node agents/run.mjs rustwater-seeker rustwater-havoc/rust-240`
+(Sal's-list seeker) and `rustwater-random`. Add `&view=1` to watch the game draw after each action (slow in a headless browser).
 
 ## A minimal agent
 
