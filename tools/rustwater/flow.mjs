@@ -1,7 +1,7 @@
 // Mission regression: plays jobs 1 to 4 by teleporting, then starts job 5 (keyboard, desktop viewport).
 //   node tools/rustwater/flow.mjs
 // Expected as of 2026-11-23: M1, M2, M3 and M4 each print "done" with next = 1..4 and the score rising to
-// $3,350; M4 shows 2 stars; job 5 starts ("Get to 3 stars"); "police" is at least 1; ERRORS is empty.
+// $4,050 (it was $3,350 before 2026-11-25); M4 shows 2 stars; job 5 starts ("Get to 3 stars"); "police" is at least 1; ERRORS is empty.
 // Then a second phase on a fresh game (since 2026-11-25): S1 a taxi fare (duty on, a person hails, boarded, paid, off duty), S2 the Bridge Run
 // (start through the banner, 11 checkpoints, about +$1,100, best saved), S3 a delivery to Sal's (about +$250, on foot); ERRORS empty.
 // If a mission is added or rewards change, update this script and the expectations above.

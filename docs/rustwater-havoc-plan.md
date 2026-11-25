@@ -12,7 +12,7 @@ earlier ones. Agent mode (session 6) is last, because it freezes the rules.
 | 3 | Cars and sound: damage, skid marks, engine voices, radio | done (commit 024a243, merged and deployed 2026-11-24; touch point steering not done) |
 | 4 | Busier streets: traffic lights, people waiting, buses and trucks | done (commit 725f59f, merged and deployed 2026-11-24) |
 | 5 | More jobs: taxi fares, bridge race, cars for Sal | done (commit 468bd16, merged and deployed 2026-11-25) |
-| 6 | Agent mode | not started |
+| 6 | Agent mode | 6a done (89633b6), 6b done (268f76b), 6c built 2026-11-25 (benchmark, baselines, listing; uncommitted, not pushed, not deployed). Decisions 1 to 5 confirmed (recommendations) |
 
 At the end of a session, set its row to `done (commit abc1234)` and add notes under the session for
 anything the next one needs to know.
@@ -23,7 +23,7 @@ anything the next one needs to know.
    - Then run `git checkout rustwater-havoc && git merge --ff-only main`.
    - Check `git branch --show-current` before every commit. On 2026-11-23 a commit landed on `main` by
      mistake.
-2. **Don't read `index.html` whole.** It is about 2,900 lines in one module script.
+2. **Don't read `index.html` whole.** It is about 3,800 lines in one module script (checked 2026-11-25).
    - Use `grep -n` for the anchors each session lists, then read about 40 lines around each one.
    - The section headers are `// =====` blocks and `// ---------- Name` lines. Find them with
      `grep -n "^// ----------\|^// [A-Z]" games/rustwater-havoc/index.html`.
@@ -542,32 +542,145 @@ updated `flow.mjs` passes, and the score and localStorage records behave.
 ## Session 6: Agent mode
 
 **Goal:** AI agents can play Rustwater through `window.arcade`, with a seeded benchmark that can be
-verified. This is the same work as Harbor City's agent mode, so start from there.
+verified. This is the same work as Harbor City's agent mode (`docs/harbor-city-agent-mode.md`, built
+at 8d69abf and removed in fea904f), so reuse its shape, not its copy of the page.
 
-**Read first:**
-- `docs/harbor-city-agent-mode.md`: what's missing, and what was built for Harbor City.
-- The Harbor City agent page, in git history at commit 8d69abf (`git show 8d69abf:games/harbor-city-agent/index.html`).
-  It was removed from the site in fea904f because it wasn't ready.
-- The repo `README.md` sections on the agent protocol, `agents.md`, `games/arcade.js`,
-  `tools/verify.mjs` and `data/benchmarks.json`.
+**Status 2026-11-25: planned, not built.** Split into three parts (6a, 6b, 6c) below. The decisions in
+"To confirm" are open; the recommendations there are what the parts assume. Nothing in `index.html` has changed.
 
-**Design (to confirm with the user before building):**
-- **Separate page.** `tools/verify.mjs` replays at `/games/<id>/`, so it would be
-  `games/rustwater-havoc-agent/` or a `?agent=1` mode inside the same page. Pick one and say why.
-- **Seeded RNG.** Gameplay `Math.random()` calls (about 52 in all; separate gameplay from cosmetic)
-  go through `Arcade.random()`. Decoration and particles stay on `Math.random()`.
-- **Fixed step.** Move the simulation part of `frame()` into `simStep(dt)`. In agent mode,
-  `arcade.act()` advances N fixed steps of 0.05 s, and rendering only draws.
-- **`observe()`:** a text view around the player (tiles, cars, cops, people), plus status, mission,
-  phones and the wanted level. **Actions:** move directions, `handbrake`, `enter`, `wait n`, `respawn`.
-- **Benchmark:** for example `rust-240`, the score in 240 s of game time. It needs a recorder, a
-  replay through `verify.mjs`, an entry in `benchmarks.json`, then `node tools/build-index.mjs`
-  before deploying.
-- **Then:** a baseline agent run, the landing card set to `agent: true`, and `llms.txt` / `agents.md`.
-- **Human play stays identical.** Agent mode changes only pacing and input.
+### Audit, 2026-11-25 (what the rules look like now that sessions 1 to 5 are in)
 
-**Note:** this is likely bigger than one session. Plan the split at the start: (a) seed, fixed step
-and arcade API; (b) benchmark, recorder, verify and listing.
+**What affects the rules** (all of it must be inside the fixed step, or be cosmetic and kept out of it):
+- Missions and side jobs: `MISSIONS` (5 jobs, timers 110/75/170/160/200 s), `M` (`M.active`, `side: true` jobs never touch `M.next`), Bridge Run (`RACE_GATE`, 11 checkpoints, 240 s limit),
+  taxi duty `TX` (E in a stopped taxi starts it, E again gets out and ends it), Sal's list `SAL` (new entry every 150 s, `salDeliver`).
+- Signals (`updateSignals`, `sigState`, on game `time`), buses on `BUS_ROUTE`, box trucks, people who wait for red or a gap and sit on benches (`seatPeople`, `updatePeds`).
+- Wanted level: `heat`, `evade`, `bustT`, `updateWanted`, `updatePolice`; lives, Wasted and Busted, `updateRespray`; `score`, `mult`/`multT`.
+- Weather `W`: wet roads change grip, so weather is gameplay. First change is at `W.t = 180` s.
+- The radio (`R`, T key) is audio only and has no effect on the rules. Day and night are visual only (nothing in the simulation reads `nightAmt`).
+
+**Randomness.** `Math.random` is not the whole story: `rr(a,b)` and `pick(arr)` (lines 240 and 241) wrap it.
+Counted with perl: **96 `Math.random`, 92 `rr(`, 50 `pick(`** (the definitions included), about 238 sites, not "about 52".
+- **Gameplay, about 55** (must go through a seeded stream): `spawnTrafficAt`, `spawnBus` (`pax`), `spawnCurbTruck`, `upkeep` (bus and truck top-up), `spawnPed`, `newPed`,
+  `pedGoal` (turn choices), `seatPeople`, `planNext` (traffic turns), `updatePolice`, `updateRespray`, `salRefill`, `updateSide` (SAL replace), `boardFare` (fare destination),
+  `updateWeather` (`W.t`, `pick(W_NEXT)`), `startGame`/`respawn` (`pick(TRAFFIC_MIX)`), `makeCar`, and the ones that write physics state: `knockPed` (`downT`, `spin`), `knockProp` (velocity, spin),
+  `explodeCar` (`c.flip`).
+- **Cosmetic, about 180** (stay on `Math.random`, or a second private stream so that the gameplay stream never shifts): textures and facades (`facade`, `shopFacade`, `roofTex`, `grainTex`, `stackMat`, building UV offsets),
+  `randomLook` (and the `pick`s in it), `makePerson`'s phase, sign flicker, rain and mist set-up, `leafBurst`, `sparks`, `popHubcap`, `dentCar`, `updateLamps`, the `explodeCar` and fire/smoke emits, camera shake, all audio (`rNoise`, `rVowel`, `funkStep`, `talkStep`, `sfxNoise`, `initAudio`).
+- Rule used for the split: if the value is written into state that the simulation or the score later reads, it is gameplay. When unsure, treat it as gameplay.
+- `rr` and `pick` need two variants (for example `rr`/`pick` stay cosmetic, `grr`/`gpick`/`grand` are gameplay and read `Arcade.random()`); converting only the direct `Math.random` calls would leave about 40 gameplay sites on the unseeded generator.
+
+**Things in the plan that are wrong or missing:**
+1. The "about 52" count (above), and `rr`/`pick` hiding most of the sites.
+2. **Sim state lives in the drawing half of `frame()`.** `updateHud` counts down `multT` (the mayhem multiplier resets there); the fire loop in `frame()` counts `c.fireT` down and calls `explodeCar`
+   (damage, knocks peds, flips the car) inside the particle code. `simStep` must be built by reading the whole of `frame()`, not by cutting at the "// visuals" comment. The audit of that function is the first task of 6a.
+3. **Quality leaks into the rules.** `QS.peds` (30/40/46) and `QS.traffic` (12/15/18) set how many walkers and cars exist, and `perfWatch` changes `QS` by itself when frames are slow. In agent mode the gameplay counts must be fixed constants (use the medium numbers: 40 and 15), whatever the graphics level.
+4. **`time` is not reset by `startGame` and keeps running on the title screen**, and it drives signals, the day cycle and the weather's sine gust. Agent mode must zero it at start and only advance it in `simStep`. `W` (kind, `t`) must be reset at start too.
+5. **`fastForward` is not a step.** It runs `simCars`, `updatePeds` and `upkeep`; it skips the player, missions, side jobs, wanted level, respray, weather, fire and `updateHud`. Keep it as the test hook, but have it call `simStep` once that exists.
+6. **Blur pauses the game** (`addEventListener('blur')` calls `setPause(true)`), and `perfWatch` and audio are driven from `frame()`. In agent mode the blur handler, `perfWatch`, `initAudio` and the radio timer (`setInterval`, 30 ms) must be off.
+7. `dentCar` debounces with `performance.now()` (wall clock). Only the dent mesh depends on it, but it should use game time so replays are the same everywhere.
+8. `index.html` is **3,781 lines** now, not about 4,500 (the plan's header says 2,900).
+9. Drawing blocks the page: headless Chromium (SwiftShader) takes about 1 s per drawn frame. Measured 2026-11-25: `fastForward(60)` (traffic and walkers, no drawing) took **2.1 s** (1,200 steps, 1.7 ms each), so 240 s is about 8 s plus the player and missions. The `requestAnimationFrame` loop must not draw during a replay (speed 0) and should draw only after an action when someone is watching.
+10. `tools/verify.mjs` launches plain `chromium.launch()` (no SwiftShader flags). Checked 2026-11-25: Rustwater loads and creates its WebGL context that way in about 5 s here. **Not checked on CI** (`ubuntu-latest`, `python3 -m http.server`); 6c must run the workflow before the card goes live.
+11. The Open track has no extra rule for agent games in `README.md`; the protocol is the same (`../arcade.js`, `agent`, `seed`, `bench`, `replay`). A same-page agent mode needs no new rule.
+12. Port clash to remember: `tools/rustwater/lib.mjs` serves on 8799, and so does the documented `bridge.mjs --port 8799`. Run them one at a time. `verify.mjs` wants the repo server on 8765 (`cd tools && npm run serve`).
+13. Cross-machine determinism is the open risk: the simulation is float, with collisions that amplify tiny differences. V8's `Math.sin/cos/exp/atan2` are deterministic software implementations and JS has no FMA contraction, so a replay should match on any x86 or ARM Chrome. This is reasoned, not measured: 6c checks it on CI.
+
+### To confirm with the user before building (recommendations)
+
+1. **Separate page or `?agent=1` in the same page.** Recommend **the same page** (`games/rustwater-havoc/?agent=1&seed=…&bench=…`). `verify.mjs` opens `/games/<run.game>/`, and the same page keeps one source for a 3,800-line game and one copy of the vendored Three.js (about 900 KB).
+   Harbor City's copy went stale the moment it was made. The cost: human play and agent play share a file, so every change to the simulation has to keep both working (the 6a checks guard it).
+2. **The seeded benchmark.** Recommend `rustwater-havoc/rust-240`, seed 20261022 (the same as the other benchmarks): **score = money at 240 s of game time** (4,800 fixed steps of 0.05 s), ending early at 0 lives (3 lives as in the game; Wasted and Busted keep their penalties).
+   Every job counts: Teo's five, Bridge Run, taxi fares, Sal's deliveries, mayhem and near-miss bonuses. No tiebreak. 240 s fits about two of Teo's jobs or two Bridge Run laps, so a good run is a choice of route, and a random bot scores near $0. The length is cheap to change until the first run is published, then it is frozen.
+   Agent mode turns off `localStorage` records (`best`, `rustwater-race`) so a replay never depends on the browser.
+3. **`observe()` and actions.** Recommend Harbor City's shape: a text map of 31 × 19 tiles (10 m each), player-centred and north-up, one glyph per tile (road, sidewalk, building, water, bridge, park, lot), over-drawn with the player, cars, police, people, the job target and the signals;
+   plus text lines for status (score, lives, health, speed and heading, stars and evade, weather, game time), the mission (name, stage, time left, target as dx/dz/distance), Bridge Run (next checkpoint), taxi duty (on/off, fare, destination), Sal's list (and where the garage is), the phones, the 6 nearest signals with red/amber/green,
+   and nearby cars, police and people as dx/dz tiles. The same data as JSON.
+   Actions, in units of 0.25 s (5 steps), n from 1 to 40, default 1: `up|down|left|right` and the diagonals (gas, brake or reverse, steer; on foot, walk), `handbrake [n]` (on foot: sprint), `wait [n]`, `enter` (E: answer a phone, steal, get out, **start and end taxi duty**), `respawn` (R, only in Wasted or Busted).
+   Out: the radio, pause, mute, quality and touch (no effect on the rules, or not meaningful for an agent). A taxi needs two `enter`s to leave: the first starts taxi duty, so `observe()` must say so plainly.
+4. **Weather and day phase.** Recommend: **do not pin either.** The day phase follows game time, which is deterministic once the step is fixed, and nothing in the simulation reads it (golden hour to dusk in the first 240 s; night starts at about 270 s), so it needs no seed. The weather is gameplay (grip), so it runs on its own seeded stream and is the **same for every player** (it starts as `W` does at page load and first changes at 180 s);
+   `observe()` reports it. Streams: `weather`, `sal` (the list of wanted cars, also the same for everyone), and `world` (traffic, people, fares, physics jitter). `window.__phase` and `window.__weather` stay debug overrides and are ignored in a benchmark run.
+5. **Human play stays identical.** Recommend: **same rules, not same bytes.** Human mode keeps the real-time loop, `dt` from the clock, the quality-dependent counts, keyboard and touch; it calls the same `simStep(dt)`. A casual human game seeds `Arcade.random` from `Math.random()` at load (as `arcade.js` does), so traffic and people differ from before in sequence, not in kind.
+   The 6a checks: `flow.mjs` (both phases), `touch.mjs`, and the frame cost table unchanged. Humans do not play the benchmark in 6 (the keyboard is off in agent mode, as Harbor's was); a human turn-based mode can come later.
+
+### Part 6a: Seed, fixed step, no drawing (no arcade API yet)
+
+**Scope.** After 6a the game runs headless in a fixed step, deterministically, with `?agent=1&seed=N`; the page is not yet an `arcade` game.
+- Audit `frame()` and list every piece of state it writes outside the player, cars, peds and missions (fire timers, `multT`, `c.vy/liftY`, bus pax, hubcaps…); move the sim ones into `simStep(dt)`, leave the visuals in `frame()`.
+- `simStep(dt)`: `updatePlayer`, `focus`, `updateMission`, `updateSide`, `updateRespray`, `updateWanted`, `simCars`, fire/explosion timers, `updatePeds`, `upkeep`, `updateWeather` (its sim half; the rain and splash drawing half stays in `frame()`), `multT`, `time += dt`. `frame()` calls it with the clock's `dt` (human) or never (agent). `fastForward` calls it.
+- RNG: add `grand`/`grr`/`gpick` (gameplay, on `Arcade.random()` or, until 6b, a local `mulberry32(seed)`), three streams (`weather`, `sal`, `world`), reset in `startGame`/`respawn` paths as `Arcade.reset()` expects; convert the roughly 55 gameplay sites; leave cosmetic on `Math.random`.
+- Agent-mode switches: fixed `QS.peds`/`QS.traffic` equivalents, no `perfWatch`, no blur pause, no audio init, no localStorage records, `time` and `W` reset at start, `dentCar` on game time, no title flyover.
+- Add `stateHash()` to `window.__rustwater` (rounded positions of player, cars, peds, score, lives, `M`, `W`, `SAL`, `time`) for the tests.
+
+**Anchors:** `const rr`/`const pick` (240), `function frame` and `simCars`/`fastForward` (3689 to 3776), `updateHud` (3264: `multT`), `function startGame`/`respawn` (3572, 3595), `resetWorld` (3557), `updateWeather` (1640), `W`/`W_DUR` (519 to 523), `QS.peds` (2572) and `QS.traffic` (3681), `perfWatch` (476), the `blur` listener (3484), `dentCar` (2165), `updateSide` (3190), `salRefill` (3090), `boardFare` (3146).
+
+**Headless tests** (new `tools/rustwater/sim.mjs`, server on 8799, SwiftShader flags as in `lib.mjs`):
+1. Same seed, same scripted inputs (set keys through a test hook that feeds `simStep`), twice: equal `stateHash()` after 4,800 steps.
+2. Same, with `Math.random` replaced by two different seeded generators: **equal hashes** (proves no gameplay value reads the unseeded one). Different seed: different hash.
+3. Time for 4,800 steps with the player driving: well under 60 s (traffic and walkers alone measured 8 s).
+4. Human regression: `flow.mjs` both phases (expected output unchanged), `touch.mjs`, `shot.mjs` draw-call counts within a few calls of the 2026-11-25 table.
+
+**Done when:** tests 1 to 4 pass; `node tools/rustwater/flow.mjs` prints the documented output; no new `Math.random` in `simStep`'s call tree (test 2); the plan's notes list what moved.
+
+**Part 6a built 2026-11-25 (on the branch, not committed).**
+- `simStep(dt)` holds everything the rules read: weather (`stepWeather`, split out of `updateWeather`), player, missions, side jobs, respray, wanted level, `simCars`, fire timers and `explodeCar`, `wreckT` (it drives wreck clean-up in `upkeep`), `updatePeds`, `multT` (moved out of `updateHud`), `upkeep`. `tick(dt)` = `time += dt; simStep(dt)`; `fastForward(s)` now runs `tick`. `frame()` keeps the looks (fire and smoke emits, people blobs, everything under "// visuals") and, in human mode only, calls `simStep` with the clock's `dt`.
+- Streams (just after `mpick`): `grand/grr/gpick` (world), `wrr/wpick` (weather), `srand/spick` (Sal's list). Seed from `?seed=N`, else random at load; `window.__rustwater.reseed(n)` for 6b. 53 gameplay sites converted. The one missed in the first pass was `planNext` (traffic turns); the test caught it. `rr`, `pick` and `Math.random` stay for looks and sound.
+- `?agent=1` (`AGENT`): fixed counts (40 people, 15 cars), no `perfWatch`, no blur pause, no audio, `__signal` and `__weather` ignored, no stored race best, `startGame` reseeds the streams, sets `time` to 0 and rebuilds Sal's list. The loop does not draw unless `?view=1` (`VIEW`), and never steps the simulation. `dentCar` debounces on game time.
+- Test hooks on `__rustwater`: `simStep`, `tick`, `stateHash`, `keys`, `press` (the key-press handler), `seed`, `reseed`. New `tools/rustwater/sim.mjs`.
+- **Results:** `sim.mjs` passes: same seed twice gives the same hash at every 60 s mark and at the end (4,800 steps, with Teo's job 1 started, a stolen car, crashes and respawns); with `Math.random` replaced two different ways the hash is unchanged; another seed gives a different hash; 240 s of game time takes 7 to 11 s. `flow.mjs` both phases pass and match a run of the committed code (M4 done $4,050 both; the "$3,350" in its header comment is out of date, the real figure is $4,050); `touch.mjs` clean; `shot.mjs` one frame 404 calls, 0.69M triangles, no errors.
+- Not checked: `?agent=1&view=1` drawing (6b), 6a on any machine but this one, the pinned `__weather` and `__phase` in human mode (code path unchanged, not re-run). The Wasted and Busted respawn needs 0.8 s of game time in the dead state (`failT > 0.8`), so the `respawn` action must wait that long; 6b should return an error before then.
+
+### Part 6b: The arcade adapter (`window.arcade`), no benchmark entry yet
+
+**Scope.** `<script src="../arcade.js">` before the game script; `Arcade.register({...})` with `id: 'rustwater-havoc'`, `benchmarks`, `actions`, `start`, `ready`, `over`, `score`, `observe`, `text`, `stats`, `apply`.
+- `apply(action)`: parse `verb [n]`, set the key state for n × 5 `simStep(0.05)` calls, release, return true; unknown action returns false (nothing logged).
+- Over: 240 s of game time, or `state === 'over'` (0 lives). `stats`: `{jobs, fares, laps, deliveries, wrecks, busts}` plus game time.
+- `observe()` and `text()` as in decision 3; keep `text` under about 2,500 characters.
+- Rendering: in agent mode the loop draws only when `?view=1`, after an action (or on a 1 s timer), never while `Arcade.replaying` with `speed=0`. The title screen is skipped: agent mode starts the game itself.
+- Run `Arcade.reset()` in `startGame`; `Arcade.onGameOver()` when the run ends; `Arcade.onKeyAction` unused.
+
+**Anchors:** `function startGame`, `state` machine (`'title' | 'play' | 'dead' | 'over' | 'paused'`), `onPress` (key handling, 3484), `interact` (2745), `setTarget`/`clearTargets`, `M`, `TX`, `SAL`, `RACE_GATE`, `sigState`, `tileW`/`TILE`, `nearestCar`, `/games/arcade.js` and `games/color-stack/index.html` as the reference adapter.
+
+**Headless tests** (extend `tools/rustwater/sim.mjs`, plus a throwaway local bench entry that is not committed): load `?agent=1&seed=20261022&bench=rust-240`; `arcade.info()` lists the actions; a scripted list of about 300 actions plays to the end; `arcade.run()` replayed with `?replay=…&speed=0` gives the same score and stats; `observe().text` has every section; a random-action bot never throws; `window.arcade.act` before `ready` returns an error; a drive-by of each job type through real actions (`enter` at a phone, Bridge Run, taxi duty, Sal) where reachable, with the rest covered by `__rustwater` teleports in a separate non-recorded check.
+
+**Done when:** a 240 s random run and a scripted run both finish through the public API only; replay through `verify.mjs`'s logic (page load, `?replay`, `data-replay-done`) matches; the human page without `?agent=1` is unchanged (`flow.mjs`).
+
+**Part 6b built 2026-11-25 (on the branch, not committed).**
+- `index.html` loads `../arcade.js` before the module; `AGENT` is `Arcade.agent` (`?agent=1`, or any `?replay=`); `SEED` comes from `Arcade.seed`, and `startGame` re-reads it (a replay reseeds after load). The adapter is registered only when `AGENT`, so the human page has no `window.arcade` and no banner.
+- Adapter at the end of the module (`// ---------- Agent mode`): `agentApply` (regex over `up|down|left|right|handbrake` joined by `+`, `wait`, `enter`, `respawn`, optional `n` 1 to 40; unknown, `up+down`, `left+right`, a repeated key, `n` out of range, `enter` or `respawn` with `n`, `enter` when not playing, `respawn` when not dead, and anything after the end are refused and not logged), `agentSteps` (5 steps of 0.05 s per unit, stops the moment the run is over), `agentView` (the JSON) and `agentText` (about 1.9 KB), `BENCHES['rust-240'] = { seconds: 240 }`.
+  Over = 4,800 steps, or `state === 'over'`, or dead with 0 lives. `respawn` runs the dead state on until `failT > 0.8`, presses R, then one unit. Keys are the arrow codes and Space; real keyboard and touch input are ignored in agent mode.
+- `observe()`: seconds and seconds left, lives, health, stars and whether the police see you, weather and wet, clock, mayhem; position and tile; car (type, speed, heading in degrees and compass, fire); the job (id, name, objective, time, counting up or down); targets with dx/dz in tiles, distance in metres and compass bearing (beams, scrap crates not yet taken); taxi duty; Sal's list and the garage; the Bridge Run banner (when no job); phones (when no job); the 6 nearest signals with north-south and east-west states; 8 nearest cars and 6 people; the events since the last action (toasts and banners, `EV`); `stats`; and a 31 × 19 tile map (`, . = # " ~ :` plus `@ X S P o c t B p *`). North is up, dx east, dz south.
+- Stats for `arcade.run()` (all deterministic integers): `steps, jobs, laps, fares, deliveries, busts, wipeouts, lives` (new `STAT` counters; `toast`/`flashBanner` also feed `EV`). In agent mode toasts skip the DOM unless drawing, and no `localStorage` is written.
+- Drawing: `VIEW` is false by default in agent mode, `?view=1` turns it on, and a replay with `speed` above 0 turns it on by itself. In view mode the loop only draws; the HUD timers (banner) do not tick between actions.
+- **Results:** new `tools/rustwater/agent.mjs` passes: a bot (walks to a phone, steals a car, random moves, respawns) plays a full 240 s run in 415 to 419 actions through `arcade.act` only (score 100, one wipeout), the report is offered, an action after the end is refused, and the saved run replayed with `?replay=...&speed=0` gives the same score, stats and action count (10 to 16 s). `sim.mjs` still passes; `flow.mjs` both phases pass with the same figures (M4 $4,050); the `view=1` page draws without errors.
+- Not done in 6b, by design: no `benchmarks.json` entry (the replay test writes a temporary run file under `data/runs/` and removes it), no baseline run, no landing card, docs or listing (all 6c). Not covered by the bot: taxi duty, the Bridge Run and Sal through real actions (flow.mjs covers them by teleport in human mode; an agent can still do them, nothing is blocked).
+- Open question for 6c: a random bot scores about $100, as expected, so a baseline with some intent (walk to the phone, steal a car, drive to the target dx/dz) would be more useful as the first official run than `random`.
+
+### Part 6c: Benchmark, recorder, verify, listing
+
+**Scope.**
+- `data/benchmarks.json`: entry `rustwater-havoc/rust-240` (seed 20261022, title, rules text from decision 2).
+- A baseline: `node tools/agents/run.mjs random rustwater-havoc/rust-240` (its output is a recorded run), and optionally a small heuristic that drives toward the mission target using `observe()`'s dx/dz. Keep it honest in `harness`/`notes`.
+- `node tools/verify.mjs` against the repo server (8765) passes locally; push the branch to check the **GitHub Actions verify job** (the cross-machine float risk and plain `chromium.launch()`) before anything goes live. Do not push to origin without the user's say-so.
+- `node tools/build-index.mjs`, then the listing: landing card `agent: true` (and the card footer), `llms.txt`, `agents.md` (the "agent-ready today" paragraph, the "start here" link, an actions table for Rustwater, the note that humans do not play the benchmark yet), the game README (the "Human-only" line, a short "Agent mode" section), `docs/harbor-city-agent-mode.md` (one line: Rustwater did it), the memory note.
+- Deploy only when told: `deploy.sh` (untracked; no untracked files in the tree), then `tools/rustwater/live.mjs` plus a check of `…/?agent=1&seed=20261022&bench=rust-240` on the live site.
+
+**Anchors:** `data/benchmarks.json`, `tools/agents/run.mjs`/`random.mjs`/`bridge.mjs`, `tools/verify.mjs`, `tools/build-index.mjs`, `index.html` (the `rustwater-havoc` entry near line 566, the series strip), `llms.txt` (line 19), `agents.md` (header paragraph and "start here").
+
+**Headless tests:** `node tools/verify.mjs data/runs/rustwater-havoc/rust-240/*.json` (the run replays to the same score and stats); `node tools/smoke.mjs` (landing card and discovery files); `npm test` in `tools/`; the CI run above; `live.mjs` after the deploy.
+
+**Done when:** a recorded run verifies locally and on CI, the index is rebuilt (`build-index.mjs --check` clean), the landing card says agent-ready, the docs are updated, and (after a deploy the user asks for) the live agent URL works.
+
+**Why three parts and not two.** The plan's (a) put the seed, the fixed step and the arcade API together. The audit shows the first two are the hard, risky part (the simulation is tangled with drawing, and about 55 random sites need converting), and the arcade API is a separate chunk of design (the text view). Splitting them lets 6a be proven with hashes before any API depends on it, and 6a can ship on its own (it changes no behaviour for humans).
+If 6a goes fast, 6b can follow in the same sitting.
+
+**Part 6c built 2026-11-25 (on the branch, not committed, not pushed, not deployed).**
+- `data/benchmarks.json`: `rustwater-havoc/rust-240` (seed 20261022) with `"agentOnly": true` (new flag: no human rows, no real-time Play link). `build-index.mjs` carries it into `data/runs/index.json` unchanged.
+- Baselines (`tools/agents/rustwater-random.mjs`, `rustwater-seeker.mjs`; `run.mjs` takes the agent name): **seeker $2,003** (5 Sal deliveries, no lives lost; a plain path search over the observed map and a steering rule on the heading; ignores Teo, taxi duty and the race), **random $125** (one wipeout). Both are recorded as `data/runs/rustwater-havoc/rust-240/baseline-*.json`, and re-recording the seeker gives the same score. A full run takes about 17 s including page load.
+  Worth knowing: Sal's list pays well for a simple bot (about $400 for a car 25 tiles away), so the benchmark rewards a good Sal loop; the real contest will be agents that also do the Bridge Run ($1,100) and taxi fares.
+- Verified with the repo's own `tools/verify.mjs` (plain `chromium.launch()`, a local `http.server`): both runs reproduce score and stats. **Not run on CI**: that needs a push, which waits for the user. Port 8765 on this machine is held by a stray server on the LAN address, so I served on 8791 (`--base http://127.0.0.1:8791`). Do not `pkill -f` the server by name inside a command that contains that name.
+- Landing page (`index.html`): the Rustwater card is `agent: true, bench: "rust-240", agentOnly: true` (Play opens the plain game; "Agent-ready" chip); the benchmark panel shows "Agent mode ↗" and "Copy for your agent" instead of Play, with no "You" rows; the Watch player shows Deliveries and Seconds (0 / 240). `games/prompt.js` has a `rustwater-havoc` hint (the 133 tests in `tools/test` pass). `llms.txt`, `agents.md` (status paragraph, start-here link, an actions section), the game README (an "Agent mode" section), the root README (baseline names) and `docs/harbor-city-agent-mode.md` are updated.
+- Checked: `node tools/build-index.mjs --check`, `npm test` (133) and `node tools/smoke.mjs` pass; a screenshot of the benchmark panel; the Watch button loads the replay and the HUD shows no NaN (headless drawing is too slow to see progress).
+- **To do when the user says so:** commit; push the branch to see the `Verify runs` workflow (the float-determinism risk 13); merge to `main`; `./deploy.sh`; `node tools/rustwater/live.mjs`; open the live `?agent=1&seed=20261022&bench=rust-240` and play two actions. After that, session 6 is done.
 
 ---
 

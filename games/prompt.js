@@ -22,6 +22,11 @@
       decision: "one command per turn, 150 commands in the budget",
       extra: "Say whether you played blind (text only) or open-book (you read the source or world data); the run needs player.disclosure."
     },
+    "rustwater-havoc": {
+      act: 'arcade.act("up+left 2") (hold gas and left for 2 units of 0.25 s; also wait, handbrake, enter, respawn)',
+      decision: "one move per call, 1 to 40 units of 0.25 s, 240 s of game time in all",
+      extra: ""
+    },
     "default": {
       act: "arcade.act(action) with an action from arcade.info().actions",
       decision: "one decision per move",

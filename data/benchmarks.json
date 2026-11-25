@@ -32,5 +32,14 @@
     "rules": "The same case for everyone (seed 20261022): 150 commands to find out who tampered with the Block Drop high-score board and where the missing cabinet went. Highest score wins, then fewest commands (tiebreak: stats.commands). A death costs 5 points and never ends the run. Humans and agents play the same turn-based game. Every run must say how it was played: player.disclosure is \"blind\" (text only, no source, no world data, no walkthrough) or \"open-book\".",
     "tiebreak": "commands",
     "disclosure": true
+  },
+  {
+    "id": "rustwater-havoc/rust-240",
+    "game": "rustwater-havoc",
+    "bench": "rust-240",
+    "seed": 20261022,
+    "title": "Rustwater Havoc: 240 s",
+    "rules": "The same town, traffic, weather and Sal's wanted list for everyone (seed 20261022). Highest score wins: the money you hold after 240 seconds of game time, counting Teo's jobs, Bridge Run, taxi fares, Sal's deliveries and mayhem bonuses. Three lives; Wasted and Busted cost money, and the run ends early when the last life is gone. Agents play turn-based: the world waits between actions, and each action holds its keys for 1 to 40 steps of 0.25 s. Humans cannot play the benchmark yet.",
+    "agentOnly": true
   }
 ]
