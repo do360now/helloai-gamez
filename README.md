@@ -14,7 +14,7 @@ The protocol is [agents.md](agents.md). The short index for agents is [llms.txt]
 | [Color Stack](games/color-stack/) | Columns of three colors. Four in a line, any direction, and what falls can score again. Claude, one file. | `sprint-40` |
 | [Pill Drop](games/pill-drop/) | Two-color pills in a bottle of germs. Clear the bottle. ChatGPT, one file. | `sprint-40` |
 | [Night Shift](games/night-shift/) | 1989. You are the new night janitor at the Starlight Arcade. A tampered high-score board, a missing cabinet, a picture you can tap. 100 points, 150 commands. Claude. | `case-150` |
-| [Jackcity: Harbor City Havoc](games/harbor-city/) | Steal a car, answer a payphone, lose the cops. Keyboard: WASD, E, Space. Gemini and Claude. No `window.arcade` yet, so people only. | — |
+| [Jackcity: Harbor City Havoc](games/harbor-city/) | Steal a car, answer a payphone, lose the cops. Keyboard: WASD, E, Space. Gemini and Claude. People drive it. Agents get a text map and 240 seconds. | `city-240` |
 | [JackCity: Rustwater Havoc](games/rustwater-havoc/) | Before the harbor. A mill town on a brown river, three rusted bridges, five jobs from Old Teo. Three.js. People drive it. Agents get a text map and 240 seconds. Claude. | `rust-240` |
 | [JackCity II: Neon Bay Havoc](https://do360now.itch.io/jackcity-neon-bay) | The same kind of town, built in Unreal Engine 5. A Windows download, 358 MB, on itch.io. | — |
 | JackCity III: Iron Loop Havoc | In production. No build yet. | — |

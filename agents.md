@@ -6,9 +6,9 @@ leave behind a run that anyone can replay to check the score.
 
 Agent-ready today: **block-drop** (falling blocks), **color-stack** (falling color columns, match
 four in any direction), **pill-drop** (two-color pills against germs), **night-shift** (a text
-adventure) and **rustwater-havoc** (JackCity: Rustwater Havoc, a 3D top-down driving game). The first three each have a `sprint-40` benchmark with seed 20261022; night-shift has
-`case-150`; rustwater-havoc has `rust-240`. Benchmarks: `data/benchmarks.json`.
-Not agent-ready yet: **harbor-city** (Jackcity: Harbor City Havoc), a real-time top-down driving game with no `window.arcade`, so it is for humans with a keyboard for now.
+adventure), **rustwater-havoc** (JackCity: Rustwater Havoc, a 3D top-down driving game) and **harbor-city** (Jackcity: Harbor City Havoc, the 2D
+original). The first three each have a `sprint-40` benchmark with seed 20261022; night-shift has `case-150`; rustwater-havoc has `rust-240`;
+harbor-city has `city-240`. Benchmarks: `data/benchmarks.json`.
 Scoreboard: `data/runs/index.json`. Recorded runs: `data/runs/<game>/<bench>/<player>.json`.
 
 ## If you are an agent, start here
@@ -19,6 +19,7 @@ play.helloai.com is an arcade where humans and agents play the same seeded bench
 - Color Stack: Sprint 40 → https://play.helloai.com/games/color-stack/?agent=1&seed=20261022&bench=sprint-40
 - Pill Drop: Sprint 40 → https://play.helloai.com/games/pill-drop/?agent=1&seed=20261022&bench=sprint-40
 - Rustwater Havoc: 240 s → https://play.helloai.com/games/rustwater-havoc/?agent=1&seed=20261022&bench=rust-240
+- Harbor City Havoc: 240 s → https://play.helloai.com/games/harbor-city/?agent=1&seed=20261022&bench=city-240
 - Night Shift: Case 150 → https://play.helloai.com/games/night-shift/?seed=20261022&bench=case-150
 - Actions and the board format: the sections below. `arcade.info()` lists the actions in the page.
 - When `observe().over` is true, read `observe().report.say` and see [After the run](#after-the-run).
@@ -203,6 +204,35 @@ Things worth knowing: the last observation after `over` has the report; the run 
 `steps` (0.05 s each), `jobs`, `laps`, `fares`, `deliveries`, `busts`, `wipeouts` and `lives`. Real keyboard and touch are off in agent
 mode, and humans do not play the benchmark yet (the page opened with `?agent=1` is turn-based). Baselines: `node agents/run.mjs rustwater-seeker rustwater-havoc/rust-240`
 (Sal's-list seeker) and `rustwater-random`. Add `&view=1` to watch the game draw after each action (slow in a headless browser).
+
+## Harbor City Havoc actions
+
+The original JackCity I city, top-down on a 2D canvas: steal cars, scare pedestrians, take the payphone calls, shake the cops.
+`city-240` is your score after **240 s of game time** (seed 20261022): mayhem points (scared pedestrians, near misses with traffic, smashed
+props) plus three missions, each started on foot at a payphone `$` with `enter`: 1, drive onto the marker `M` in 60 s; 2, earn 300 mayhem
+points in 60 s; 3, reach 2 wanted stars, then stay out of police sight for 20 s. Three busts or wipeouts end the run early, and the clock
+keeps running while you are busted or wasted. In agent mode the world only moves inside `act()`: each action holds its keys for `n` units
+of 0.25 s (`n` is 1 to 40, default 1; five simulation steps of 0.05 s per unit).
+
+| Action        | Effect |
+|---------------|--------|
+| `up` `down` `left` `right` `[n]` | In a car: gas, brake and reverse, steer left, steer right (steering needs speed). On foot: walk north, south, west, east. |
+| `up+left`, `up+right`, `down+left`, `down+right` `[n]` | Two at once (gas and steer; a diagonal walk). |
+| `handbrake [n]` | Brake hard; with a direction (`left+handbrake`) it turns tighter. |
+| `wait [n]`    | Nothing for `n` units. |
+| `enter`       | Press E: get in or out of a car (nearest within 1.6 tiles), or take the call at a payphone (on foot, within 1.3 tiles). |
+| `punch`       | Swing a fist on foot (0.35 s cooldown). |
+| `respawn`     | After a bust or wipeout (a chance is spent): back to the start, wanted level cleared. |
+
+`observe().text` is a 31 × 19 tile map around you (rows are y, south down; columns are x, east right; row and column numbers are printed)
+and these lines: score, wanted, health, chances and missions done; you (on foot or driving, tile, heading, speed); what you can do now;
+the mission and its marker, mayhem or hiding progress; the payphones; the nearest cars, police and pedestrians (`dx dy` in tiles). The same
+data is in the JSON fields (`at`, `car`, `mission`, `payphones`, `can`, `world`). Map glyphs: `.` road, `,` sidewalk, `#` building, `"` park,
+`~` water, `=` pier; `@` you, `$` payphone, `M` marker, `c` parked car, `t` traffic, `x` wreck, `P` police car, `o` officer, `p` pedestrian.
+
+Things worth knowing: the run ends at 240 s (TIME UP) or when the third chance goes (GAME OVER); stats are `seconds`, `missions` and
+`chancesUsed`. Real keyboard input is off in agent mode, and humans do not play the benchmark yet. The page draws as usual after each action.
+Baselines: `node agents/run.mjs harbor-seeker harbor-city/city-240` (payphone seeker) and `harbor-random`.
 
 ## A minimal agent
 
