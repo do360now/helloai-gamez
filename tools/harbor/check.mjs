@@ -6,7 +6,7 @@
 // position. Agent checks use window.arcade, plus window.__harbor.stateHash(), which the game exposes in agent mode only:
 // a fingerprint of the whole city, because observe() only shows the area around the player.
 import { serve, chromium, watchErrors } from '../rustwater/lib.mjs';
-import { writeFile, rm, mkdir } from 'node:fs/promises';
+import { writeFile, rm, mkdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const SEED = 20261022;
@@ -21,10 +21,23 @@ let bad = 0, n = 0;
 const ok = (name, cond, extra = '') => { n++; console.log(`${String(n).padStart(2)} ${cond ? 'ok   ' : 'FAIL '}${name} ${extra}`); if (!cond) bad++; };
 const allErrs = [];
 
-async function open(url, { viewport = { width: 1280, height: 720 }, rnd = 0, humanHook = false } = {}) {
+// patch: [[from, to], ...] string replacements in the served game page (every occurrence), for this page only.
+// recordText: keep every string drawn with fillText/strokeText in window.__drawn (cleared by the test).
+async function open(url, { viewport = { width: 1280, height: 720 }, rnd = 0, humanHook = false, patch = null, recordText = false } = {}) {
   const page = await browser.newPage({ viewport });
   const errs = watchErrors(page); page.__errs = errs;
   if (rnd) await page.addInitScript(a => { Math.random = () => { a = (a * 1664525 + 1013904223) >>> 0; return a / 4294967296; }; }, rnd);
+  if (recordText) await page.addInitScript(() => {
+    window.__drawn = [];
+    for (const f of ['fillText', 'strokeText']) { const o = CanvasRenderingContext2D.prototype[f]; CanvasRenderingContext2D.prototype[f] = function (t, ...r) { window.__drawn.push(String(t)); return o.call(this, t, ...r); }; }
+  });
+  if (patch) {
+    await page.route(u => u.pathname === '/games/harbor-city/', async route => {
+      const res = await route.fetch(); let body = await res.text();
+      for (const [a, b] of patch) { if (!body.includes(a)) throw new Error('patch anchor missing: ' + a); body = body.split(a).join(b); }
+      await route.fulfill({ response: res, body });
+    });
+  }
   if (humanHook) {
     await page.route(u => u.pathname === '/games/harbor-city/', async route => {
       const res = await route.fetch(); let body = await res.text();
@@ -63,6 +76,8 @@ const ready = page => page.waitForFunction(() => window.arcade && window.arcade.
 {
   const page = await open(AGENT); await ready(page);
   const info = await page.evaluate(() => arcade.info());
+  const listed = JSON.parse(await readFile(path.join(ROOT, 'data/benchmarks.json'), 'utf8')).find(b => b.id === 'harbor-city/city-240');
+  ok('rules: the in-page city-240 rules match data/benchmarks.json', listed && info.benchmark.rules === listed.rules);
   ok('info: at least 8 actions and a 240 s benchmark', Object.keys(info.actions).length >= 8 && info.benchmark && info.benchmark.seconds === 240, `${Object.keys(info.actions).length} actions`);
   const s1 = await page.evaluate(() => arcade.observe()); await page.waitForTimeout(500);
   const s2 = await page.evaluate(() => arcade.observe());
@@ -105,7 +120,8 @@ async function scripted(mode, opts = {}) {
       while (obs.seconds >= nextMark) { marks.push(window.__harbor.stateHash()); nextMark += 20; }
     }
     const run = arcade.run();
-    return { marks, hash: window.__harbor.stateHash(), run, obs: { seconds: obs.seconds, over: obs.over, chancesLeft: obs.chancesLeft, text0: obs.text.split('\n')[0], report: obs.report }, rejected, k,
+    if (window.__drawn) { window.__drawn.length = 0; await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); }
+    return { drawn: window.__drawn ? [...new Set(window.__drawn)] : null, marks, hash: window.__harbor.stateHash(), run, obs: { seconds: obs.seconds, over: obs.over, chancesLeft: obs.chancesLeft, text0: obs.text.split('\n')[0], report: obs.report }, rejected, k,
       late: (await arcade.act('wait 1')).ok };
   }, mode);
   r.ms = Date.now() - t0; await done(page); return r;
@@ -120,6 +136,10 @@ const C = await scripted('bot', { rnd: 12345 }), D = await scripted('wait', { rn
 ok('Math.random replaced two ways: same hashes (no gameplay reads it)', same(C, A) && same(D, W), `${C.hash} ${D.hash}`);
 const V1 = await scripted('bot', { viewport: { width: 800, height: 600 } }), V2 = await scripted('wait', { viewport: { width: 1920, height: 1080 } });
 ok('viewport 800x600 and 1920x1080: same hashes (no gameplay reads the screen)', same(V1, A) && same(V2, W), `${V1.hash} ${V2.hash}`);
+// Cosmetic purity: a page that changes only banner wording and timing and the marker pulse must give the same city.
+const P = await scripted('bot', { recordText: true, patch: [['missionState.bannerTimer = 2.0;', 'missionState.bannerTimer = 3.5;'], ["`MISSION COMPLETE +${reward}`", "`JOB DONE +${reward}`"], ['missionState.pulseTime += dt;', 'missionState.pulseTime += dt * 2;']] });
+ok('cosmetic purity: banner wording/timing and marker pulse changed, same hashes', same(P, A), `${P.hash} vs ${A.hash}`);
+ok('agent GAME OVER screen: no "NEW BEST" and no "Press ENTER" (nothing is saved, keys are off)', P.drawn && P.drawn.some(t => /GAME OVER/i.test(t)) && !P.drawn.some(t => /NEW BEST|Press ENTER|BEST SCORE/i.test(t)), JSON.stringify(P.drawn && P.drawn.filter(t => /BEST|ENTER|GAME OVER/i.test(t))));
 ok('no scripted action was refused', A.rejected === 0 && W.rejected === 0, `${A.rejected + W.rejected} refused`);
 const hashAt10 = async seed => { const page = await open(`${BASE}?agent=1&seed=${seed}&bench=city-240`); await ready(page); await page.evaluate(() => arcade.act('wait 40')); const h = await page.evaluate(() => window.__harbor.stateHash()); await done(page); return h; };
 const E7 = await hashAt10(7), E0 = await hashAt10(SEED);

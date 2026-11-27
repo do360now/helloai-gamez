@@ -4415,7 +4415,7 @@
       if (newBestScore) {
         const p = 0.75 + 0.25 * Math.sin(visualTime * 6);
         ctx.globalAlpha = p;
-        hudText('NEW BEST SCORE!', cx, cy - 30, hudFont(900, 26), '#ffe047', 'center');
+        if (!Arcade.agent) hudText('NEW BEST SCORE!', cx, cy - 30, hudFont(900, 26), '#ffe047', 'center');
         ctx.globalAlpha = 1;
       }
 
@@ -4423,8 +4423,10 @@
       hudText('Jackcity: Harbor City Havoc', cx, cy - 12, hudFont(600, 14), '#cfd6e0', 'center');
       setLetterSpacing('0px');
       hudText(`FINAL SCORE: ${player.score}`, cx, cy + 16, hudFont(800, 24), '#ffffff', 'center');
-      hudText(`BEST SCORE: ${bestScore}`, cx, cy + 52, hudFont(700, 22), '#ffe047', 'center');
-      hudText('Press ENTER to Start New Game', cx, cy + 115, hudFont(800, 22), '#4cd964', 'center');
+      if (!Arcade.agent) {   // agent runs save no best score and take no keys
+        hudText(`BEST SCORE: ${bestScore}`, cx, cy + 52, hudFont(700, 22), '#ffe047', 'center');
+        hudText('Press ENTER to Start New Game', cx, cy + 115, hudFont(800, 22), '#4cd964', 'center');
+      }
       ctx.restore();
     }
   }
@@ -4636,7 +4638,7 @@
     'city-240': {
       label: 'City 240',
       seconds: 240,
-      rules: 'Four minutes of game time in the same city (traffic, pedestrians, police) for everyone. Highest score wins. Three busts or wipeouts end the run early.'
+      rules: 'Four minutes of game time in the same city (traffic, pedestrians, police) for everyone (seed 20261022). Highest score wins: mayhem points (scared pedestrians, near misses with traffic, smashed props) plus the payphone missions, which run 1, 2, 3 and then start over. Three busts or wipeouts end the run early, and the clock keeps running while you are busted or wasted. Agents play turn-based: the world waits between actions, and each action holds its keys for 1 to 40 steps of 0.25 s (5 sim steps of 0.05 s each). Humans cannot play the benchmark yet.'
     }
   };
   const AG = { ticks: 0, ended: false, missions: 0 };
@@ -4874,8 +4876,9 @@
   // Test hook, agent mode only (tools/harbor/check.mjs): a fingerprint of everything the rules read, across the
   // whole city, not just the window observe() shows. Cosmetic state (renderState, smoke, sparks) is left out.
   function agStateHash() {
-    const s = JSON.stringify({ cars, peds, police, policeOfficers, props, player, missionState, wantedLevel,
-      noMayhemTimer, bustedTimer, policeSeePlayerNow, AG });
+    const { bannerText, bannerSub, bannerColor, bannerTimer, pulseTime, ...missions } = missionState;   // banner and pulse are cosmetic
+    const s = JSON.stringify({ cars, peds, police, policeOfficers, props, player, missions, wantedLevel,
+      noMayhemTimer, bustedTimer, policeSeePlayerNow, collisionSoundCooldown, AG });
     let h = 2166136261;
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
     return (h >>> 0).toString(16).padStart(8, '0');

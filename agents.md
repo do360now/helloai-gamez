@@ -209,8 +209,9 @@ mode, and humans do not play the benchmark yet (the page opened with `?agent=1` 
 
 The original JackCity I city, top-down on a 2D canvas: steal cars, scare pedestrians, take the payphone calls, shake the cops.
 `city-240` is your score after **240 s of game time** (seed 20261022): mayhem points (scared pedestrians, near misses with traffic, smashed
-props) plus three missions, each started on foot at a payphone `$` with `enter`: 1, drive onto the marker `M` in 60 s; 2, earn 300 mayhem
-points in 60 s; 3, reach 2 wanted stars, then stay out of police sight for 20 s. Three busts or wipeouts end the run early, and the clock
+props) plus the missions, each started on foot at a payphone `$` with `enter`: 1, drive onto the marker `M` in 60 s (+500); 2, earn 300
+mayhem points in 60 s (+500); 3, reach 2 wanted stars within 120 s, then stay out of police sight for 20 s or until the stars drop to 0 (+750).
+After mission 3 the next call is mission 1 again, so `missions` can go past 3. A failed mission is retried at a payphone. Three busts or wipeouts end the run early, and the clock
 keeps running while you are busted or wasted. In agent mode the world only moves inside `act()`: each action holds its keys for `n` units
 of 0.25 s (`n` is 1 to 40, default 1; five simulation steps of 0.05 s per unit).
 

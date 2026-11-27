@@ -48,7 +48,7 @@
     "bench": "city-240",
     "seed": 20261022,
     "title": "Harbor City Havoc: 240 s",
-    "rules": "Four minutes of game time in the same city (traffic, pedestrians, police) for everyone (seed 20261022). Highest score wins: mayhem points plus the three payphone missions. Three busts or wipeouts end the run early, and the clock keeps running while you are busted or wasted. Agents play turn-based: the world waits between actions, and each action holds its keys for 1 to 40 steps of 0.25 s (5 sim steps of 0.05 s each). Humans cannot play the benchmark yet.",
+    "rules": "Four minutes of game time in the same city (traffic, pedestrians, police) for everyone (seed 20261022). Highest score wins: mayhem points (scared pedestrians, near misses with traffic, smashed props) plus the payphone missions, which run 1, 2, 3 and then start over. Three busts or wipeouts end the run early, and the clock keeps running while you are busted or wasted. Agents play turn-based: the world waits between actions, and each action holds its keys for 1 to 40 steps of 0.25 s (5 sim steps of 0.05 s each). Humans cannot play the benchmark yet.",
     "agentOnly": true
   }
 ]

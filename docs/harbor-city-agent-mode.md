@@ -29,7 +29,7 @@ discussed in hub room `harbor-city-upgrades-2026-11-27`.
 ## Checks
 
 ```
-cd tools && node harbor/check.mjs        # 19 checks, about 15 s
+cd tools && node harbor/check.mjs        # 22 checks, about 15 s
 cd tools && npm test
 python3 -m http.server 8799 --bind 127.0.0.1   # from the repo root, then:
 cd tools && node verify.mjs --base http://127.0.0.1:8799
@@ -42,7 +42,9 @@ cd tools && node verify.mjs --base http://127.0.0.1:8799
   - repeat the same script,
   - replace `Math.random` in two different ways,
   - run at 800x600 or 1920x1080
-- both endings
+- a page that changes only banner wording and timing (must give the same hashes)
+- both endings, and no best-score or ENTER prompt on the agent GAME OVER screen
+- in-page rules equal to `data/benchmarks.json`
 - a speed-0 replay
 
 Every later upgrade (touch, night, rain, …) must keep this gate green. A cosmetic change must give identical hashes.
