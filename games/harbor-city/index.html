@@ -25,6 +25,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<script src="../arcade.js"></script>
 <script>
 (() => {
   const canvas = document.getElementById('game');
@@ -39,6 +40,7 @@
 
   const BEST_SCORE_KEY = 'harbor_city_havoc_best_score';
   function loadBestScore() {
+    if (Arcade.agent) return 0;
     try {
       const val = parseInt(localStorage.getItem(BEST_SCORE_KEY), 10);
       return Number.isFinite(val) && val > 0 ? val : 0;
@@ -47,6 +49,7 @@
     }
   }
   function saveBestScore(val) {
+    if (Arcade.agent) return;
     try {
       localStorage.setItem(BEST_SCORE_KEY, String(val));
     } catch (e) {}
@@ -63,6 +66,7 @@
   let respawnPressed = false;
 
   window.addEventListener('keydown', (e) => {
+    if (Arcade.agent) return;
     if (e.code === 'Space') e.preventDefault();
     initAudio();
 
@@ -113,6 +117,7 @@
     keys[e.code] = false;
   });
   window.addEventListener('mousedown', () => {
+    if (Arcade.agent) return;
     initAudio();
     if (gameStarted && !gamePaused && player.status === 'playing') {
       attackPressed = true;
@@ -2154,7 +2159,7 @@
       reverseSpeed: -160,
       color,
       isTraffic,
-      trafficSpeed: 130 + (Math.random() * 35),
+      trafficSpeed: 130 + (Arcade.random() * 35),
       lastTileX: Math.floor(x / TILE_SIZE),
       lastTileY: Math.floor(y / TILE_SIZE),
       nearMissCooldown: 0,
@@ -2288,10 +2293,10 @@
 
   function respawnTrafficCar(car) {
     const allVehicles = cars.concat(police);
-    let chosen = EDGE_SPAWN_POINTS[Math.floor(Math.random() * EDGE_SPAWN_POINTS.length)];
+    let chosen = EDGE_SPAWN_POINTS[Math.floor(Arcade.random() * EDGE_SPAWN_POINTS.length)];
 
     for (let attempt = 0; attempt < EDGE_SPAWN_POINTS.length; attempt++) {
-      const sp = EDGE_SPAWN_POINTS[(attempt + Math.floor(Math.random() * EDGE_SPAWN_POINTS.length)) % EDGE_SPAWN_POINTS.length];
+      const sp = EDGE_SPAWN_POINTS[(attempt + Math.floor(Arcade.random() * EDGE_SPAWN_POINTS.length)) % EDGE_SPAWN_POINTS.length];
       const sx = (sp.tx + 0.5) * TILE_SIZE;
       const sy = (sp.ty + 0.5) * TILE_SIZE;
       let clear = true;
@@ -2540,20 +2545,20 @@
       } else if (car.forceTurn) {
         const turns = validDirs.filter(i => i !== curIdx);
         const pool = turns.length > 0 ? turns : validDirs;
-        const pick = pool[Math.floor(Math.random() * pool.length)];
+        const pick = pool[Math.floor(Arcade.random() * pool.length)];
         car.angle = CARDINAL_DIRS[pick].angle;
         car.x = (tx + 0.5) * TILE_SIZE;
         car.y = (ty + 0.5) * TILE_SIZE;
         car.forceTurn = false;
         car.blockedTimer = 0;
       } else if (!validDirs.includes(curIdx)) {
-        const pick = validDirs[Math.floor(Math.random() * validDirs.length)];
+        const pick = validDirs[Math.floor(Arcade.random() * validDirs.length)];
         car.angle = CARDINAL_DIRS[pick].angle;
         car.x = (tx + 0.5) * TILE_SIZE;
         car.y = (ty + 0.5) * TILE_SIZE;
-      } else if (validDirs.length > 1 && Math.random() < 0.32) {
+      } else if (validDirs.length > 1 && Arcade.random() < 0.32) {
         const turns = validDirs.filter(i => i !== curIdx);
-        const pick = turns[Math.floor(Math.random() * turns.length)];
+        const pick = turns[Math.floor(Arcade.random() * turns.length)];
         car.angle = CARDINAL_DIRS[pick].angle;
         car.x = (tx + 0.5) * TILE_SIZE;
         car.y = (ty + 0.5) * TILE_SIZE;
@@ -2600,7 +2605,7 @@
       } else if (car.stuckTimer >= 3.0) {
         car.stuckTimer = 0;
         car.reverseTimer = 0.5;
-        car.turnDir = Math.random() < 0.5 ? 1 : -1;
+        car.turnDir = Arcade.random() < 0.5 ? 1 : -1;
       }
     } else if (movedDist >= 25 * dt) {
       car.stuckTimer = 0;
@@ -3074,17 +3079,17 @@
     }
 
     for (let i = 0; i < 25; i++) {
-      const pick = sidewalkTiles[Math.floor(Math.random() * sidewalkTiles.length)];
-      const dir = CARDINAL_DIRS[Math.floor(Math.random() * 4)];
+      const pick = sidewalkTiles[Math.floor(Arcade.random() * sidewalkTiles.length)];
+      const dir = CARDINAL_DIRS[Math.floor(Arcade.random() * 4)];
       peds.push({
         x: (pick.tx + 0.5) * TILE_SIZE,
         y: (pick.ty + 0.5) * TILE_SIZE,
         dx: dir.dx,
         dy: dir.dy,
-        walkSpeed: 55 + Math.random() * 25,
+        walkSpeed: 55 + Arcade.random() * 25,
         fleeSpeed: 145,
         color: PED_COLORS[i % PED_COLORS.length],
-        pauseTimer: Math.random() * 1.5,
+        pauseTimer: Arcade.random() * 1.5,
         fleeTimer: 0,
         fleeScoreCooldown: 0,
         lastTileX: pick.tx,
@@ -3201,8 +3206,8 @@
         ped.lastTileX = tx;
         ped.lastTileY = ty;
 
-        if (Math.random() < 0.2) {
-          ped.pauseTimer = 0.6 + Math.random() * 1.4;
+        if (Arcade.random() < 0.2) {
+          ped.pauseTimer = 0.6 + Arcade.random() * 1.4;
         }
 
         const validDirs = [];
@@ -3214,10 +3219,10 @@
 
         if (validDirs.length > 0) {
           const forwardValid = validDirs.find(d => d.dx === Math.round(ped.dx) && d.dy === Math.round(ped.dy));
-          if (!forwardValid || (validDirs.length > 2 && Math.random() < 0.35)) {
+          if (!forwardValid || (validDirs.length > 2 && Arcade.random() < 0.35)) {
             const nonReverse = validDirs.filter(d => !(d.dx === -Math.round(ped.dx) && d.dy === -Math.round(ped.dy)));
             const pool = nonReverse.length > 0 ? nonReverse : validDirs;
-            const pick = pool[Math.floor(Math.random() * pool.length)];
+            const pick = pool[Math.floor(Arcade.random() * pool.length)];
             ped.dx = pick.dx;
             ped.dy = pick.dy;
           }
@@ -3235,7 +3240,7 @@
       } else {
         const validDirs = CARDINAL_DIRS.filter(d => getTile(tx + d.dx, ty + d.dy) === TILE.SIDEWALK);
         if (validDirs.length > 0) {
-          const pick = validDirs[Math.floor(Math.random() * validDirs.length)];
+          const pick = validDirs[Math.floor(Arcade.random() * validDirs.length)];
           ped.dx = pick.dx;
           ped.dy = pick.dy;
         }
@@ -3579,7 +3584,7 @@
         if (cop.stuckTimer >= 2.0) {
           cop.stuckTimer = 0;
           cop.reverseTimer = 0.5;
-          cop.turnDir = Math.random() < 0.5 ? 1 : -1;
+          cop.turnDir = Arcade.random() < 0.5 ? 1 : -1;
         }
       } else {
         cop.stuckTimer = 0;
@@ -3804,6 +3809,7 @@
 
   function completeMission(reward, resetWanted = false) {
     missionState.active = false;
+    AG.missions++;
     addScore(reward, player.x, player.y - 28, '#4cd964', false);
     if (resetWanted) {
       wantedLevel = 0;
@@ -4409,7 +4415,7 @@
       if (newBestScore) {
         const p = 0.75 + 0.25 * Math.sin(visualTime * 6);
         ctx.globalAlpha = p;
-        hudText('NEW BEST SCORE!', cx, cy - 30, hudFont(900, 26), '#ffe047', 'center');
+        if (!Arcade.agent) hudText('NEW BEST SCORE!', cx, cy - 30, hudFont(900, 26), '#ffe047', 'center');
         ctx.globalAlpha = 1;
       }
 
@@ -4417,8 +4423,10 @@
       hudText('Jackcity: Harbor City Havoc', cx, cy - 12, hudFont(600, 14), '#cfd6e0', 'center');
       setLetterSpacing('0px');
       hudText(`FINAL SCORE: ${player.score}`, cx, cy + 16, hudFont(800, 24), '#ffffff', 'center');
-      hudText(`BEST SCORE: ${bestScore}`, cx, cy + 52, hudFont(700, 22), '#ffe047', 'center');
-      hudText('Press ENTER to Start New Game', cx, cy + 115, hudFont(800, 22), '#4cd964', 'center');
+      if (!Arcade.agent) {   // agent runs save no best score and take no keys
+        hudText(`BEST SCORE: ${bestScore}`, cx, cy + 52, hudFont(700, 22), '#ffe047', 'center');
+        hudText('Press ENTER to Start New Game', cx, cy + 115, hudFont(800, 22), '#4cd964', 'center');
+      }
       ctx.restore();
     }
   }
@@ -4547,10 +4555,22 @@
   updateCamera();
   let lastTime = performance.now();
 
-  function frame(now) {
-    const dt = Math.min(0.05, (now - lastTime) / 1000);
-    lastTime = now;
+  function drawAgentTimeUp() {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = 'rgba(6, 10, 18, 0.72)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#ffe047';
+    ctx.textAlign = 'center';
+    ctx.font = '800 44px system-ui, sans-serif';
+    ctx.fillText('TIME UP', canvas.width / 2, canvas.height / 2 - 12);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 26px system-ui, sans-serif';
+    ctx.fillText('Score ' + player.score, canvas.width / 2, canvas.height / 2 + 28);
+    ctx.restore();
+  }
 
+  function simStep(dt) {
     if (gameStarted && !gamePaused) {
       updatePlayer(dt);
       if (player.status === 'playing') {
@@ -4564,6 +4584,14 @@
       updateVisuals(dt);
     }
     if (!gamePaused) visualTime += dt;
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    // Agent mode steps the world only from arcade.act(), in fixed steps (see AGENT MODE below).
+    if (!Arcade.agent) simStep(dt);
     updateAudio();
 
     const viewW = canvas.width / CAMERA_ZOOM;
@@ -4593,9 +4621,269 @@
 
     drawFloatingTexts(camera.x, camera.y);
     drawHUD();
+    if (Arcade.agent && AG.ended && player.status !== 'gameover') drawAgentTimeUp();
 
     requestAnimationFrame(frame);
   }
+
+  // =========================================================================
+  // AGENT MODE (arcade/0.1): see /agents.md. Human play above is unchanged.
+  // ?agent=1 turns the real-time sim into fixed steps: the world only moves inside arcade.act().
+  // One unit is 0.25 s of game time = 5 sim steps of 0.05 s, the largest step the real-time loop ever takes.
+  // =========================================================================
+  const AG_STEP = 0.05;
+  const AG_UNIT_STEPS = 5;
+  const AG_UNIT = AG_STEP * AG_UNIT_STEPS;
+  const AG_BENCHES = {
+    'city-240': {
+      label: 'City 240',
+      seconds: 240,
+      rules: 'Four minutes of game time in the same city (traffic, pedestrians, police) for everyone (seed 20261022). Highest score wins: mayhem points (scared pedestrians, near misses with traffic, smashed props) plus the payphone missions, which run 1, 2, 3 and then start over. Three busts or wipeouts end the run early, and the clock keeps running while you are busted or wasted. Agents play turn-based: the world waits between actions, and each action holds its keys for 1 to 40 steps of 0.25 s (5 sim steps of 0.05 s each). Humans cannot play the benchmark yet.'
+    }
+  };
+  const AG = { ticks: 0, ended: false, missions: 0 };
+
+  function agLimitTicks() {
+    const b = Arcade.bench && AG_BENCHES[Arcade.bench];
+    return b ? Math.round(b.seconds / AG_STEP) : null;
+  }
+  function agSeconds() { return Math.round(AG.ticks * AG_STEP * 100) / 100; }
+  function agCheckEnd() {
+    if (AG.ended) return;
+    const lim = agLimitTicks();
+    if (player.status === 'gameover' || (lim !== null && AG.ticks >= lim)) {
+      AG.ended = true;
+      Arcade.onGameOver();
+    }
+  }
+
+  const AG_HOLD = { up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD', handbrake: 'Space' };
+  // "up", "up+left 6", "handbrake", "wait 4", "enter", "punch", "respawn"
+  function agParse(action) {
+    const m = /^([a-z+]+)(?: ([1-9][0-9]?))?$/.exec(action);
+    if (!m) return null;
+    const n = m[2] ? Number(m[2]) : 1;
+    if (n > 40) return null;
+    const word = m[1];
+    if (word === 'wait') return { hold: [], n, tap: null };
+    if (word === 'enter' || word === 'punch' || word === 'respawn') {
+      return m[2] ? null : { hold: [], n: 1, tap: word };
+    }
+    const parts = word.split('+');
+    if (new Set(parts).size !== parts.length) return null;
+    for (const p of parts) if (!AG_HOLD[p]) return null;
+    if (parts.includes('up') && parts.includes('down')) return null;
+    if (parts.includes('left') && parts.includes('right')) return null;
+    return { hold: parts.map((p) => AG_HOLD[p]), n, tap: null };
+  }
+
+  async function agApply(action, pace) {
+    const a = agParse(action);
+    if (!a) return false;
+    const lim = agLimitTicks();
+    for (let u = 0; u < a.n && !AG.ended; u++) {
+      for (const k of a.hold) keys[k] = true;
+      if (u === 0) {
+        if (a.tap === 'enter') interactPressed = true;
+        if (a.tap === 'punch') attackPressed = true;
+        if (a.tap === 'respawn') respawnPressed = true;
+      }
+      for (let s = 0; s < AG_UNIT_STEPS && !AG.ended; s++) {
+        simStep(AG_STEP);
+        AG.ticks++;
+        agCheckEnd();
+        if (lim !== null && AG.ticks >= lim) break;
+      }
+      for (const k of a.hold) keys[k] = false;
+      if (u < a.n - 1 && !AG.ended) await pace();
+    }
+    interactPressed = false;
+    attackPressed = false;
+    respawnPressed = false;
+    return true;
+  }
+
+  const AG_DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];   // +x is east, +y is south
+  function agDir(angle) { return AG_DIRS[((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8]; }
+  function agArrow(angle) { return ['>', 'v', '<', '^'][((Math.round(angle / (Math.PI / 2)) % 4) + 4) % 4]; }
+  const agT = (v) => Math.round(v / TILE_SIZE * 10) / 10;                 // pixels to tiles, one decimal
+  const agRel = (o) => ({ dx: agT(o.x - ref().x), dy: agT(o.y - ref().y), dist: agT(Math.hypot(o.x - ref().x, o.y - ref().y)) });
+  function ref() { return player.inCar || player; }
+  const agSign = (n) => (n >= 0 ? '+' : '') + n;
+
+  function agCarKind(c) {
+    if (c.wrecked) return 'wreck';
+    if (c === player.inCar) return 'yours';
+    return c.isTraffic ? 'traffic' : 'parked';
+  }
+
+  function agWorld() {
+    const me = ref();
+    const near = (o, r) => Math.hypot(o.x - me.x, o.y - me.y) <= r * TILE_SIZE;
+    const R = 12;
+    const cs = [];
+    cars.forEach((c, id) => {
+      if (c === player.inCar || !near(c, R)) return;
+      cs.push(Object.assign({ id, kind: agCarKind(c), heading: agDir(c.angle), speed: agT(c.speed), health: Math.round(c.health) }, agRel(c)));
+    });
+    const cops = police.filter((c) => near(c, R + 6)).map((c) => Object.assign({ kind: 'police car', heading: agDir(c.angle), speed: agT(c.speed) }, agRel(c)));
+    const officers = policeOfficers.filter((o) => near(o, R + 6)).map((o) => Object.assign({ kind: 'officer' }, agRel(o)));
+    const ps = peds.filter((p) => near(p, R)).map((p) => Object.assign({ fleeing: p.fleeTimer > 0 }, agRel(p)));
+    const byDist = (a, b) => a.dist - b.dist;
+    return { cars: cs.sort(byDist), police: cops.sort(byDist), officers: officers.sort(byDist), peds: ps.sort(byDist) };
+  }
+
+  function agObserve() {
+    const mission = missionState.active ? {
+      number: missionState.index + 1,
+      secondsLeft: Math.round(missionState.timer * 10) / 10,
+      goal: ['drive to the marker', 'earn mayhem points', 'reach 2 stars, then stay out of sight'][missionState.index],
+      marker: missionState.index === 0 ? agRel({ x: missionState.markerX, y: missionState.markerY }) : null,
+      mayhem: missionState.index === 1 ? { earned: missionState.mayhemEarned, goal: missionState.mayhemGoal } : null,
+      hiddenSeconds: missionState.index === 2 ? Math.round(missionState.hideTimer * 10) / 10 : null
+    } : null;
+    const lim = agLimitTicks();
+    const car = player.inCar;
+    const enterable = !car && cars.some((c) => !c.wrecked && Math.hypot(c.x - player.x, c.y - player.y) < 76);
+    const phone = getNearbyPayphone();
+    return {
+      seconds: agSeconds(),
+      secondsLeft: lim !== null ? Math.round((lim - AG.ticks) * AG_STEP * 100) / 100 : null,
+      status: player.status,
+      at: { x: agT(ref().x), y: agT(ref().y) },
+      inCar: !!car,
+      car: car ? { heading: agDir(car.angle), speed: agT(car.speed), health: Math.round(car.health) } : null,
+      facing: agDir(Math.atan2(player.facingY, player.facingX)),
+      health: player.health,
+      chancesLeft: 3 - player.failCount,
+      wanted: wantedLevel,
+      missionsDone: AG.missions,
+      mission,
+      nextMission: mission ? null : missionState.index + 1,
+      payphones: payphones.map((p) => Object.assign({ name: p.name }, agRel(p))),
+      can: { enterCar: enterable, exitCar: !!car, usePayphone: !!phone && !missionState.active, respawn: player.status === 'busted' || player.status === 'wasted' },
+      world: agWorld()
+    };
+  }
+
+  const AG_TERRAIN = { [TILE.ROAD]: '.', [TILE.SIDEWALK]: ',', [TILE.BUILDING]: '#', [TILE.PARK]: '"', [TILE.WATER]: '~', [TILE.PIER]: '=' };
+  function agText() {
+    const o = agObserve();
+    const b = Arcade.bench && AG_BENCHES[Arcade.bench];
+    const out = [];
+    out.push(`harbor-city${Arcade.bench ? ' ' + Arcade.bench : ''} seed ${Arcade.seed}  time ${o.seconds}` + (o.secondsLeft !== null ? `/${o.secondsLeft + o.seconds}` : '') + 's' +
+      (AG.ended ? (player.status === 'gameover' ? '  GAME OVER' : '  TIME UP') : ''));
+    out.push(`score ${player.score}  wanted ${o.wanted}/5  health ${o.health}/3  chances left ${o.chancesLeft}  missions done ${o.missionsDone}  status ${o.status}`);
+    out.push(o.inCar
+      ? `you: driving, tile (${o.at.x}, ${o.at.y}), heading ${o.car.heading}, speed ${o.car.speed} tiles/s (max 8.8), car health ${o.car.health}`
+      : `you: on foot, tile (${o.at.x}, ${o.at.y}), facing ${o.facing}`);
+    const can = Object.keys(o.can).filter((k) => o.can[k]);
+    if (can.length) out.push('can now: ' + can.join(', '));
+    if (o.mission) {
+      const m = o.mission;
+      let line = `MISSION ${m.number}: ${m.goal}, ${m.secondsLeft}s left`;
+      if (m.marker) line += `, marker M at dx ${agSign(m.marker.dx)} dy ${agSign(m.marker.dy)} (${m.marker.dist} tiles, drive onto it)`;
+      if (m.mayhem) line += `, mayhem ${m.mayhem.earned}/${m.mayhem.goal}`;
+      if (m.hiddenSeconds !== null) line += `, hidden ${m.hiddenSeconds}/20s, ${wantedLevel >= 2 || missionState.reachedTwoStars ? 'heat reached' : 'reach 2 stars first'}`;
+      out.push(line);
+    } else {
+      out.push(`no mission: stand at a payphone $ on foot and "enter" to start mission ${o.nextMission} of 3`);
+    }
+    out.push('payphones: ' + o.payphones.map((p) => `${p.name} dx ${agSign(p.dx)} dy ${agSign(p.dy)} (${p.dist})`).join('; '));
+
+    // Map: 31 x 19 tiles around you. Rows are y (south is down), columns x (east is right).
+    const me = ref();
+    const ctx0 = Math.floor(me.x / TILE_SIZE), cty0 = Math.floor(me.y / TILE_SIZE);
+    const HW = 15, HH = 9;
+    const grid = [];
+    for (let ty = cty0 - HH; ty <= cty0 + HH; ty++) {
+      const row = [];
+      for (let tx = ctx0 - HW; tx <= ctx0 + HW; tx++) {
+        row.push(tx < 0 || ty < 0 || tx >= MAP_SIZE || ty >= MAP_SIZE ? ' ' : (AG_TERRAIN[getTile(tx, ty)] || '?'));
+      }
+      grid.push(row);
+    }
+    const put = (x, y, ch) => {
+      const gx = Math.floor(x / TILE_SIZE) - (ctx0 - HW), gy = Math.floor(y / TILE_SIZE) - (cty0 - HH);
+      if (gx >= 0 && gy >= 0 && gy < grid.length && gx < grid[0].length) grid[gy][gx] = ch;
+    };
+    for (const p of payphones) put(p.x, p.y, '$');
+    if (missionState.active && missionState.index === 0) put(missionState.markerX, missionState.markerY, 'M');
+    for (const p of peds) put(p.x, p.y, 'p');
+    cars.forEach((c) => put(c.x, c.y, c.wrecked ? 'x' : (c.isTraffic ? 't' : 'c')));
+    for (const c of police) put(c.x, c.y, 'P');
+    for (const c of policeOfficers) put(c.x, c.y, 'o');
+    put(me.x, me.y, '@');
+    out.push('map (you @, cars: c parked, t traffic, x wreck, P police, o officer, p pedestrian, $ payphone, M marker)');
+    out.push('terrain: . road, , sidewalk, # building (solid), " park, ~ water, = pier');
+    let tens = '   ', ones = '   ';
+    for (let tx = ctx0 - HW; tx <= ctx0 + HW; tx++) {
+      tens += tx < 0 ? ' ' : String(Math.floor(tx / 10) % 10);
+      ones += tx < 0 ? ' ' : String(tx % 10);
+    }
+    out.push(tens, ones);
+    grid.forEach((row, i) => out.push(String(cty0 - HH + i).padStart(2, ' ') + ' ' + row.join('')));
+
+    const w = o.world;
+    const fmt = (e) => `dx ${agSign(e.dx)} dy ${agSign(e.dy)}`;
+    if (w.cars.length) out.push('cars nearby: ' + w.cars.slice(0, 8).map((c) => `#${c.id} ${c.kind} ${fmt(c)} ${c.heading}` + (c.kind === 'traffic' ? ` ${c.speed}t/s` : '')).join('; '));
+    if (w.police.length || w.officers.length) {
+      out.push('police: ' + w.police.slice(0, 5).map((c) => `car ${fmt(c)} ${c.heading} ${c.speed}t/s`).concat(w.officers.slice(0, 5).map((c) => `officer ${fmt(c)}`)).join('; '));
+    }
+    if (w.peds.length) out.push('pedestrians nearby: ' + w.peds.slice(0, 8).map((p) => fmt(p) + (p.fleeing ? ' fleeing' : '')).join('; '));
+    out.push('dx/dy are tiles from you (east +, south +). A tile is 1 map cell. One unit is 0.25 s: about 1.1 tiles on foot, up to 2.2 tiles in a car at full speed.');
+    return out.join('\n');
+  }
+
+  function agStart() {
+    Arcade.reset();
+    peds.length = 0;
+    spawnPeds();
+    startNewGame();
+    policeSeePlayerNow = false;
+    AG.ticks = 0;
+    AG.ended = false;
+    AG.missions = 0;
+    gameStarted = true;
+    updateCamera();
+  }
+
+  Arcade.register({
+    id: 'harbor-city',
+    benchmarks: AG_BENCHES,
+    actions: {
+      'up [n]': 'hold W for n units (default 1, max 40; a unit is 0.25 s). On foot: walk north. In a car: accelerate',
+      'down [n]': 'hold S. On foot: walk south. In a car: brake, then reverse',
+      'left [n]': 'hold A. On foot: walk west. In a car: steer left (only while moving)',
+      'right [n]': 'hold D. On foot: walk east. In a car: steer right (only while moving)',
+      'up+left [n]': 'hold two keys at once; also up+right, down+left, down+right',
+      'handbrake [n]': 'hold Space in a car: brake hard; with left or right (left+handbrake) it turns tighter. Spends a unit on foot',
+      'wait [n]': 'do nothing for n units; the world keeps moving',
+      enter: 'press E: get in or out of a car (nearest within 1.6 tiles), or take the call at a payphone (within 1.3 tiles, on foot)',
+      punch: 'press Space on foot: swing a fist (cooldown 0.35 s); hitting pedestrians scores',
+      respawn: 'press R after a bust or wipeout: back to the start, wanted level cleared (a chance is spent)'
+    },
+    start: agStart,
+    ready: () => gameStarted && !AG.ended,
+    over: () => AG.ended,
+    score: () => player.score,
+    stats: () => ({ seconds: agSeconds(), missions: AG.missions, chancesUsed: player.failCount }),
+    observe: agObserve,
+    text: agText,
+    apply: agApply
+  });
+
+  // Test hook, agent mode only (tools/harbor/check.mjs): a fingerprint of everything the rules read, across the
+  // whole city, not just the window observe() shows. Cosmetic state (renderState, smoke, sparks) is left out.
+  function agStateHash() {
+    const { bannerText, bannerSub, bannerColor, bannerTimer, pulseTime, ...missions } = missionState;   // banner and pulse are cosmetic
+    const s = JSON.stringify({ cars, peds, police, policeOfficers, props, player, missions, wantedLevel,
+      noMayhemTimer, bustedTimer, policeSeePlayerNow, collisionSoundCooldown, AG });
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return (h >>> 0).toString(16).padStart(8, '0');
+  }
+  if (Arcade.agent) window.__harbor = { stateHash: agStateHash };
 
   requestAnimationFrame(frame);
 })();

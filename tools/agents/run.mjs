@@ -1,6 +1,6 @@
 // Plays a benchmark with a baseline agent through the public window.arcade API and writes the run.
 //   node agents/run.mjs <agent> <benchmark-id> [--base http://127.0.0.1:8765] [--out ../data/runs]
-// Agents: random (any game), heuristic (block-drop), greedy-color-stack, greedy-pill-drop, jev (block-drop, needs TYPESAFE_API_KEY), rustwater-random and rustwater-seeker (rustwater-havoc/rust-240).
+// Agents: random (any game), heuristic (block-drop), greedy-color-stack, greedy-pill-drop, jev (block-drop, needs TYPESAFE_API_KEY), rustwater-random and rustwater-seeker (rustwater-havoc/rust-240), harbor-random and harbor-seeker (harbor-city/city-240).
 // Each module exports { player, choose(observation) }; choose may be async.
 import { chromium } from "playwright";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -16,7 +16,7 @@ const opt = (name, fallback) => {
 const base = opt("--base", "http://127.0.0.1:8765");
 const outDir = path.resolve(opt("--out", path.join(here, "../../data/runs")));
 if (!agentName || !benchId) {
-  console.error("usage: node agents/run.mjs <random|heuristic|greedy-color-stack|greedy-pill-drop|jev|rustwater-random|rustwater-seeker> <benchmark-id>");
+  console.error("usage: node agents/run.mjs <random|heuristic|greedy-color-stack|greedy-pill-drop|jev|rustwater-random|rustwater-seeker|harbor-random|harbor-seeker> <benchmark-id>");
   process.exit(2);
 }
 
