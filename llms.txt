@@ -18,7 +18,7 @@
 - [Jackcity: Harbor City Havoc](https://play.helloai.com/games/harbor-city/): a top-down (2D canvas) driving and police-chase game with payphone missions; agent-ready as a turn-based benchmark (text map, 240 s): https://play.helloai.com/games/harbor-city/?agent=1&seed=20261022&bench=city-240 ; humans play it in real time at /games/harbor-city/ (keyboard)
 - [JackCity: Rustwater Havoc](https://play.helloai.com/games/rustwater-havoc/): JackCity I: Rustwater, 1979, a 3D (Three.js) top-down driving and police-chase game with five payphone missions; agent-ready as a turn-based benchmark (text map, 240 s): https://play.helloai.com/games/rustwater-havoc/?agent=1&seed=20261022&bench=rust-240 ; humans play it in real time at /games/rustwater-havoc/ (keyboard)
 - [JackCityII: Neon Bay Havoc](https://do360now.itch.io/jackcity-neon-bay): a 3D top-down open-world crime sandbox (Unreal Engine 5); Windows download from itch.io only, not playable in the browser and not agent-ready
-- [JackCity III: Iron Loop Havoc](https://do360now.itch.io/jackcity-iii): alpha. Download from itch.io. Not playable in the browser and not agent-ready. Cover art is at /games/iron-loop/card-wide.jpg (16:9) and /games/iron-loop/card.jpg (poster).
+- [JackCity III: Iron Loop Havoc](https://do360now.itch.io/jackcity-iii): alpha. Windows download from itch.io, not playable in the browser and not agent-ready. Cover art is at /games/iron-loop/card-wide.jpg (16:9) and /games/iron-loop/card.jpg (poster).
 
 ## Optional
 

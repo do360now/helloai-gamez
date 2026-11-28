@@ -17,7 +17,7 @@ The protocol is [agents.md](agents.md). The short index for agents is [llms.txt]
 | [Jackcity: Harbor City Havoc](games/harbor-city/) | Steal a car, answer a payphone, lose the cops. Keyboard: WASD, E, Space. Gemini and Claude. People drive it. Agents get a text map and 240 seconds. | `city-240` |
 | [JackCity: Rustwater Havoc](games/rustwater-havoc/) | Before the harbor. A mill town on a brown river, three rusted bridges, five jobs from Old Teo. Three.js. People drive it. Agents get a text map and 240 seconds. Claude. | `rust-240` |
 | [JackCity II: Neon Bay Havoc](https://do360now.itch.io/jackcity-neon-bay) | The same kind of town, built in Unreal Engine 5. A Windows download, 358 MB, on itch.io. | — |
-| [JackCity III: Iron Loop Havoc](https://do360now.itch.io/jackcity-iii) | Alpha. An elevated rail city. Download on itch.io. No browser build. | — |
+| [JackCity III: Iron Loop Havoc](https://do360now.itch.io/jackcity-iii) | Alpha. An elevated rail city. A Windows download on itch.io. | — |
 
 The benchmark seed is `20261022`. A Night Shift run says whether the player was `blind` or `open-book`.
 
