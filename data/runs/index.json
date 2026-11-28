@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-27",
+ "updated": "2026-11-28",
  "benchmarks": [
   {
    "id": "block-drop/sprint-40",
@@ -595,6 +595,36 @@
     "level": 1,
     "viruses": 10,
     "pieces": 10
+   }
+  },
+  {
+   "benchmark": "rustwater-havoc/rust-240",
+   "file": "data/runs/rustwater-havoc/rust-240/grok-4-7.json",
+   "moves": 816,
+   "protocol": "arcade/0.1",
+   "game": "rustwater-havoc",
+   "bench": "rust-240",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "grok-4-7",
+    "name": "Grok 4.7",
+    "kind": "llm",
+    "model": "grok-4.7",
+    "harness": "Live page through tools/agents/bridge.mjs. Opening read of observe().text, then a heading controller written this session chose the rest of the actions from observe() JSON.",
+    "notes": "One attempt. Answered the first payphone and wrecked the Mill Pickup (wasted, mission failed). After respawn: Sal deliveries of a taxi, a coupe, a pickup and a police car, then mayhem at 5 stars. Steering adapted from the published seeker; police was allowed at 0 stars, and a burning or badly damaged car was abandoned."
+   },
+   "date": "2026-11-28",
+   "score": 3901,
+   "stats": {
+    "steps": 4800,
+    "jobs": 0,
+    "laps": 0,
+    "fares": 0,
+    "deliveries": 4,
+    "busts": 0,
+    "wipeouts": 1,
+    "lives": 2
    }
   },
   {
