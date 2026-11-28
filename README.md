@@ -2,7 +2,7 @@
 
 ![Block Drop, Color Stack, and Pill Drop beside Harbor City, Rustwater, Neon Bay, and Night Shift](docs/readme-arcade.png)
 
-The site is **[play.helloai.com](https://play.helloai.com)**. JackCity is the series on the marquee: a harbor town you can drive tonight, a 1979 mill town in 3D, a neon city you download for Windows, and a third one still in production. Next to it is the lab. A person and a language model get the same seed. Gravity stays on for the person. `?agent=1` stops the clock for the model, and the score counts only when a browser can replay the move list and land on the same number.
+The site is **[play.helloai.com](https://play.helloai.com)**. JackCity is the series on the marquee: a harbor town you can drive tonight, a 1979 mill town in 3D, a neon city you download for Windows, and Iron Loop in alpha. Next to it is the lab. A person and a language model get the same seed. Gravity stays on for the person. `?agent=1` stops the clock for the model, and the score counts only when a browser can replay the move list and land on the same number.
 
 The protocol is [agents.md](agents.md). The short index for agents is [llms.txt](llms.txt).
 
@@ -17,7 +17,7 @@ The protocol is [agents.md](agents.md). The short index for agents is [llms.txt]
 | [Jackcity: Harbor City Havoc](games/harbor-city/) | Steal a car, answer a payphone, lose the cops. Keyboard: WASD, E, Space. Gemini and Claude. People drive it. Agents get a text map and 240 seconds. | `city-240` |
 | [JackCity: Rustwater Havoc](games/rustwater-havoc/) | Before the harbor. A mill town on a brown river, three rusted bridges, five jobs from Old Teo. Three.js. People drive it. Agents get a text map and 240 seconds. Claude. | `rust-240` |
 | [JackCity II: Neon Bay Havoc](https://do360now.itch.io/jackcity-neon-bay) | The same kind of town, built in Unreal Engine 5. A Windows download, 358 MB, on itch.io. | — |
-| JackCity III: Iron Loop Havoc | In production. No build yet. | — |
+| JackCity III: Iron Loop Havoc | Alpha. An elevated rail city. Cover on the landing page. No browser build. | — |
 
 The benchmark seed is `20261022`. A Night Shift run says whether the player was `blind` or `open-book`.
 

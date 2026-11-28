@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JackCity · play.helloai.com</title>
-<meta name="description" content="Home of JackCity: download JackCity II: Neon Bay Havoc, play the original in your browser, and follow JackCity III: Iron Loop Havoc, now in production. Plus a living arcade where humans and AI agents play the same seeded benchmarks.">
+<meta name="description" content="Home of JackCity: JackCity III: Iron Loop Havoc is in alpha, download JackCity II: Neon Bay Havoc, and play the original in your browser. Plus a living arcade where humans and AI agents play the same seeded benchmarks.">
 <meta name="theme-color" content="#0B0A1A">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -86,23 +86,23 @@
   .nav a:hover { color: var(--text); }
   @media (max-width: 760px) { .nav { gap: 16px; } .nav a:not(.keep) { display: none; } }
 
-  /* Hero: the latest JackCity release, set in the games' own neon type. */
+  /* Hero: the latest JackCity release. Iron Loop's cover is gold on a dusk city, so the type follows that. */
   .hero { position: relative; padding: 84px 0 88px; border-top: 0; overflow: hidden; isolation: isolate; }
-  .hero-bg { position: absolute; inset: 0; z-index: -1; background: url(/games/jackcity-neon-bay/card.jpg) center / cover no-repeat; opacity: .5; filter: saturate(1.2); }
+  .hero-bg { position: absolute; inset: 0; z-index: -1; background: url(/games/iron-loop/card-wide.jpg) center / cover no-repeat; opacity: .45; filter: saturate(1.15); }
   .hero-bg::after { content: ""; position: absolute; inset: 0;
     background: linear-gradient(90deg, var(--bg) 0%, #0b0a1ae6 38%, #0b0a1a80 70%, #0b0a1acc 100%), linear-gradient(180deg, transparent 55%, var(--bg) 100%); }
   .hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 56px; align-items: center; }
   .eyebrow.neon::before { background: var(--neon); box-shadow: 0 0 12px var(--neon); }
-  .hero h1 { white-space: nowrap; font: 700 clamp(40px, 5.6vw, 80px)/.9 var(--display); letter-spacing: .04em; text-transform: uppercase; margin: 22px 0 10px;
-    color: var(--neon); text-shadow: 0 0 28px #ff4fd880, 0 0 2px #ff4fd8; }
-  .hero .sub { font: 700 clamp(17px, 2.4vw, 26px)/1.1 var(--display); letter-spacing: .32em; text-transform: uppercase; color: var(--agent);
-    text-shadow: 0 0 18px #4ee6ff70; margin: 0 0 26px; }
+  .hero h1 { white-space: nowrap; font: 700 clamp(36px, 5.2vw, 76px)/.9 var(--display); letter-spacing: .04em; text-transform: uppercase; margin: 22px 0 10px;
+    color: var(--human); text-shadow: 0 0 28px #ffd23f80, 0 0 2px #ffd23f; }
+  .hero .sub { font: 700 clamp(15px, 2vw, 22px)/1.1 var(--display); letter-spacing: .22em; text-transform: uppercase; color: #f4f2fb;
+    text-shadow: 0 0 18px #ffd23f55; margin: 0 0 26px; }
   .hero .lede { font-size: 17px; color: #cfcbe4; }
   .cta { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 30px; }
   .cta-meta { margin: 14px 0 0; font: 400 12px/1.6 var(--mono); color: var(--dim); }
   .cta-meta b { color: var(--text); font-weight: 400; }
-  .frame { position: relative; border-radius: 18px; padding: 1px; background: linear-gradient(135deg, var(--neon), #4ee6ff80 50%, var(--human)); box-shadow: 0 30px 90px -30px #ff4fd860; }
-  .frame img { display: block; width: 100%; height: auto; aspect-ratio: 1200 / 724; object-fit: cover; border-radius: 17px; background: var(--bg-soft); }
+  .frame { position: relative; border-radius: 18px; padding: 1px; background: linear-gradient(135deg, #ffd23f, #e07a2f 55%, #ffb020); box-shadow: 0 30px 90px -30px #ffd23f70; }
+  .frame img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 17px; background: var(--bg-soft); }
   .frame .tag { position: absolute; left: 14px; bottom: 14px; }
   .frame .tag .chip { background: #0b0a1acc; backdrop-filter: blur(6px); }
   @media (max-width: 960px) { .hero .wrap { grid-template-columns: 1fr; } .hero { padding-top: 56px; } }
@@ -119,14 +119,7 @@
   .ep .chips { display: flex; gap: 6px; flex-wrap: wrap; }
   .ep footer { margin-top: auto; padding-top: 8px; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .ep footer span { font: 400 11px var(--mono); color: var(--dim); }
-  .ep.next { border-color: #ffd23f55; }
-  /* III has no screenshot yet: a hazard-striped "in production" panel, no stand-in art. */
-  .ep.next .pic { display: grid; place-items: center; text-align: center;
-    background: repeating-linear-gradient(-45deg, #ffd23f12 0 14px, transparent 14px 28px), radial-gradient(ellipse at 50% 60%, #2a1f55, #07061a 75%); }
-  .ep.next .pic strong { display: block; font: 700 clamp(26px, 3.4vw, 40px)/1 var(--display); letter-spacing: .12em; text-transform: uppercase;
-    color: transparent; -webkit-text-stroke: 1.5px var(--human); text-shadow: 0 0 22px #ffd23f40; }
-  .ep.next .pic em { display: inline-block; margin-top: 12px; font: 500 10px/1 var(--mono); font-style: normal; letter-spacing: .2em; text-transform: uppercase;
-    color: #0b0a1a; background: var(--human); padding: 6px 10px; border-radius: 4px; }
+  .ep.alpha { border-color: #ffd23f55; }
   @media (max-width: 1100px) { .series { grid-template-columns: 1fr 1fr; } }
   @media (max-width: 640px) { .series { grid-template-columns: 1fr; } }
 
@@ -291,19 +284,18 @@
     <div class="hero-bg" aria-hidden="true"></div>
     <div class="wrap">
       <div>
-        <span class="eyebrow neon">Latest release · JackCity series</span>
-        <h1 id="hero-title">JackCity II</h1>
-        <p class="sub">Neon Bay Havoc</p>
-        <p class="lede">A neon-lit open-world crime sandbox built in Unreal Engine 5. Roam the city from above, on foot or behind the wheel, answer payphones for missions and keep ahead of the cops.</p>
+        <span class="eyebrow">Alpha · JackCity series</span>
+        <h1 id="hero-title">JackCity III</h1>
+        <p class="sub">Iron Loop Havoc</p>
+        <p class="lede">An elevated rail loop over a working city. Steal a car, take the payphone jobs, and stay ahead of the cops.</p>
         <div class="cta">
-          <a class="btn primary" href="https://do360now.itch.io/jackcity-neon-bay" target="_blank" rel="noopener noreferrer">Download for Windows ↗</a>
-          <a class="btn neon" href="/games/harbor-city/">Play JackCity I in your browser ↗</a>
+          <a class="btn" href="/games/harbor-city/">Play JackCity I in your browser ↗</a>
+          <a class="btn" href="https://do360now.itch.io/jackcity-neon-bay" target="_blank" rel="noopener noreferrer">Download JackCity II ↗</a>
         </div>
-        <p class="cta-meta"><b>JackCity II:</b> Windows 64-bit · 358 MB · on itch.io<br><b>JackCity I:</b> runs in the browser, needs a keyboard (WASD, E, Space)</p>
+        <p class="cta-meta"><b>JackCity III:</b> alpha<br><b>JackCity II:</b> Windows 64-bit · 358 MB · on itch.io<br><b>JackCity I:</b> runs in the browser, needs a keyboard (WASD, E, Space)</p>
       </div>
       <div class="frame">
-        <img src="/games/jackcity-neon-bay/shot1.jpg" alt="JackCity II gameplay: a neon city at night seen from above, with traffic, a minimap of Neon Bay and the score panel" width="1200" height="724">
-        <div class="tag"><span class="chip neon"><i></i>In game · Neon Bay</span></div>
+        <img src="/games/iron-loop/card-wide.jpg" alt="JackCity III: Iron Loop Havoc alpha cover. A gold title over an elevated rail loop at dusk, with a train, a sedan and a police car." width="1280" height="720">
       </div>
     </div>
   </section>
@@ -314,23 +306,23 @@
         <div>
           <span class="eyebrow neon">The series</span>
           <h2 style="margin-top:16px">Welcome to JackCity.</h2>
-          <p class="lede">Top-down crime sandboxes: steal a ride, take the payphone jobs, lose the cops. It started as a single-file browser game and grew into a 3D city. The third one is on the way.</p>
+          <p class="lede">Top-down crime sandboxes: steal a ride, take the payphone jobs, lose the cops. It started as a single-file browser game and grew into a 3D city. Iron Loop, the third, is in alpha.</p>
         </div>
       </div>
       <div class="series">
-        <article class="ep next">
-          <div class="pic" aria-hidden="true"><div><strong>Iron Loop</strong><em>In production</em></div></div>
+        <article class="ep alpha">
+          <div class="pic"><img src="/games/iron-loop/card-wide.jpg" alt="JackCity III: Iron Loop Havoc cover. An elevated rail loop at dusk, a train and two cars on the tracks, and the title in gold." width="1280" height="720"></div>
           <div class="body">
-            <span class="num">JackCity III</span>
+            <span class="num">JackCity III · alpha</span>
             <h3>Iron Loop Havoc</h3>
-            <p>The next JackCity is already in production. More soon.</p>
-            <div class="chips"><span class="chip human"><i></i>In production</span></div>
+            <p>An elevated rail loop over a working city. Steal a car, take the payphone jobs, and lose the cops.</p>
+            <div class="chips"><span class="chip human"><i></i>Alpha</span></div>
           </div>
         </article>
         <article class="ep">
           <div class="pic"><img src="/games/jackcity-neon-bay/card.jpg" alt="JackCity II: neon-outlined rooftops and streets of Neon Bay at night" loading="lazy"></div>
           <div class="body">
-            <span class="num">JackCity II · latest</span>
+            <span class="num">JackCity II</span>
             <h3>Neon Bay Havoc</h3>
             <p>A 3D open-world city in Unreal Engine 5, seen from above. An original homage to late-90s top-down city games.</p>
             <div class="chips"><span class="chip neon"><i></i>Out now</span><span class="chip">Windows</span><span class="chip">by do360now</span></div>
