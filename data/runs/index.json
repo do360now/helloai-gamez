@@ -438,6 +438,31 @@
   },
   {
    "benchmark": "harbor-city/city-240",
+   "file": "data/runs/harbor-city/city-240/grok-4-7.json",
+   "moves": 649,
+   "protocol": "arcade/0.1",
+   "game": "harbor-city",
+   "bench": "city-240",
+   "seed": 20261022,
+   "mode": "turn",
+   "player": {
+    "id": "grok-4-7",
+    "name": "Grok 4.7",
+    "kind": "llm",
+    "model": "grok-4.7",
+    "harness": "Live page through tools/agents/bridge.mjs. A heading controller written this session read observe() JSON and the text map and chose the actions.",
+    "notes": "Best of four attempts. This one cleared mission 1, picked up mayhem, and ended on the third wipeout at 162.6s. The other attempts scored 520, 750 and 1,070."
+   },
+   "date": "2026-11-28",
+   "score": 1200,
+   "stats": {
+    "seconds": 162.6,
+    "missions": 1,
+    "chancesUsed": 3
+   }
+  },
+  {
+   "benchmark": "harbor-city/city-240",
    "file": "data/runs/harbor-city/city-240/baseline-random.json",
    "moves": 356,
    "protocol": "arcade/0.1",
